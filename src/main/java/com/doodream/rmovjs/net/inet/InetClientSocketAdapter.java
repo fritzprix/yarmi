@@ -1,7 +1,7 @@
 package com.doodream.rmovjs.net.inet;
 
 
-import com.doodream.rmovjs.model.ErrorMessage;
+import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.model.ServiceInfo;
@@ -58,9 +58,8 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
 
         Scanner reader = new Scanner(client.getInputStream());
         new Thread(() -> {
-            String line;
-            while((line = reader.nextLine()) != null) {
-                clientRequestSubject.onNext(line);
+            while(reader.hasNext()) {
+                clientRequestSubject.onNext(reader.nextLine());
             }
             clientRequestSubject.onComplete();
         }).start();
@@ -76,11 +75,7 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
                     .map(s -> GSON.fromJson(s, ServiceInfo.class))
                     .blockingFirst();
             if(serviceInfo.hashCode() != this.serviceInfo.hashCode()) {
-                Response<ErrorMessage> resp = Response.build(ErrorMessage.builder()
-                        .code(403)
-                        .msg("service info is not matched")
-                        .build(),ErrorMessage.class);
-
+                Response resp = RMIError.FORBIDDEN.getResponse(Request.builder().serviceInfo(serviceInfo).build());
                 writer.write(GSON.toJson(resp));
             }
 

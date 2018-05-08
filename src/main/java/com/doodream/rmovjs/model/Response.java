@@ -3,6 +3,7 @@ package com.doodream.rmovjs.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import lombok.AllArgsConstructor;
@@ -51,11 +52,48 @@ public class Response<T> {
     boolean isSuccessful;
     int code;
 
+    public static Response from(Response response) {
+        return Response.builder()
+                .endpoint(response.endpoint)
+                .body(response.body)
+                .bodyCls(response.bodyCls)
+                .isSuccessful(response.isSuccessful)
+                .code(response.code)
+                .build();
+    }
+
+    public static Response success(Request request, Response response) {
+        response.setSuccessful(true);
+        response.setCode(200);
+        response.setEndpoint(request.getEndpoint());
+        response.setBodyCls(request.getEndpoint().responseType);
+        return response;
+    }
+
+    @Data
+    public static class ErrorBody {
+        @SerializedName("msg")
+        String message;
+
+        private ErrorBody(String msg) {
+            message = msg;
+        }
+    }
+
     public static String toJson(Response response) {
         return GSON.toJson(response);
     }
 
     public static Response fromJson(String json) {
         return GSON.fromJson(json, Response.class);
+    }
+
+    public static Response error(int code, String mesg) {
+        return Response.<ErrorBody>builder()
+                .code(code)
+                .isSuccessful(false)
+                .body(new ErrorBody(mesg))
+                .bodyCls(ErrorBody.class)
+                .build();
     }
 }

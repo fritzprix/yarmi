@@ -6,7 +6,7 @@ import com.doodream.rmovjs.annotation.server.Service;
 @Service(name = "test-service")
 public class TestService {
 
-    @Controller(path = "/user",module = UserIDControllerImpl.class)
+    @Controller(path = "/user", version = 1, module = UserIDControllerImpl.class)
     UserIDPController userIDPService;
 }
 

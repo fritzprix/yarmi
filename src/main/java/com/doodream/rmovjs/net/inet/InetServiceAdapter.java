@@ -9,6 +9,7 @@ import com.doodream.rmovjs.net.ServiceAdapter;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.Function;
+import lombok.NonNull;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -40,15 +41,15 @@ public class InetServiceAdapter implements ServiceAdapter {
     }
 
     @Override
-    public void listen(ServiceInfo serviceInfo, Function<Request, Response> onRequest) throws IOException {
-        assert onRequest != null;
+    public void listen(ServiceInfo serviceInfo, @NonNull Function<Request, Response> handleRequest) throws IOException {
         serverSocket = new ServerSocket();
         compositeDisposable.add(Observable.just(serverSocket)
                 .doOnNext(socket -> socket.bind(mAddress))
                 .map(socket -> clientAdapterFactory.handshake(serviceInfo, new InetRMISocket(serverSocket.accept())))
+                .doOnNext(System.out::println)
                 .map(clientAdapterObservable -> clientAdapterObservable.doOnComplete(this::onComplete))
                 .map(clientAdapterObservable -> clientAdapterObservable.doOnError(this::onError))
-                .map(clientAdapterObservable -> clientAdapterObservable.subscribe(adapter -> subscribe(adapter, onRequest)))
+                .map(clientAdapterObservable -> clientAdapterObservable.subscribe(adapter -> subscribe(adapter, handleRequest)))
                 .subscribe(compositeDisposable::add));
     }
 
@@ -57,7 +58,7 @@ public class InetServiceAdapter implements ServiceAdapter {
     }
 
     private void onError(Throwable throwable) {
-        System.out.println(throwable);
+        throwable.printStackTrace();
     }
 
     private void subscribe(ClientSocketAdapter adapter, Function<Request, Response> requestHandler) throws IOException {
@@ -70,6 +71,7 @@ public class InetServiceAdapter implements ServiceAdapter {
 
     @Override
     public void close() throws IOException {
+        System.out.println("Closed");
         if(serverSocket != null
                 && !serverSocket.isClosed()) {
                 serverSocket.close();

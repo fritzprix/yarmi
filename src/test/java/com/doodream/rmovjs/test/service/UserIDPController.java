@@ -7,7 +7,7 @@ import com.doodream.rmovjs.annotation.parameter.Path;
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.model.Response;
 
-@Controller(path = "/user", module = UserIDControllerImpl.class)
+@Controller(path = "/user", version = 1, module = UserIDControllerImpl.class)
 public interface UserIDPController {
 
     @Get("/{id}")

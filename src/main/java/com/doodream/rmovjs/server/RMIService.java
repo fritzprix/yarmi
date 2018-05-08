@@ -3,16 +3,17 @@ package com.doodream.rmovjs.server;
 
 import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.annotation.server.Service;
-import com.doodream.rmovjs.model.Request;
-import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.model.ServiceInfo;
+import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.ServiceAdapter;
+import com.doodream.rmovjs.sdp.ServiceAdvertiser;
 import io.reactivex.Observable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.List;
 
@@ -32,10 +33,11 @@ public class RMIService {
     private HashMap<String, RMIController> controllerMap;
     private ServiceInfo serviceInfo;
     private ServiceAdapter adapter;
+    private ServiceAdvertiser advertiser;
 
     protected static final String TAG = RMIService.class.getCanonicalName();
 
-    public static <T> RMIService create(Class<T> cls) throws IllegalAccessException, InstantiationException {
+    public static <T> RMIService create(Class<T> cls, ServiceAdvertiser advertiser) throws IllegalAccessException, InstantiationException {
 
         Properties.load();
         Service service = cls.getAnnotation(Service.class);
@@ -50,16 +52,25 @@ public class RMIService {
         RMIServiceBuilder builder = RMIService.builder();
 
 
-        Observable.fromArray(cls.getDeclaredFields())
+        Observable<RMIController> controllerObservable = Observable.fromArray(cls.getDeclaredFields())
                 .filter(RMIController::isValidController)
                 .map(RMIController::create)
-                .collectInto(new HashMap<>(), RMIService::buildControllerMap)
+                .cache();
+
+        controllerObservable.collectInto(new HashMap<>(), RMIService::buildControllerMap)
                 .doOnSuccess(builder::controllerMap)
+                .subscribe();
+
+        controllerObservable
+                .map(ControllerInfo::build)
+                .toList()
+                .doOnSuccess(serviceInfo::setControllerInfos)
                 .subscribe();
 
         return builder
                 .adapter(adapter)
                 .service(service)
+                .advertiser(advertiser)
                 .serviceInfo(serviceInfo)
                 .build();
     }
@@ -74,14 +85,21 @@ public class RMIService {
 
     public void listen() throws Exception {
         adapter.listen(serviceInfo, this::routeRequest);
+        advertiser.startAdvertiser(serviceInfo);
     }
 
-    private Response routeRequest(Request request) {
-        System.out.println(request);
-        return null;
+    private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException {
+        final String path = request.getPath();
+        assert path != null;
+        RMIController controller = controllerMap.get(request.getPath());
+        if(controller != null) {
+            return controller.handleRequest(request);
+        }
+        return RMIError.NOT_FOUND.getResponse(request);
     }
 
     public void stop() throws Exception {
+        advertiser.stopAdvertiser();
         adapter.close();
     }
 }

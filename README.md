@@ -1,2 +1,2 @@
 ## rmovr-json
-> Proof-of-concept for cross-platform RMI based over JSON
+> Proof-of-concept for cross-platform RMI over JSON

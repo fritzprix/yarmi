@@ -42,4 +42,12 @@ public class Param {
                 .paramCls(paramCls)
                 .build();
     }
+
+    public static <R> Object instantiate(Param param) {
+        return null;
+    }
+
+    public static int sort(Param param, Param param1) {
+        return param.order - param1.order;
+    }
 }

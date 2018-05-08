@@ -4,7 +4,7 @@ import com.doodream.rmovjs.model.ServiceInfo;
 
 import java.io.IOException;
 
-public interface RMIServiceAdvertiser {
+public interface ServiceAdvertiser {
     void startAdvertiser(ServiceInfo info) throws IOException;
     void stopAdvertiser() throws IOException;
 }

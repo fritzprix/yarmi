@@ -7,7 +7,7 @@ import io.reactivex.Observable;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-public interface RMIServiceDiscovery {
+public interface ServiceDiscovery {
     Observable<RMIServiceProxy> discover(ServiceInfo info, long timeout, TimeUnit unit) throws IOException;
     Observable<RMIServiceProxy> startDiscovery(ServiceInfo info) throws IOException;
     void stopDiscovery() throws IOException;

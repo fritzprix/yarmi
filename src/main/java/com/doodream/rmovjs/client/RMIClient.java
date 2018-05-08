@@ -83,7 +83,7 @@ public class RMIClient {
                 .build();
 
 
-        Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), controller.module().getInterfaces(), rmiClient::handleInvokation);
+        Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), controller.module().getInterfaces(), rmiClient::handleInvocation);
         rmiClient.setProxyWeakReference(new WeakReference<>(proxy));
 
         // rmiClient has weakreference to proxy, and proxy has reference to rmiClient
@@ -104,7 +104,7 @@ public class RMIClient {
     }
 
 
-    private Object handleInvokation(Object proxy, Method method, Object[] objects) throws InvocationTargetException, IllegalAccessException, IOException {
+    private Object handleInvocation(Object proxy, Method method, Object[] objects) throws InvocationTargetException, IllegalAccessException, IOException {
         Endpoint endpoint = methodMap.get(method);
         endpoint.applyParam(objects);
         return serviceProxy.request(endpoint);

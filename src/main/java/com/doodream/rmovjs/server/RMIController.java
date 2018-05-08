@@ -3,7 +3,9 @@ package com.doodream.rmovjs.server;
 
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.method.RMIMethod;
-import com.doodream.rmovjs.model.Endpoint;
+import com.doodream.rmovjs.model.*;
+import com.doodream.rmovjs.parameter.Param;
+import com.google.common.collect.Lists;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import lombok.AllArgsConstructor;
@@ -12,6 +14,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 @AllArgsConstructor
@@ -24,6 +27,7 @@ public class RMIController {
     private Map<RMIMethod, Map<String, Endpoint>> endpointMap;
     private Set<String> endpoints;
     private Object impl;
+    private Class itfcCls;
 
     static public RMIController create(Field field) throws IllegalAccessException, InstantiationException {
         Controller controller = field.getAnnotation(Controller.class);
@@ -43,8 +47,9 @@ public class RMIController {
                 .collectInto(new HashSet<>(), RMIController::collectPaths);
 
         return Observable.just(RMIController.builder())
-                .map(nsdControllerBuilder -> nsdControllerBuilder.impl(impl))
-                .map(nsdControllerBuilder -> nsdControllerBuilder.controller(controller))
+                .map(controllerBuilder -> controllerBuilder.impl(impl))
+                .map(controllerBuilder -> controllerBuilder.controller(controller))
+                .map(controllerBuilder -> controllerBuilder.itfcCls(cls))
                 .zipWith(collection.toObservable(), RMIControllerBuilder::endpointMap)
                 .zipWith(pathCollection.toObservable(), RMIControllerBuilder::endpoints)
                 .map(RMIControllerBuilder::build)
@@ -69,7 +74,26 @@ public class RMIController {
         return field.getAnnotation(Controller.class) != null;
     }
 
-    public List<String> getPaths() {
+    List<String> getPaths() {
         return Observable.fromIterable(endpoints).toList().blockingGet();
     }
+
+    Response handleRequest(Request request) throws InvocationTargetException, IllegalAccessException {
+        final Map<String, Endpoint> pathMap = endpointMap.get(request.getMethodType());
+        if(pathMap == null) {
+            return RMIError.NOT_FOUND.getResponse(request);
+        }
+        final Endpoint endpoint = pathMap.get(request.getPath());
+        if(endpoint == null) {
+            return RMIError.NOT_FOUND.getResponse(request);
+        }
+        List<Object> params = Observable.fromIterable(endpoint.getParams())
+                .sorted(Param::sort)
+                .map(Param::instantiate)
+                .toList().blockingGet();
+
+        Response response = (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());
+        return Response.success(request, response);
+    }
+
 }

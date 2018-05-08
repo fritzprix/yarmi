@@ -36,6 +36,7 @@ public class Endpoint {
     String path;
     List<Param> params;
     Class responseType;
+    transient Method jMethod;
 
     public static Endpoint create(Controller controller, Method method) {
 
@@ -44,14 +45,17 @@ public class Endpoint {
         Annotation methodAnnotation = Observable.fromArray(method.getAnnotations())
                 .filter(Endpoint::verifyMethod)
                 .blockingFirst();
+
         final String parentPath = controller.path();
 
         RMIMethod httpMethod = RMIMethod.fromAnnotation(methodAnnotation);
         Observable<Class> typeObservable = Observable.fromArray(method.getParameterTypes());
         Observable<Annotation[]> annotationsObservable = Observable.fromArray(method.getParameterAnnotations());
 
+        final int[] order = {0};
         List<Param> params = typeObservable
                 .zipWith(annotationsObservable, Param::create)
+                .doOnNext(param -> param.setOrder(order[0]++))
                 .toList().blockingGet();
 
         Observable<Class> responseClassObservable = Observable.just(TYPE_PATTNER.matcher(method.getGenericReturnType().getTypeName()))
@@ -62,6 +66,7 @@ public class Endpoint {
         return Endpoint.builder()
                 .method(httpMethod)
                 .params(params)
+                .jMethod(method)
                 .responseType(responseClassObservable.blockingFirst())
                 .path(String.format("%s%s",parentPath, httpMethod.extractPath(method)).replaceAll(DUPLICATE_PATH_SEPARATOR,"/"))
                 .build();
