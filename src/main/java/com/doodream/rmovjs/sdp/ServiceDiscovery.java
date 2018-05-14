@@ -1,14 +1,12 @@
 package com.doodream.rmovjs.sdp;
 
-import com.doodream.rmovjs.model.ServiceInfo;
-import com.doodream.rmovjs.net.RMIServiceProxy;
-import io.reactivex.Observable;
+import com.doodream.rmovjs.model.RMIServiceInfo;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 public interface ServiceDiscovery {
-    Observable<RMIServiceProxy> discover(ServiceInfo info, long timeout, TimeUnit unit) throws IOException;
-    Observable<RMIServiceProxy> startDiscovery(ServiceInfo info) throws IOException;
-    void stopDiscovery() throws IOException;
+    void discover(RMIServiceInfo info , ServiceDiscoveryListener listener, long timeout, TimeUnit unit) throws IOException;
+    void startDiscovery(RMIServiceInfo info, ServiceDiscoveryListener listener) throws IOException;
+    void stopDiscovery(RMIServiceInfo info) throws IOException;
 }

@@ -45,7 +45,7 @@ public class Request {
 
     private transient ClientSocketAdapter client;
     @SerializedName("service")
-    private ServiceInfo serviceInfo;
+    private RMIServiceInfo serviceInfo;
     private Endpoint endpoint;
 
     public void response(Response s) throws IOException {

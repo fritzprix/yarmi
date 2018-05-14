@@ -2,9 +2,9 @@ package com.doodream.rmovjs.net.inet;
 
 
 import com.doodream.rmovjs.model.RMIError;
+import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.model.ServiceInfo;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.HandshakeFailException;
 import com.doodream.rmovjs.net.RMISocket;
@@ -13,9 +13,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-import io.reactivex.BackpressureStrategy;
 import io.reactivex.Observable;
-import io.reactivex.subjects.PublishSubject;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -42,10 +40,9 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
                 }
             }).create();
 
-    private ServiceInfo serviceInfo;
+    private RMIServiceInfo serviceInfo;
     private RMISocket client;
     private OutputStreamWriter writer;
-    private PublishSubject<String> clientRequestSubject = PublishSubject.create();
 
 
     InetClientSocketAdapter(RMISocket socket) throws IOException {
@@ -55,29 +52,39 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
 
 
     private Observable<String> listenLine() throws IOException {
-
         Scanner reader = new Scanner(client.getInputStream());
-        new Thread(() -> {
-            while(reader.hasNext()) {
-                clientRequestSubject.onNext(reader.nextLine());
+        return Observable.create(emitter -> {
+            try {
+                while (reader.hasNext()) {
+                    emitter.onNext(reader.nextLine());
+                }
+                emitter.onComplete();
+            } catch (Exception e) {
+                emitter.onError(e);
             }
-            clientRequestSubject.onComplete();
-        }).start();
-
-        return Observable.fromPublisher(clientRequestSubject.toFlowable(BackpressureStrategy.BUFFER));
+        });
     }
 
     @Override
-    public void handshake(ServiceInfo serviceInfo) throws HandshakeFailException {
+    public void handshake(RMIServiceInfo serviceInfo) throws HandshakeFailException {
         try {
+            this.serviceInfo = serviceInfo;
             writer.write(GSON.toJson(serviceInfo));
-            this.serviceInfo = listenLine()
-                    .map(s -> GSON.fromJson(s, ServiceInfo.class))
-                    .blockingFirst();
-            if(serviceInfo.hashCode() != this.serviceInfo.hashCode()) {
-                Response resp = RMIError.FORBIDDEN.getResponse(Request.builder().serviceInfo(serviceInfo).build());
-                writer.write(GSON.toJson(resp));
-            }
+
+            Observable<RMIServiceInfo> serviceInfoObservable = listenLine()
+                    .map(s -> GSON.fromJson(s, RMIServiceInfo.class));
+
+            serviceInfoObservable
+                    .filter(info -> info.hashCode() == serviceInfo.hashCode())
+                    .subscribe();
+
+            serviceInfoObservable
+                    .filter(info -> info.hashCode() != serviceInfo.hashCode())
+                    .doOnNext(info -> {
+                        Response resp = RMIError.FORBIDDEN.getResponse(Request.builder().serviceInfo(serviceInfo).build());
+                        writer.write(GSON.toJson(resp));
+                    })
+                    .subscribe();
 
         } catch (IOException e) {
             throw new HandshakeFailException(this);

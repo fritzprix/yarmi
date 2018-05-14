@@ -7,13 +7,15 @@ import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.sdp.ServiceAdvertiser;
 import io.reactivex.Observable;
+import io.reactivex.schedulers.Schedulers;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -31,20 +33,28 @@ public class RMIService {
 
     private Service service;
     private HashMap<String, RMIController> controllerMap;
-    private ServiceInfo serviceInfo;
+    private RMIServiceInfo serviceInfo;
     private ServiceAdapter adapter;
     private ServiceAdvertiser advertiser;
 
     protected static final String TAG = RMIService.class.getCanonicalName();
 
-    public static <T> RMIService create(Class<T> cls, ServiceAdvertiser advertiser) throws IllegalAccessException, InstantiationException {
+    public static <T> RMIService create(Class<T> cls, ServiceAdvertiser advertiser) throws IllegalAccessException, InstantiationException, InvocationTargetException {
 
         Properties.load();
         Service service = cls.getAnnotation(Service.class);
+        String[] params = service.params();
 
-        ServiceAdapter adapter = service.adapter().newInstance();
-        ServiceInfo serviceInfo = ServiceInfo.builder()
+
+        Constructor constructor = Observable.fromArray(service.adapter().getConstructors())
+                .filter(cstr -> cstr.getParameterCount() == params.length)
+                .blockingFirst();
+
+        ServiceAdapter adapter = (ServiceAdapter) constructor.newInstance(params);
+        RMIServiceInfo serviceInfo = RMIServiceInfo.builder()
                 .name(service.name())
+                .adapter(service.adapter())
+                .params(Arrays.asList(service.params()))
                 .version(Properties.VERSION)
                 .build();
 
@@ -84,8 +94,9 @@ public class RMIService {
 
 
     public void listen() throws Exception {
-        adapter.listen(serviceInfo, this::routeRequest);
+        System.out.println(serviceInfo);
         advertiser.startAdvertiser(serviceInfo);
+        adapter.listen(serviceInfo, this::routeRequest);
     }
 
     private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException {

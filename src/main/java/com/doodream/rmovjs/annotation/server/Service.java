@@ -1,6 +1,7 @@
 package com.doodream.rmovjs.annotation.server;
 
 
+import com.doodream.rmovjs.annotation.parameter.KeyValue;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.inet.InetServiceAdapter;
 
@@ -15,5 +16,5 @@ import java.lang.annotation.RetentionPolicy;
 public @interface Service {
     String name();
     Class<? extends ServiceAdapter> adapter() default InetServiceAdapter.class;
-
+    String[] params() default {};
 }

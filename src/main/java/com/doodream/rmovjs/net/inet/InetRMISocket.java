@@ -15,6 +15,10 @@ public class InetRMISocket implements RMISocket {
         socket = client;
     }
 
+    public InetRMISocket(String host, int port) throws IOException {
+        socket = new Socket(host, port);
+    }
+
     @Override
     public InputStream getInputStream() throws IOException {
         return socket.getInputStream();

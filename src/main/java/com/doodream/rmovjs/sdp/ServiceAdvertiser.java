@@ -1,10 +1,21 @@
 package com.doodream.rmovjs.sdp;
 
-import com.doodream.rmovjs.model.ServiceInfo;
+import com.doodream.rmovjs.model.RMIServiceInfo;
 
 import java.io.IOException;
 
 public interface ServiceAdvertiser {
-    void startAdvertiser(ServiceInfo info) throws IOException;
+    /**
+     * start service advertising
+     * should not block
+     * @param info
+     * @throws IOException
+     */
+    void startAdvertiser(RMIServiceInfo info) throws IOException;
+
+    /**
+     * stop advertising
+     * @throws IOException
+     */
     void stopAdvertiser() throws IOException;
 }

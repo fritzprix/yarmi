@@ -56,14 +56,13 @@ public class RMIClient {
             })
             .create();
 
-    // TODO : service proxy
-    public static <T> T create(RMIServiceProxy serviceProxy, Class<T> ctrl) throws IllegalAccessException, InstantiationException {
+    public static <T> T create(RMIServiceProxy serviceProxy, Class<T> ctrl) throws IllegalAccessException, InstantiationException, IOException {
         Controller controller = ctrl.getAnnotation(Controller.class);
         assert controller != null;
         assert ctrl.isInterface();
+        serviceProxy.open();
 
         RMIClientBuilder builder = RMIClient.builder();
-
         Observable<Method> methodObservable = Observable.fromArray(ctrl.getMethods())
                 .filter(RMIMethod::isValidMethod);
 

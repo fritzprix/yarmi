@@ -13,18 +13,5 @@ import java.util.concurrent.Executors;
 public class RMIServerTest {
 
 
-    private Executor executor;
-    @Before
-    public void setup() {
-        executor = Executors.newFixedThreadPool(4);
-    }
-
-    @Test
-    public void runServer() throws Exception {
-        RMIService server = RMIService.create(TestService.class, new LocalServiceAdvertiser());
-        server.listen();
-    }
-
-
 
 }

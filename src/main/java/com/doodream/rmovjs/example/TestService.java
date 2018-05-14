@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.test.service;
+package com.doodream.rmovjs.example;
 
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.annotation.server.Service;
