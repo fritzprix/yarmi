@@ -1,6 +1,7 @@
 package com.doodream.rmovjs.test;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
+import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.sdp.local.LocalServiceAdvertiser;
 import com.doodream.rmovjs.sdp.local.LocalServiceDiscovery;
 import com.doodream.rmovjs.server.RMIService;
@@ -34,6 +35,8 @@ public class RMIClientTest {
 
     @Test
     public void createTestClient() throws InstantiationException, IllegalAccessException, IOException, InterruptedException {
+        Response response = Response.error(200, "");
+        System.out.println(Response.toJson(response));
         LocalServiceDiscovery serviceDiscovery = new LocalServiceDiscovery();
         RMIServiceInfo serviceInfo = RMIServiceInfo.from(TestService.class);
         serviceDiscovery.startDiscovery(serviceInfo, System.out::println);

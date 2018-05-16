@@ -50,26 +50,21 @@ public class InetServiceAdapter implements ServiceAdapter {
                 .doOnNext(socket -> socket.bind(mAddress))
                 .to(this::onBindSuccess)
                 .map(socket -> clientAdapterFactory.handshake(serviceInfo, new InetRMISocket(socket)))
-                .map(clientAdapterObservable -> clientAdapterObservable.doOnComplete(this::onComplete))
-                .map(clientAdapterObservable -> clientAdapterObservable.doOnError(this::onError))
                 .map(clientAdapterObservable -> clientAdapterObservable.subscribe(adapter -> subscribe(adapter, handleRequest)))
+                .subscribeOn(Schedulers.io())
                 .subscribe(compositeDisposable::add));
     }
 
     @Override
     public ServiceProxyFactory getProxyFactory(RMIServiceInfo info) {
         // TODO: InetServiceProxyFactory 리턴
-        List<String> params = info.getParams();
-        // TODO: params는 InetServiceAdapter의 생성자에 해당하며 hostname의 현재 Default값인 Localhost의 경
-        // remote의 client socket을 생성하는데 도움을 줄 수 없다.
-        final int size = params.size();
-        if(size > 1) {
-            return new InetServiceProxyFactory(params.get(0), params.get(1));
-        } else if(size > 0) {
-            return new InetServiceProxyFactory(params.get(0));
-        } else {
-            return new InetServiceProxyFactory();
-        }
+        String[] params = info.getParams().toArray(new String[0]);
+        // TODO: params는 InetServiceAdapter의 생성자에 해당하며 hostname의 현재 Default값인 Localhost의 경우 remote의 client socket을 생성하는데 도움을 줄 수 없다.
+        return Observable.fromArray(InetServiceProxyFactory.class.getConstructors())
+                .filter(constructor -> constructor.getParameterCount() == params.length)
+                .map(constructor -> constructor.newInstance(params))
+                .cast(ServiceProxyFactory.class)
+                .blockingFirst();
     }
 
     private Observable<Socket> onBindSuccess(Observable<ServerSocket> serverSocketObservable) {
@@ -100,8 +95,15 @@ public class InetServiceAdapter implements ServiceAdapter {
     private void subscribe(ClientSocketAdapter adapter, Function<Request, Response> requestHandler) throws IOException {
         compositeDisposable.add(adapter
                 .listen()
+                .doOnError(this::onError)
+                .doOnComplete(this::onComplete)
+                .doOnDispose(this::onDispose)
                 .map(requestHandler)
                 .subscribe(adapter::write));
+    }
+
+    private void onDispose() throws IOException {
+        close();
     }
 
 

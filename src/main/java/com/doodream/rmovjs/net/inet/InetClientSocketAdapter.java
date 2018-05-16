@@ -16,7 +16,7 @@ import com.google.gson.stream.JsonWriter;
 import io.reactivex.Observable;
 
 import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.Locale;
 import java.util.Scanner;
 
@@ -26,7 +26,7 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
             .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
                 @Override
                 public void write(JsonWriter jsonWriter, Class aClass) throws IOException {
-                    jsonWriter.value(aClass.getCanonicalName());
+                    jsonWriter.value(aClass.getName());
                 }
 
                 @Override
@@ -42,12 +42,12 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
 
     private RMIServiceInfo serviceInfo;
     private RMISocket client;
-    private OutputStreamWriter writer;
+    private PrintWriter writer;
 
 
     InetClientSocketAdapter(RMISocket socket) throws IOException {
         client = socket;
-        writer = new OutputStreamWriter(socket.getOutputStream());
+        writer = new PrintWriter(client.getOutputStream(), true);
     }
 
 
@@ -69,21 +69,19 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
     public void handshake(RMIServiceInfo serviceInfo) throws HandshakeFailException {
         try {
             this.serviceInfo = serviceInfo;
-            writer.write(GSON.toJson(serviceInfo));
-
             Observable<RMIServiceInfo> serviceInfoObservable = listenLine()
                     .map(s -> GSON.fromJson(s, RMIServiceInfo.class));
 
-            serviceInfoObservable
+            Observable<Response> serviceInfoMatchedObservable = serviceInfoObservable
                     .filter(info -> info.hashCode() == serviceInfo.hashCode())
-                    .subscribe();
+                    .map(info -> Response.success("OK"));
 
-            serviceInfoObservable
+            Observable<Response> serviceInfoMismatchObservable = serviceInfoObservable
                     .filter(info -> info.hashCode() != serviceInfo.hashCode())
-                    .doOnNext(info -> {
-                        Response resp = RMIError.FORBIDDEN.getResponse(Request.builder().serviceInfo(serviceInfo).build());
-                        writer.write(GSON.toJson(resp));
-                    })
+                    .map(info -> RMIError.FORBIDDEN.getResponse(Request.builder().serviceInfo(serviceInfo).build()));
+
+            serviceInfoMatchedObservable.mergeWith(serviceInfoMismatchObservable)
+                    .doOnNext(this::write)
                     .subscribe();
 
         } catch (IOException e) {
@@ -91,9 +89,11 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
         }
     }
 
+
     @Override
     public void write(Response response) throws IOException {
-        writer.write(Response.toJson(response));
+        byte[] json = Response.toJson(response).concat("\n").getBytes("UTF-8");
+        client.getOutputStream().write(json);
     }
 
     @Override

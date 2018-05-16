@@ -1,6 +1,5 @@
 package com.doodream.rmovjs;
 
-import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.client.RMIClient;
 import com.doodream.rmovjs.example.TestService;
 import com.doodream.rmovjs.example.User;
@@ -23,7 +22,6 @@ public class Main {
                 e.printStackTrace();
             }
         }).start();
-
 
         RMIServiceInfo serviceInfo = RMIServiceInfo.from(TestService.class);
         LocalServiceDiscovery discovery = new LocalServiceDiscovery();

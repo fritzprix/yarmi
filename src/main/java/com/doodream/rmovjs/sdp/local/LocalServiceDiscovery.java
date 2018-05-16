@@ -77,7 +77,7 @@ public class LocalServiceDiscovery implements ServiceDiscovery {
                 // format error
                 .filter(discovered -> discovered.equals(info));
 
-        disposableHashMap.put(info,serviceInfoObservable
+        disposableHashMap.put(info, serviceInfoObservable
                 .map(RMIServiceInfo::getAdapter)
                 .map(Class::newInstance)
                 .cast(ServiceAdapter.class)

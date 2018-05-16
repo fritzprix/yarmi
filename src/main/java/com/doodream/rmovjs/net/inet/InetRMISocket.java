@@ -34,5 +34,10 @@ public class InetRMISocket implements RMISocket {
         socket.close();
     }
 
+    @Override
+    public boolean isConnected() {
+        return socket.isConnected();
+    }
+
 
 }

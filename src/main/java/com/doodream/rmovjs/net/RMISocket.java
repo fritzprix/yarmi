@@ -8,4 +8,5 @@ public interface RMISocket {
     InputStream getInputStream() throws IOException;
     OutputStream getOutputStream() throws IOException;
     void close() throws IOException;
+    boolean isConnected();
 }

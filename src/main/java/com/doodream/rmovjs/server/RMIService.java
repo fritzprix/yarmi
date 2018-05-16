@@ -94,7 +94,6 @@ public class RMIService {
 
 
     public void listen() throws Exception {
-        System.out.println(serviceInfo);
         advertiser.startAdvertiser(serviceInfo);
         adapter.listen(serviceInfo, this::routeRequest);
     }

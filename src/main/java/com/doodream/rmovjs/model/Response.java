@@ -47,7 +47,7 @@ public class Response<T> {
                 .build();
     }
     Endpoint endpoint;
-    Class<T> bodyCls;
+    Class bodyCls;
     T body;
     boolean isSuccessful;
     int code;
@@ -70,15 +70,7 @@ public class Response<T> {
         return response;
     }
 
-    @Data
-    public static class ErrorBody {
-        @SerializedName("msg")
-        String message;
 
-        private ErrorBody(String msg) {
-            message = msg;
-        }
-    }
 
     public static String toJson(Response response) {
         return GSON.toJson(response);
@@ -89,11 +81,38 @@ public class Response<T> {
     }
 
     public static Response error(int code, String mesg) {
-        return Response.<ErrorBody>builder()
+        return Response.<ResponseBody>builder()
                 .code(code)
                 .isSuccessful(false)
-                .body(new ErrorBody(mesg))
-                .bodyCls(ErrorBody.class)
+                .body(new ResponseBody(mesg))
+                .bodyCls(ResponseBody.class)
                 .build();
+    }
+
+    public static Response success(String msg) {
+        return Response.builder()
+                .code(200)
+                .isSuccessful(true)
+                .body(new ResponseBody(msg))
+                .bodyCls(ResponseBody.class)
+                .build();
+    }
+
+    @Data
+    public static class ResponseBody {
+        @SerializedName("msg")
+        String message;
+
+        private ResponseBody(String msg) {
+            message = msg;
+        }
+
+        public static String toJson(ResponseBody errorBody) {
+            return new Gson().toJson(errorBody);
+        }
+
+        public static ResponseBody fromJson(String json) {
+            return new Gson().fromJson(json, ResponseBody.class);
+        }
     }
 }

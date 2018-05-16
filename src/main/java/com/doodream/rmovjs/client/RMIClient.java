@@ -106,6 +106,7 @@ public class RMIClient {
     private Object handleInvocation(Object proxy, Method method, Object[] objects) throws InvocationTargetException, IllegalAccessException, IOException {
         Endpoint endpoint = methodMap.get(method);
         endpoint.applyParam(objects);
+        // TODO : Null Pointer Exception
         return serviceProxy.request(endpoint);
     }
 }

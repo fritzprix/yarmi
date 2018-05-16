@@ -8,8 +8,7 @@ import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.RMISocket;
 import lombok.Data;
 
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.util.Scanner;
 
 @Data
@@ -25,22 +24,21 @@ public class InetServiceProxy implements RMIServiceProxy {
         return new InetServiceProxy(info, socket);
     }
 
-    private InetServiceProxy(RMIServiceInfo info, RMISocket socket) {
+    private InetServiceProxy(RMIServiceInfo info, RMISocket socket) throws IOException {
         serviceInfo = info;
         this.socket = socket;
     }
 
     @Override
     public void open() throws IOException {
-        writer = new PrintStream(socket.getOutputStream());
-        reader = new Scanner(socket.getInputStream());
+        writer = new PrintStream(socket.getOutputStream(), true);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-        // read out service Info from server
-        String serviceInfo = reader.nextLine();
-        System.out.println(serviceInfo);
+        // TODO :
         writer.println(this.serviceInfo.toJson());
-        Response response = Response.fromJson(reader.nextLine());
-        System.out.println(response);
+        System.out.println("Service Proxy => " + this.serviceInfo);
+        Response response = Response.fromJson(reader.readLine());
+        System.out.println("Service Proxy <= " + response);
     }
 
     @Override
