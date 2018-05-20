@@ -1,5 +1,5 @@
-## YARMI (yet-another-RMI)
-> YARMI is RMI Framework which provides much more simple way to build server-client application in Java.
+## yarmi (yet-another-RMI)
+> yarmi is RMI Framework which provides much more simple way to build server-client application in Java.
 
 
 ### Features
@@ -26,11 +26,18 @@ public interface UserIDPController {
 } 
 ```     
 2. Implement Controller Stub    
-```java
+```java 
 public class UserIDControllerImpl implements UserIDPController {
+
+    private HashMap<Long, User> userTable = new HashMap<>();
+
     @Override
     public Response<User> getUser(Long userId) {
-        return null;
+        User user = userTable.get(userId);
+        if(user == null) {
+            return null;
+        }
+        return Response.success(user, User.class);
     }
 
     @Override
@@ -40,9 +47,12 @@ public class UserIDControllerImpl implements UserIDPController {
 
     @Override
     public Response<User> createUser(User user) {
-        return null;
+        int id = user.hashCode();
+        userTable.put((long) id, user);
+        user.id = (long) id;
+        return Response.success(user, User.class);
     }
-}
+}  
 ``` 
 3. Declare your service with route setting
 ```java
@@ -55,7 +65,7 @@ public class TestService {
 }
 
 ```   
-4. Start your service & advertise
+4. Start & advertise your service 
 ```java
 public static class SimpleServer {
     

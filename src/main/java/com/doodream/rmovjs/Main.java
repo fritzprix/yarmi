@@ -38,7 +38,7 @@ public class Main {
 
             Response<User> response = userCtr.createUser(user);
             assert response.isSuccessful();
-            response = userCtr.getUser(response.getBody().getId());
+            response = userCtr.getUser(1L);
             assert response.isSuccessful();
             assert user.equals(response.getBody());
         });

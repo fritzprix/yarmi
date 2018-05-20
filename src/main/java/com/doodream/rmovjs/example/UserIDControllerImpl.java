@@ -12,7 +12,7 @@ public class UserIDControllerImpl implements UserIDPController {
     public Response<User> getUser(Long userId) {
         User user = userTable.get(userId);
         if(user == null) {
-            return null;
+            return Response.error(400, "Invalid User Id");
         }
         return Response.success(user, User.class);
     }
