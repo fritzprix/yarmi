@@ -25,7 +25,7 @@ public class Response<T> {
             .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
                 @Override
                 public void write(JsonWriter jsonWriter, Class aClass) throws IOException {
-                    jsonWriter.value(aClass.getCanonicalName());
+                    jsonWriter.value(aClass.getName());
                 }
 
                 @Override

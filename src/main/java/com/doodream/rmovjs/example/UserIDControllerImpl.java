@@ -15,6 +15,7 @@ public class UserIDControllerImpl implements UserIDPController {
 
     @Override
     public Response<User> createUser(User user) {
-        return null;
+        System.out.println(user);
+        return Response.build(user, User.class);
     }
 }

@@ -4,19 +4,23 @@ import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
+import com.doodream.rmovjs.net.HandshakeFailException;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.RMISocket;
 import lombok.Data;
 
-import java.io.*;
-import java.util.Scanner;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+
 
 @Data
 public class InetServiceProxy implements RMIServiceProxy {
 
     private RMIServiceInfo serviceInfo;
     private RMISocket socket;
-    private Scanner reader;
+    private BufferedReader reader;
     private PrintStream writer;
 
 
@@ -31,26 +35,29 @@ public class InetServiceProxy implements RMIServiceProxy {
 
     @Override
     public void open() throws IOException {
-        writer = new PrintStream(socket.getOutputStream(), true);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-
-        // TODO :
-        writer.println(this.serviceInfo.toJson());
-        System.out.println("Service Proxy => " + this.serviceInfo);
+        reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        write(this.serviceInfo.toJson());
         Response response = Response.fromJson(reader.readLine());
-        System.out.println("Service Proxy <= " + response);
+        if(response.isSuccessful()) {
+            return;
+        }
+        throw new HandshakeFailException(null);
+    }
+
+    private void write(String s) throws IOException {
+        socket.getOutputStream().write(s.concat("\n").getBytes());
     }
 
     @Override
     public Response request(Endpoint endpoint) throws IOException {
 
+        Request request = Request.builder()
+                        .endpoint(endpoint)
+                        .serviceInfo(serviceInfo)
+                        .build();
 
-        writer.println(Request.toJson(Request.builder()
-                .endpoint(endpoint)
-                .serviceInfo(serviceInfo)
-                .build()));
-
-        return Response.fromJson(reader.nextLine());
+        write(Request.toJson(request));
+        return Response.fromJson(reader.readLine());
     }
 
     @Override

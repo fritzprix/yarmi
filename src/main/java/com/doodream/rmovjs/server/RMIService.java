@@ -103,6 +103,7 @@ public class RMIService {
         assert path != null;
         RMIController controller = controllerMap.get(request.getPath());
         if(controller != null) {
+            System.out.println("Params : " + request.getParameters());
             return controller.handleRequest(request);
         }
         return RMIError.NOT_FOUND.getResponse(request);

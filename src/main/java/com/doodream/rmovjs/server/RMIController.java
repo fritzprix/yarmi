@@ -87,7 +87,7 @@ public class RMIController {
         if(endpoint == null) {
             return RMIError.NOT_FOUND.getResponse(request);
         }
-        List<Object> params = Observable.fromIterable(endpoint.getParams())
+        List<Object> params = Observable.fromIterable(request.getParameters())
                 .sorted(Param::sort)
                 .map(Param::instantiate)
                 .toList().blockingGet();

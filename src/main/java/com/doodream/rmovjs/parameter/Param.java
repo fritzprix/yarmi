@@ -1,5 +1,7 @@
 package com.doodream.rmovjs.parameter;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.reactivex.Observable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,12 +21,14 @@ import java.util.List;
 @Data
 public class Param {
 
+    private static final Gson GSON = new GsonBuilder().create();
+
     private int order;
     private ParamType type;
     private boolean required;
     private String name;
     private Class paramCls;
-    private Object value;
+    private String value;
 
     public static Param create(Class paramCls, Annotation[] annotations) {
 
@@ -44,7 +48,7 @@ public class Param {
     }
 
     public static <R> Object instantiate(Param param) {
-        return null;
+        return GSON.fromJson(param.value, param.paramCls);
     }
 
     public static int sort(Param param, Param param1) {

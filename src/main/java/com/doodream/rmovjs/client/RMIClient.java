@@ -76,8 +76,7 @@ public class RMIClient {
         builder.controllerPath(controller.path())
                 .serviceProxy(serviceProxy);
 
-        RMIClient rmiClient = RMIClient.builder()
-                .controllerPath(controller.path())
+        RMIClient rmiClient = builder
                 .methodMap(hashMapSingle.blockingGet())
                 .build();
 

@@ -6,7 +6,6 @@ import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
-import com.doodream.rmovjs.net.HandshakeFailException;
 import com.doodream.rmovjs.net.RMISocket;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -14,11 +13,12 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import io.reactivex.Observable;
+import io.reactivex.schedulers.Schedulers;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.InputStreamReader;
 import java.util.Locale;
-import java.util.Scanner;
 
 public class InetClientSocketAdapter implements ClientSocketAdapter {
 
@@ -42,50 +42,53 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
 
     private RMIServiceInfo serviceInfo;
     private RMISocket client;
-    private PrintWriter writer;
+    private Observable<String> lineObservable;
+    private BufferedReader reader;
 
 
     InetClientSocketAdapter(RMISocket socket) throws IOException {
         client = socket;
-        writer = new PrintWriter(client.getOutputStream(), true);
+        reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
     }
 
-
-    private Observable<String> listenLine() throws IOException {
-        Scanner reader = new Scanner(client.getInputStream());
-        return Observable.create(emitter -> {
-            try {
-                while (reader.hasNext()) {
-                    emitter.onNext(reader.nextLine());
-                }
-                emitter.onComplete();
-            } catch (Exception e) {
-                emitter.onError(e);
-            }
-        });
-    }
 
     @Override
-    public void handshake(RMIServiceInfo serviceInfo) throws HandshakeFailException {
-        try {
-            this.serviceInfo = serviceInfo;
-            Observable<RMIServiceInfo> serviceInfoObservable = listenLine()
-                    .map(s -> GSON.fromJson(s, RMIServiceInfo.class));
+    public boolean handshake(RMIServiceInfo serviceInfo) throws IOException {
 
-            Observable<Response> serviceInfoMatchedObservable = serviceInfoObservable
+        String line = reader.readLine();
+        this.serviceInfo = serviceInfo;
+
+        Observable<RMIServiceInfo> handshakeRequestSingle = Observable.just(line)
+                .map(s -> GSON.fromJson(s, RMIServiceInfo.class));
+
+            Observable<Response> serviceInfoMatchedObservable = handshakeRequestSingle
                     .filter(info -> info.hashCode() == serviceInfo.hashCode())
                     .map(info -> Response.success("OK"));
 
-            Observable<Response> serviceInfoMismatchObservable = serviceInfoObservable
+            Observable<Response> serviceInfoMismatchObservable = handshakeRequestSingle
                     .filter(info -> info.hashCode() != serviceInfo.hashCode())
                     .map(info -> RMIError.FORBIDDEN.getResponse(Request.builder().serviceInfo(serviceInfo).build()));
 
-            serviceInfoMatchedObservable.mergeWith(serviceInfoMismatchObservable)
+            return serviceInfoMatchedObservable.mergeWith(serviceInfoMismatchObservable)
                     .doOnNext(this::write)
-                    .subscribe();
+                    .map(Response::isSuccessful)
+                    .doOnNext(this::setListenable)
+                    .first(false).blockingGet();
+    }
 
-        } catch (IOException e) {
-            throw new HandshakeFailException(this);
+    private void setListenable(Boolean success) {
+        if(success) {
+            lineObservable = Observable.create(emitter -> {
+                try {
+                    String line;
+                    while((line = reader.readLine()) != null) {
+                        emitter.onNext(line);
+                    }
+                    emitter.onComplete();
+                } catch (IOException e) {
+                    emitter.onError(e);
+                }
+            });
         }
     }
 
@@ -98,7 +101,7 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
 
     @Override
     public Observable<Request> listen() throws IOException {
-        return listenLine().map(Request::fromJson);
+        return lineObservable.subscribeOn(Schedulers.io()).map(Request::fromJson);
     }
 
     @Override

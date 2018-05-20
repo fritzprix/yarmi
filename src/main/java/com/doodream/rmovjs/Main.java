@@ -5,6 +5,7 @@ import com.doodream.rmovjs.example.TestService;
 import com.doodream.rmovjs.example.User;
 import com.doodream.rmovjs.example.UserIDPController;
 import com.doodream.rmovjs.model.RMIServiceInfo;
+import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.sdp.local.LocalServiceAdvertiser;
 import com.doodream.rmovjs.sdp.local.LocalServiceDiscovery;
 import com.doodream.rmovjs.server.RMIService;
@@ -26,9 +27,11 @@ public class Main {
         RMIServiceInfo serviceInfo = RMIServiceInfo.from(TestService.class);
         LocalServiceDiscovery discovery = new LocalServiceDiscovery();
         discovery.startDiscovery(serviceInfo, discovered -> {
-            discovered.open();
             UserIDPController user = RMIClient.create(discovered, UserIDPController.class);
-            user.createUser(new User());
+            Response<User> response = user.createUser(new User());
+            if(response.isSuccessful()) {
+                System.out.println("Response : " + response.getBody());
+            }
         });
 
         while (true) {

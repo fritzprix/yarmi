@@ -28,7 +28,7 @@ public class Request {
             .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
                 @Override
                 public void write(JsonWriter jsonWriter, Class aClass) throws IOException {
-                    jsonWriter.value(aClass.getCanonicalName());
+                    jsonWriter.value(aClass.getName());
                 }
 
                 @Override
@@ -73,5 +73,11 @@ public class Request {
 
     public static String toJson(Request request) {
         return GSON.toJson(request);
+    }
+
+    public static boolean valid(Request request) {
+        return (request.getEndpoint() != null) &&
+                (request.getPath() != null) &&
+                (request.getMethodType() != null);
     }
 }

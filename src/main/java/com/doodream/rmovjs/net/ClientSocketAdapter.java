@@ -12,7 +12,7 @@ public interface ClientSocketAdapter {
 
     void write(Response response) throws IOException;
     Observable<Request> listen() throws IOException;
-    void handshake(RMIServiceInfo serviceInfo) throws HandshakeFailException;
+    boolean handshake(RMIServiceInfo serviceInfo) throws IOException;
     String who();
     String unique();
 }

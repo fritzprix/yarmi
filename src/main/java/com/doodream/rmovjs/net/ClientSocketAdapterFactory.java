@@ -7,5 +7,5 @@ import io.reactivex.Observable;
 import java.io.IOException;
 
 public interface ClientSocketAdapterFactory {
-    Observable<ClientSocketAdapter> handshake(RMIServiceInfo serviceInfo, RMISocket clientSocket) throws IOException;
+    ClientSocketAdapter handshake(RMIServiceInfo serviceInfo, RMISocket clientSocket) throws IOException;
 }

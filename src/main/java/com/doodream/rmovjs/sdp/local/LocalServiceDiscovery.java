@@ -13,13 +13,15 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
 public class LocalServiceDiscovery implements ServiceDiscovery {
     private HashMap<RMIServiceInfo, Disposable> disposableHashMap = new HashMap<>();
+    private HashSet<Integer> discovered;
 
 
-    private <R> DatagramPacket receivePacket(DatagramSocket datagramSocket) throws IOException {
+    private DatagramPacket receivePacket(DatagramSocket datagramSocket) throws IOException {
         byte[] buffer = new byte[64 * 64 * 1024];
         Arrays.fill(buffer, (byte) 0);
         DatagramPacket packet = new DatagramPacket(buffer,buffer.length);
@@ -33,6 +35,7 @@ public class LocalServiceDiscovery implements ServiceDiscovery {
     public void discover(RMIServiceInfo info, ServiceDiscoveryListener listener, long timeout, TimeUnit unit) throws IOException {
         DatagramSocket socket = new DatagramSocket(new InetSocketAddress(LocalServiceAdvertiser.BROADCAST_PORT));
         Observable<Long> tickObservable = Observable.interval(0L, 1L, TimeUnit.SECONDS);
+        discovered = new HashSet<>();
 
 
         // listen broadcast message from datagram socket
@@ -44,6 +47,7 @@ public class LocalServiceDiscovery implements ServiceDiscovery {
                 // socket error
                 .map(DatagramPacket::getData)
                 .map(RMIServiceInfo::from)
+                .filter(advInfo -> discovered.add(advInfo.hashCode()))
                 // format error
                 .filter(discovered -> discovered.equals(info));
 
@@ -64,7 +68,6 @@ public class LocalServiceDiscovery implements ServiceDiscovery {
     public void startDiscovery(RMIServiceInfo info, ServiceDiscoveryListener listener) throws IOException {
         DatagramSocket socket = new DatagramSocket(new InetSocketAddress(LocalServiceAdvertiser.BROADCAST_PORT));
         Observable<Long> tickObservable = Observable.interval(0L, 10L, TimeUnit.SECONDS);
-
 
         // listen broadcast message from datagram socket
         // and convert it to RMIServiceInfo
@@ -91,8 +94,9 @@ public class LocalServiceDiscovery implements ServiceDiscovery {
     }
 
     @Override
-    public void stopDiscovery(RMIServiceInfo info) throws IOException {
+    public void stopDiscovery(RMIServiceInfo info) {
         Disposable disposable = disposableHashMap.get(info);
+        discovered.clear();
         if(disposable == null) {
             return;
         }

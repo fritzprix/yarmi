@@ -11,7 +11,9 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subjects.PublishSubject;
 import lombok.NonNull;
+import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 import java.io.IOException;
 import java.net.*;
@@ -45,42 +47,40 @@ public class InetServiceAdapter implements ServiceAdapter {
     @Override
     public void listen(RMIServiceInfo serviceInfo, @NonNull Function<Request, Response> handleRequest) throws IOException {
         serverSocket = new ServerSocket();
-        compositeDisposable.add(Observable
-                .just(serverSocket)
-                .doOnNext(socket -> socket.bind(mAddress))
-                .to(this::onBindSuccess)
+        serverSocket.bind(mAddress);
+        compositeDisposable.add(Observable.just(serverSocket)
+                .map(ServerSocket::accept)
+                .repeatUntil(() -> !listen)
                 .map(socket -> clientAdapterFactory.handshake(serviceInfo, new InetRMISocket(socket)))
-                .map(clientAdapterObservable -> clientAdapterObservable.subscribe(adapter -> subscribe(adapter, handleRequest)))
-                .subscribeOn(Schedulers.io())
-                .subscribe(compositeDisposable::add));
+                .doOnError(Throwable::printStackTrace)
+                .doOnNext(adapter-> onHandshakeSuccess(adapter, handleRequest))
+                .subscribe());
+
     }
+
+
+
+    private void onHandshakeSuccess(ClientSocketAdapter adapter, Function<Request, Response> handleRequest) throws IOException {
+        compositeDisposable.add(adapter
+                .listen()
+                .doOnNext(request -> request.setClient(adapter))
+                .doOnNext(request -> System.out.println("Request from clinet : " + request))
+                .filter(Request::valid)
+                .map(handleRequest)
+                .doOnNext(adapter::write)
+                .subscribe());
+    }
+
 
     @Override
     public ServiceProxyFactory getProxyFactory(RMIServiceInfo info) {
-        // TODO: InetServiceProxyFactory 리턴
+        // RMIServiceInfo
         String[] params = info.getParams().toArray(new String[0]);
-        // TODO: params는 InetServiceAdapter의 생성자에 해당하며 hostname의 현재 Default값인 Localhost의 경우 remote의 client socket을 생성하는데 도움을 줄 수 없다.
         return Observable.fromArray(InetServiceProxyFactory.class.getConstructors())
                 .filter(constructor -> constructor.getParameterCount() == params.length)
                 .map(constructor -> constructor.newInstance(params))
                 .cast(ServiceProxyFactory.class)
                 .blockingFirst();
-    }
-
-    private Observable<Socket> onBindSuccess(Observable<ServerSocket> serverSocketObservable) {
-        return Observable.create(emitter -> {
-            listen = true;
-            compositeDisposable.add(serverSocketObservable.subscribe(serverSocket -> {
-                try {
-                    while (listen) {
-                        emitter.onNext(serverSocket.accept());
-                    }
-                    emitter.onComplete();
-                } catch (Exception e) {
-                    emitter.onError(e);
-                }
-            }, this::onError));
-        });
     }
 
 
@@ -93,11 +93,13 @@ public class InetServiceAdapter implements ServiceAdapter {
     }
 
     private void subscribe(ClientSocketAdapter adapter, Function<Request, Response> requestHandler) throws IOException {
+        System.out.println("Client Request Subscribed : " + adapter);
         compositeDisposable.add(adapter
                 .listen()
                 .doOnError(this::onError)
                 .doOnComplete(this::onComplete)
                 .doOnDispose(this::onDispose)
+                .doOnNext(System.out::println)
                 .map(requestHandler)
                 .subscribe(adapter::write));
     }
