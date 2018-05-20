@@ -31,6 +31,9 @@ public class InetRMISocket implements RMISocket {
 
     @Override
     public void close() throws IOException {
+        if(socket.isClosed()) {
+            return;
+        }
         socket.close();
     }
 

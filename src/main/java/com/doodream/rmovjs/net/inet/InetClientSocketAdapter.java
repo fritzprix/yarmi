@@ -7,6 +7,7 @@ import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.RMISocket;
+import com.doodream.rmovjs.net.SerdeUtil;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
@@ -22,23 +23,6 @@ import java.util.Locale;
 
 public class InetClientSocketAdapter implements ClientSocketAdapter {
 
-    private static final Gson GSON = new GsonBuilder()
-            .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
-                @Override
-                public void write(JsonWriter jsonWriter, Class aClass) throws IOException {
-                    jsonWriter.value(aClass.getName());
-                }
-
-                @Override
-                public Class read(JsonReader jsonReader) throws IOException {
-                    try {
-                        return Class.forName(jsonReader.nextString());
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                }
-            }).create();
 
     private RMIServiceInfo serviceInfo;
     private RMISocket client;
@@ -54,12 +38,10 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
 
     @Override
     public boolean handshake(RMIServiceInfo serviceInfo) throws IOException {
-
-        String line = reader.readLine();
         this.serviceInfo = serviceInfo;
 
-        Observable<RMIServiceInfo> handshakeRequestSingle = Observable.just(line)
-                .map(s -> GSON.fromJson(s, RMIServiceInfo.class));
+        Observable<RMIServiceInfo> handshakeRequestSingle = Observable.just(reader.readLine())
+                .map(s -> SerdeUtil.fromJson(s, RMIServiceInfo.class));
 
             Observable<Response> serviceInfoMatchedObservable = handshakeRequestSingle
                     .filter(info -> info.hashCode() == serviceInfo.hashCode())
@@ -76,6 +58,10 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
                     .first(false).blockingGet();
     }
 
+    /**
+     *
+     * @param success true if handshake is successful, otherwise, false.
+     */
     private void setListenable(Boolean success) {
         if(success) {
             lineObservable = Observable.create(emitter -> {
@@ -95,8 +81,7 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
 
     @Override
     public void write(Response response) throws IOException {
-        byte[] json = Response.toJson(response).concat("\n").getBytes("UTF-8");
-        client.getOutputStream().write(json);
+        client.getOutputStream().write(SerdeUtil.toByteArray(response));
     }
 
     @Override

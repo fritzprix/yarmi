@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.net;
 
+import com.doodream.rmovjs.example.UserIDPController;
 import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.Request;
@@ -23,9 +24,15 @@ public interface RMIServiceProxy {
         public void close() throws IOException {
 
         }
+
+        @Override
+        public boolean provide(Class<UserIDPController> userIDPControllerClass) {
+            return false;
+        }
     };
 
     void open() throws IOException;
     Response request(Endpoint endpoint) throws IOException;
     void close() throws IOException;
+    boolean provide(Class<UserIDPController> userIDPControllerClass);
 }

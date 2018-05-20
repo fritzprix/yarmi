@@ -1,14 +1,10 @@
 package com.doodream.rmovjs.client;
 
 import com.doodream.rmovjs.annotation.server.Controller;
+import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.net.RMIServiceProxy;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.TypeAdapter;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import lombok.AllArgsConstructor;
@@ -18,7 +14,7 @@ import lombok.NoArgsConstructor;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
@@ -37,27 +33,16 @@ public class RMIClient {
     private RMIServiceProxy serviceProxy;
 
     private static LinkedList<RMIClient> controllerClients = new LinkedList<>();
-    private static final Gson GSON = new GsonBuilder()
-            .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
-                @Override
-                public void write(JsonWriter jsonWriter, Class aClass) throws IOException {
-                    jsonWriter.value(aClass.getCanonicalName());
-                }
 
-                @Override
-                public Class read(JsonReader jsonReader) throws IOException {
-                    try {
-                        return Class.forName(jsonReader.nextString());
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                }
-            })
-            .create();
+    public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) throws IllegalAccessException, InstantiationException, IOException {
+        Service service = (Service) svc.getAnnotation(Service.class);
+        assert service != null;
 
-    public static <T> T create(RMIServiceProxy serviceProxy, Class<T> ctrl) throws IllegalAccessException, InstantiationException, IOException {
-        Controller controller = ctrl.getAnnotation(Controller.class);
+        Controller controller = Observable.fromArray(svc.getDeclaredFields())
+                .filter(field -> field.getType().equals(ctrl))
+                .map(field -> field.getAnnotation(Controller.class))
+                .blockingFirst();
+
         assert controller != null;
         assert ctrl.isInterface();
         serviceProxy.open();
@@ -102,10 +87,12 @@ public class RMIClient {
     }
 
 
-    private Object handleInvocation(Object proxy, Method method, Object[] objects) throws InvocationTargetException, IllegalAccessException, IOException {
+    private Object handleInvocation(Object proxy, Method method, Object[] objects) throws IOException {
         Endpoint endpoint = methodMap.get(method);
+        if(endpoint == null) {
+            return null;
+        }
         endpoint.applyParam(objects);
-        // TODO : Null Pointer Exception
         return serviceProxy.request(endpoint);
     }
 }

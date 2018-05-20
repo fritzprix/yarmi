@@ -27,11 +27,20 @@ public class Main {
         RMIServiceInfo serviceInfo = RMIServiceInfo.from(TestService.class);
         LocalServiceDiscovery discovery = new LocalServiceDiscovery();
         discovery.startDiscovery(serviceInfo, discovered -> {
-            UserIDPController user = RMIClient.create(discovered, UserIDPController.class);
-            Response<User> response = user.createUser(new User());
-            if(response.isSuccessful()) {
-                System.out.println("Response : " + response.getBody());
-            }
+            assert discovered.provide(UserIDPController.class);
+
+            // create client side controller for service
+            UserIDPController userCtr = RMIClient.create(discovered, TestService.class, UserIDPController.class);
+
+            // request to service
+            User user = new User();
+            user.setName("David");
+
+            Response<User> response = userCtr.createUser(user);
+            assert response.isSuccessful();
+            response = userCtr.getUser(response.getBody().getId());
+            assert response.isSuccessful();
+            assert user.equals(response.getBody());
         });
 
         while (true) {

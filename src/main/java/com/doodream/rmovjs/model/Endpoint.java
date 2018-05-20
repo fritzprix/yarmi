@@ -7,6 +7,7 @@ import com.doodream.rmovjs.annotation.method.Post;
 import com.doodream.rmovjs.annotation.method.Put;
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.method.RMIMethod;
+import com.doodream.rmovjs.net.SerdeUtil;
 import com.doodream.rmovjs.parameter.Param;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -33,7 +34,6 @@ import java.util.regex.Pattern;
 public class Endpoint {
     private static final String DUPLICATE_PATH_SEPARATOR = "\\/{2,}";
     private static final Pattern TYPE_PATTNER = Pattern.compile("\\<([\\s\\S]+)\\>");
-    private static final Gson GSON = new GsonBuilder().create();
 
     RMIMethod method;
     String path;
@@ -89,7 +89,7 @@ public class Endpoint {
         }
 
         Observable.fromIterable(params).zipWith(Observable.fromArray(objects), (param, o) -> {
-            param.setValue(GSON.toJson(o));
+            param.setValue(SerdeUtil.toJson(o));
             return param;
         }).subscribe();
     }

@@ -3,6 +3,7 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
+import com.doodream.rmovjs.net.SerdeUtil;
 import com.doodream.rmovjs.parameter.Param;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -23,25 +24,6 @@ import java.util.List;
 @NoArgsConstructor
 @Data
 public class Request {
-
-    private static final Gson GSON = new GsonBuilder()
-            .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
-                @Override
-                public void write(JsonWriter jsonWriter, Class aClass) throws IOException {
-                    jsonWriter.value(aClass.getName());
-                }
-
-                @Override
-                public Class read(JsonReader jsonReader) throws IOException {
-                    try {
-                        return Class.forName(jsonReader.nextString());
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                }
-            })
-            .create();
 
     private transient ClientSocketAdapter client;
     @SerializedName("service")
@@ -68,11 +50,11 @@ public class Request {
     }
 
     public static Request fromJson(String json) {
-        return GSON.fromJson(json, Request.class);
+        return SerdeUtil.fromJson(json, Request.class);
     }
 
     public static String toJson(Request request) {
-        return GSON.toJson(request);
+        return SerdeUtil.toJson(request);
     }
 
     public static boolean valid(Request request) {

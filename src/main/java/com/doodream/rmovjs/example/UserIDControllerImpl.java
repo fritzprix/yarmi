@@ -2,10 +2,19 @@ package com.doodream.rmovjs.example;
 
 import com.doodream.rmovjs.model.Response;
 
+import java.util.HashMap;
+
 public class UserIDControllerImpl implements UserIDPController {
+
+    private HashMap<Long, User> userTable = new HashMap<>();
+
     @Override
     public Response<User> getUser(Long userId) {
-        return null;
+        User user = userTable.get(userId);
+        if(user == null) {
+            return null;
+        }
+        return Response.success(user, User.class);
     }
 
     @Override
@@ -15,7 +24,9 @@ public class UserIDControllerImpl implements UserIDPController {
 
     @Override
     public Response<User> createUser(User user) {
-        System.out.println(user);
-        return Response.build(user, User.class);
+        int id = user.hashCode();
+        userTable.put((long) id, user);
+        user.id = (long) id;
+        return Response.success(user, User.class);
     }
 }

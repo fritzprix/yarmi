@@ -1,5 +1,8 @@
 package com.doodream.rmovjs.model;
 
+/**
+ *
+ */
 public enum RMIError {
     NOT_FOUND(404, Response.error(404, "Not Found")),
     FORBIDDEN(403, Response.error(403, "serviceInfo is not matched"));

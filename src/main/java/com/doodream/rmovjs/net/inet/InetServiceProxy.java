@@ -1,12 +1,11 @@
 package com.doodream.rmovjs.net.inet;
 
-import com.doodream.rmovjs.model.Endpoint;
-import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.model.Request;
-import com.doodream.rmovjs.model.Response;
+import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.HandshakeFailException;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.RMISocket;
+import io.reactivex.Observable;
+import io.reactivex.schedulers.Schedulers;
 import lombok.Data;
 
 import java.io.BufferedReader;
@@ -49,19 +48,38 @@ public class InetServiceProxy implements RMIServiceProxy {
     }
 
     @Override
-    public Response request(Endpoint endpoint) throws IOException {
-
+    public Response request(Endpoint endpoint) {
         Request request = Request.builder()
                         .endpoint(endpoint)
                         .serviceInfo(serviceInfo)
                         .build();
 
-        write(Request.toJson(request));
-        return Response.fromJson(reader.readLine());
+        return Observable.just(request)
+                .map(Request::toJson)
+                .doOnNext(this::write)
+                .map(s -> reader.readLine())
+                .doOnError(this::onError)
+                .map(s -> Response.fromJson(s, endpoint.getResponseType()))
+                .subscribeOn(Schedulers.io())
+                .blockingSingle();
+
+    }
+
+    private void onError(Throwable throwable) throws IOException {
+        // TODO: handle error
+        socket.close();
     }
 
     @Override
     public void close() throws IOException {
         socket.close();
+    }
+
+    @Override
+    public boolean provide(Class controller) {
+        return Observable.fromIterable(serviceInfo.getControllerInfos())
+                .map(ControllerInfo::getStubCls)
+                .map(controller::equals)
+                .blockingFirst(false);
     }
 }

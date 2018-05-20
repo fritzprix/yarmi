@@ -2,6 +2,7 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.annotation.server.Service;
+import com.doodream.rmovjs.net.SerdeUtil;
 import com.doodream.rmovjs.net.inet.InetServiceAdapter;
 import com.doodream.rmovjs.server.RMIController;
 import com.google.gson.Gson;
@@ -24,24 +25,6 @@ import java.util.List;
 @Builder
 @Data
 public class RMIServiceInfo {
-
-    private static final Gson GSON = new GsonBuilder()
-            .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
-                @Override
-                public void write(JsonWriter jsonWriter, Class aClass) throws IOException {
-                    jsonWriter.value(aClass.getCanonicalName());
-                }
-
-                @Override
-                public Class read(JsonReader jsonReader) throws IOException {
-                    try {
-                        return Class.forName(jsonReader.nextString());
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                }
-            }).create();
 
     @SerializedName("name")
     private String name;
@@ -83,12 +66,12 @@ public class RMIServiceInfo {
     }
 
     public String toJson() {
-        return GSON.toJson(this);
+        return SerdeUtil.toJson(this);
     }
 
     public static RMIServiceInfo from(byte[] bytes) throws UnsupportedEncodingException {
         JsonReader reader = new JsonReader(new StringReader(new String(bytes, "UTF-8")));
         reader.setLenient(true);
-        return GSON.fromJson(reader, RMIServiceInfo.class);
+        return SerdeUtil.fromJson(reader, RMIServiceInfo.class);
     }
 }

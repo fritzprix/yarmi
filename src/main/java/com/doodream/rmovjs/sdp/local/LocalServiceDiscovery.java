@@ -6,6 +6,7 @@ import com.doodream.rmovjs.sdp.ServiceDiscovery;
 import com.doodream.rmovjs.sdp.ServiceDiscoveryListener;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -68,6 +69,10 @@ public class LocalServiceDiscovery implements ServiceDiscovery {
     public void startDiscovery(RMIServiceInfo info, ServiceDiscoveryListener listener) throws IOException {
         DatagramSocket socket = new DatagramSocket(new InetSocketAddress(LocalServiceAdvertiser.BROADCAST_PORT));
         Observable<Long> tickObservable = Observable.interval(0L, 10L, TimeUnit.SECONDS);
+        Disposable disposable = disposableHashMap.get(info);
+        if(disposable != null) {
+            return;
+        }
 
         // listen broadcast message from datagram socket
         // and convert it to RMIServiceInfo
@@ -87,6 +92,7 @@ public class LocalServiceDiscovery implements ServiceDiscovery {
                 .map(adapter->adapter.getProxyFactory(info))
                 .doOnDispose(socket::close)
                 .map(serviceProxyFactory -> serviceProxyFactory.build(info))
+                .subscribeOn(Schedulers.io())
                 .subscribe(listener::onDiscovered, throwable -> {
                     throwable.printStackTrace();
                     socket.close();

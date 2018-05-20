@@ -1,23 +1,22 @@
 package com.doodream.rmovjs.net.inet;
 
 
+import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.Function;
-import io.reactivex.schedulers.Schedulers;
-import io.reactivex.subjects.PublishSubject;
 import lombok.NonNull;
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 import java.io.IOException;
-import java.net.*;
-import java.util.List;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.UnknownHostException;
 
 public class InetServiceAdapter implements ServiceAdapter {
 
@@ -52,9 +51,8 @@ public class InetServiceAdapter implements ServiceAdapter {
                 .map(ServerSocket::accept)
                 .repeatUntil(() -> !listen)
                 .map(socket -> clientAdapterFactory.handshake(serviceInfo, new InetRMISocket(socket)))
-                .doOnError(Throwable::printStackTrace)
                 .doOnNext(adapter-> onHandshakeSuccess(adapter, handleRequest))
-                .subscribe());
+                .subscribe(clientSocketAdapter -> {},this::onError));
 
     }
 
@@ -64,9 +62,10 @@ public class InetServiceAdapter implements ServiceAdapter {
         compositeDisposable.add(adapter
                 .listen()
                 .doOnNext(request -> request.setClient(adapter))
-                .doOnNext(request -> System.out.println("Request from clinet : " + request))
+                .doOnNext(request -> System.out.println("Server <= " + request))
                 .filter(Request::valid)
                 .map(handleRequest)
+                .doOnError(this::onError)
                 .doOnNext(adapter::write)
                 .subscribe());
     }
@@ -88,20 +87,11 @@ public class InetServiceAdapter implements ServiceAdapter {
         System.out.println("RMIService Complete");
     }
 
-    private void onError(Throwable throwable) {
-        throwable.printStackTrace();
-    }
-
-    private void subscribe(ClientSocketAdapter adapter, Function<Request, Response> requestHandler) throws IOException {
-        System.out.println("Client Request Subscribed : " + adapter);
-        compositeDisposable.add(adapter
-                .listen()
-                .doOnError(this::onError)
-                .doOnComplete(this::onComplete)
-                .doOnDispose(this::onDispose)
-                .doOnNext(System.out::println)
-                .map(requestHandler)
-                .subscribe(adapter::write));
+    private void onError(Throwable throwable) throws IOException {
+        if(serverSocket.isClosed()) {
+            return;
+        }
+        serverSocket.close();
     }
 
     private void onDispose() throws IOException {
@@ -116,6 +106,8 @@ public class InetServiceAdapter implements ServiceAdapter {
                 && !serverSocket.isClosed()) {
                 serverSocket.close();
         }
+        compositeDisposable.dispose();
+        compositeDisposable.clear();
     }
 
 }

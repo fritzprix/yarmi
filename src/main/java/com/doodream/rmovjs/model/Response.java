@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.model;
 
+import com.doodream.rmovjs.net.SerdeUtil;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
@@ -21,31 +22,7 @@ import java.io.IOException;
 @AllArgsConstructor
 @Builder
 public class Response<T> {
-    private final static Gson GSON = new GsonBuilder()
-            .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
-                @Override
-                public void write(JsonWriter jsonWriter, Class aClass) throws IOException {
-                    jsonWriter.value(aClass.getName());
-                }
 
-                @Override
-                public Class read(JsonReader jsonReader) throws IOException {
-                    try {
-                        return Class.forName(jsonReader.nextString());
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                }
-            })
-            .create();
-
-    public static <T> Response<T> build(T body, Class<T> cls) {
-        return Response.<T>builder()
-                .body(body)
-                .bodyCls(cls)
-                .build();
-    }
     Endpoint endpoint;
     Class bodyCls;
     T body;
@@ -62,6 +39,22 @@ public class Response<T> {
                 .build();
     }
 
+    public static <T> Response<T> build(T body, Class<T> cls) {
+        return Response.<T>builder()
+                .body(body)
+                .bodyCls(cls)
+                .build();
+    }
+
+    public static <T> Response<T> success(T body, Class<T> cls) {
+        return Response.<T>builder()
+                .body(body)
+                .code(200)
+                .isSuccessful(true)
+                .bodyCls(cls)
+                .build();
+    }
+
     public static Response success(Request request, Response response) {
         response.setSuccessful(true);
         response.setCode(200);
@@ -73,11 +66,15 @@ public class Response<T> {
 
 
     public static String toJson(Response response) {
-        return GSON.toJson(response);
+        return SerdeUtil.toJson(response);
     }
 
     public static Response fromJson(String json) {
-        return GSON.fromJson(json, Response.class);
+        return SerdeUtil.fromJson(json, Response.class);
+    }
+
+    public static Response fromJson(String json, Class cls) {
+        return SerdeUtil.fromJson(json, Response.class, cls);
     }
 
     public static Response error(int code, String mesg) {
