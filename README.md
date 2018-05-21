@@ -1,17 +1,16 @@
 ## yarmi (yet-another-RMI)
-> yarmi is yet anotehr RMI based on JSON. which is intended to be used IoT application which is generally Java peer is not available
-
+> yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing service & client application considering small scoped network scenario (like LAN / PAN) 
 
 ### Features
 1. Zero-cost migration to (from) RESTful application 
-> Provides service abstraction in a similar way to RESTful application does (like service / controller mapping). 
+> Provides conceptual similarity to popular RESTful application framework (like service / controller mapping). 
 > and that means not only the migration from / to RESTful implementation is easy
 > but also implementing proxy for any RESTful service in heterogeneous network scenario (like typical IoT application) is also well supported  
 2. No Java RMI package dependency
 > yarmi uses JSON as its ser-deserializer, so any language specific dependency is not required.
-> and also intended to be cross-platform (NOT SUPPORTED YET)
+> and also intended to be cross-platform to support constrained system (such as Raspberrypi) in which the Java runtime is not available or restricted (NOT SUPPORTED YET)
 3. Support various network technology  
-> yarmi also provide service discovery module which support various network from TCP/IP to its counter part in Bluetooth (like RFCOMM)
+> yarmi also provides service discovery module which support various network from TCP/IP to its counter part in Bluetooth (like RFCOMM)
 
 ### How-To
 #### Build Service (Server)
