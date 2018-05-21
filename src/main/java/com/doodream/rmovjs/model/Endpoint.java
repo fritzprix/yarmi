@@ -45,9 +45,12 @@ public class Endpoint {
 
         assert method.getReturnType().equals(Response.class);
 
-        Annotation methodAnnotation = Observable.fromArray(method.getAnnotations())
+        Annotation methodAnnotation = Observable
+                .fromArray(method.getAnnotations())
                 .filter(Endpoint::verifyMethod)
                 .blockingFirst();
+
+
 
         final String parentPath = controller.path();
 

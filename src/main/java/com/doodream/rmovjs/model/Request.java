@@ -5,6 +5,7 @@ import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.SerdeUtil;
 import com.doodream.rmovjs.parameter.Param;
+import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
@@ -61,5 +62,17 @@ public class Request {
         return (request.getEndpoint() != null) &&
                 (request.getPath() != null) &&
                 (request.getMethodType() != null);
+    }
+
+    public Response answerWith(Response response) {
+        response.setEndpoint(endpoint);
+        response.setBodyCls(endpoint.responseType);
+
+        if(response.code == Response.Code.SUCCESS) {
+            Preconditions.checkNotNull(response.getBody(), "Successful response must have non-null body");
+        } else {
+            Preconditions.checkNotNull(response.getErrorBody(), "Error response must have non-null error body");
+        }
+        return response;
     }
 }

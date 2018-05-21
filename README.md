@@ -1,12 +1,17 @@
 ## yarmi (yet-another-RMI)
-> yarmi is RMI Framework which provides much more simple way to build server-client application in Java.
+> yarmi is yet anotehr RMI based on JSON. which is intended to be used IoT application which is generally Java peer is not available
 
 
 ### Features
-1. Provides high degree of similarity to HTTP Web Service
+1. Zero-cost migration to (from) RESTful application 
+> Provides service abstraction in a similar way to RESTful application does (like service / controller mapping). 
+> and that means not only the migration from / to RESTful implementation is easy
+> but also implementing proxy for any RESTful service in heterogeneous network scenario (like typical IoT application) is also well supported  
 2. No Java RMI package dependency
-3. Provides Service Discovery 
-
+> yarmi uses JSON as its ser-deserializer, so any language specific dependency is not required.
+> and also intended to be cross-platform (NOT SUPPORTED YET)
+3. Support various network technology  
+> yarmi also provide service discovery module which support various network from TCP/IP to its counter part in Bluetooth (like RFCOMM)
 
 ### How-To
 #### Build Service (Server)
@@ -70,39 +75,57 @@ public class TestService {
 public static class SimpleServer {
     
     public static void main (String[] args) {
-        RMIService service = RMIService.create(TestService.class, new LocalServiceAdvertiser());
+        RMIService service = RMIService.create(TestService.class, new SimpleServiceAdvertiser());
         service.listen();
     }
 }
 ```
 
-#### Buid Client
+#### Build Client
 1. Discover service & create client
 ```java
 public static class SimpleClient {
     
     public static void main (String[] args) {
-        // build target service information
-        RMIServiceInfo serviceInfo = RMIServiceInfo.from(TestService.class);
-        // start discovery
-        LocalServiceDiscovery discovery = new LocalServiceDiscovery();
-        discovery.startDiscovery(serviceInfo, discovered -> {
-            assert discovered.provide(UserIDPController.class);
+            // build target service information
+            List<RMIServiceProxy> discoveredService = new LinkedList<>();
+            RMIServiceInfo serviceInfo = RMIServiceInfo.from(TestService.class);
             
-            // create client side controller for service
-            UserIDPController userCtr = RMIClient.create(discovered, TestService.class, UserIDPController.class);
+            SimpleServiceDiscovery discovery = new SimpleServiceDiscovery();
+            discovery.startDiscovery(serviceInfo, new ServiceDiscoveryListener() {
+                @Override
+                public void onDiscovered(RMIServiceProxy proxy)  {
+                    discoveredService.add(proxy);
+                }
+    
+                @Override
+                public void onDiscoveryStarted() { }
+    
+                @Override
+                public void onDiscoveryFinished() {
+                    // discovery finished 
+                    // pick RMIServiceProxy and create client
+                    if(discoveredService.size() > 0) {
+                        RMIServiceProxy serviceProxy = discoveredService.get(0);
+                        assert serviceProxy.provide(UserIDPController.class);
+                        try {
+                            UserIDPController userCtr = RMIClient.create(serviceProxy, TestService.class, UserIDPController.class);
+                            
+                            User user = new User();
+                            user.setName("David");
+    
+                            Response<User> response = userCtr.createUser(user);
+                            assert response.isSuccessful();
+                            response = userCtr.getUser(1L);
+                            assert !response.isSuccessful();
+                            assert user.equals(response.getBody());
+                        } catch (IllegalAccessException | InstantiationException | IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }, 2L, TimeUnit.SECONDS);
             
-            // request to service
-            User user = new User();
-            user.setName("David");
-            
-            Response<User> response = userCtr.createUser(user);
-            assert response.isSuccessful();
-            response = userCtr.getUser(response.getBody().getId());
-            assert response.isSuccessful();
-            assert user.equals(response.getBody());
-            
-        });
     }
 }
 ```

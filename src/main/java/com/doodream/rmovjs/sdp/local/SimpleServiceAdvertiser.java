@@ -17,14 +17,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- *  this class is to be used in testing as a simple placeholder for service discovery
- *  feature within local machine.
+ * this class provices simple service advertising capability whose intented use is testing though,
+ * can be used a simple service discovery scenario.
  *
- *  advertising will be started by writing service registry into a key-value cache in local machine
- *
+ * advertiser start to advertise its RMIServiceInfo with broadcasting datagram socket
  */
 @Data
-public class LocalServiceAdvertiser implements ServiceAdvertiser {
+public class SimpleServiceAdvertiser implements ServiceAdvertiser {
 
     public static final int BROADCAST_PORT = 3041;
     private Disposable disposable;
@@ -32,7 +31,7 @@ public class LocalServiceAdvertiser implements ServiceAdvertiser {
 
     @Override
     public synchronized void startAdvertiser(RMIServiceInfo info) {
-        disposable = Observable.interval(0L, 10L, TimeUnit.SECONDS)
+        disposable = Observable.interval(0L, 3L, TimeUnit.SECONDS)
                 .map(aLong -> info)
                 .map(this::buildBroadcastPackaet)
                 .doOnNext(this::broadcast)

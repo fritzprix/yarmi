@@ -48,6 +48,7 @@ public class RMIClient {
         serviceProxy.open();
 
         RMIClientBuilder builder = RMIClient.builder();
+
         Observable<Method> methodObservable = Observable.fromArray(ctrl.getMethods())
                 .filter(RMIMethod::isValidMethod);
 

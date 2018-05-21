@@ -3,9 +3,11 @@ package com.doodream.rmovjs.server;
 
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.method.RMIMethod;
-import com.doodream.rmovjs.model.*;
+import com.doodream.rmovjs.model.Endpoint;
+import com.doodream.rmovjs.model.RMIError;
+import com.doodream.rmovjs.model.Request;
+import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.parameter.Param;
-import com.google.common.collect.Lists;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import lombok.AllArgsConstructor;
@@ -93,7 +95,7 @@ public class RMIController {
                 .toList().blockingGet();
 
         Response response = (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());
-        return Response.success(request, response);
+        return request.answerWith(response);
     }
 
 }

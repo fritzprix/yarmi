@@ -41,8 +41,6 @@ public class RMIServiceInfo {
     @SerializedName("interfaces")
     private List<ControllerInfo> controllerInfos;
 
-    //TODO :
-
 
     public static <T> RMIServiceInfo from(Class<T> svc) {
         Service service = svc.getAnnotation(Service.class);
