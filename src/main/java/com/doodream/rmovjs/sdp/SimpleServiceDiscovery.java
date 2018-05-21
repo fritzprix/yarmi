@@ -1,9 +1,7 @@
-package com.doodream.rmovjs.sdp.local;
+package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.net.ServiceAdapter;
-import com.doodream.rmovjs.sdp.ServiceDiscovery;
-import com.doodream.rmovjs.sdp.ServiceDiscoveryListener;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 
@@ -51,7 +49,6 @@ public class SimpleServiceDiscovery implements ServiceDiscovery {
         DatagramSocket socket = new DatagramSocket(new InetSocketAddress(SimpleServiceAdvertiser.BROADCAST_PORT));
         discovered.clear();
         Observable<Long> tickObservable = discoveryTickEventObservable();
-
         Observable<RMIServiceInfo> serviceInfoObservable = tickObservable
                 .map(aLong -> receivePacket(socket))
                 .map(DatagramPacket::getData)

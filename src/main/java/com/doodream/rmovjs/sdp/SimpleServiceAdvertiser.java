@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.sdp.local;
+package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.sdp.ServiceAdvertiser;

@@ -1,5 +1,5 @@
 ## yarmi (yet-another-RMI)
-> yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing service & client application considering small scoped network scenario (like LAN / PAN) 
+> yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing server & client based distributed application within a narrow range of network 
 
 ### Features
 1. Zero-cost migration to (from) RESTful application 

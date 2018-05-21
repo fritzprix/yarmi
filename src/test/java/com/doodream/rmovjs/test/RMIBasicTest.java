@@ -1,6 +1,6 @@
 package com.doodream.rmovjs.test;
 
-import com.doodream.rmovjs.sdp.local.SimpleServiceAdvertiser;
+import com.doodream.rmovjs.sdp.SimpleServiceAdvertiser;
 import com.doodream.rmovjs.server.RMIService;
 import com.doodream.rmovjs.test.service.TestService;
 import org.junit.After;

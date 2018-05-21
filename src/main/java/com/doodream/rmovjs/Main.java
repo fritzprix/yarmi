@@ -8,8 +8,8 @@ import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.sdp.ServiceDiscoveryListener;
-import com.doodream.rmovjs.sdp.local.SimpleServiceAdvertiser;
-import com.doodream.rmovjs.sdp.local.SimpleServiceDiscovery;
+import com.doodream.rmovjs.sdp.SimpleServiceAdvertiser;
+import com.doodream.rmovjs.sdp.SimpleServiceDiscovery;
 import com.doodream.rmovjs.server.RMIService;
 
 import java.io.IOException;

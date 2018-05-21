@@ -4,9 +4,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.doodream.iot</groupId>
-    <artifactId>rmover-json</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <groupId>com.doodream</groupId>
+    <artifactId>yarmi-core</artifactId>
+    <version>0.0.1</version>
+    <packaging>jar</packaging>
+
+    <name>yarmi-core</name>
+    <description>yarmi-core project</description>
+    <url>https://github.com/fritzprix/yarmi</url>
 
     <licenses>
         <license>
@@ -16,7 +21,10 @@
         </license>
     </licenses>
 
-    <packaging>jar</packaging>
+    <scm>
+        <url>https://github.com/fritzprix/yarmi</url>
+    </scm>
+
     <build>
         <resources>
             <resource>
@@ -90,6 +98,12 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.16.18</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.apple/dnssd -->
+        <dependency>
+            <groupId>jmdns</groupId>
+            <artifactId>jmdns</artifactId>
+            <version>1.0</version>
         </dependency>
 
         <dependency>
