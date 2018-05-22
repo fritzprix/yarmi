@@ -2,7 +2,7 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.annotation.server.Service;
-import com.doodream.rmovjs.net.SerdeUtil;
+import com.doodream.rmovjs.util.SerdeUtil;
 import com.doodream.rmovjs.server.RMIController;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
@@ -30,6 +30,9 @@ public class RMIServiceInfo {
     @SerializedName("adapter")
     private Class adapter;
 
+    @SerializedName("negotiator")
+    private Class negotiator;
+
     @SerializedName("params")
     private List<String> params;
 
@@ -50,6 +53,7 @@ public class RMIServiceInfo {
 
         builder.version(Properties.VERSION)
                 .adapter(service.adapter())
+                .negotiator(service.negotiator())
                 .params(Arrays.asList(service.params()))
                 .name(service.name());
 
@@ -85,6 +89,7 @@ public class RMIServiceInfo {
         setAdapter(info.getAdapter());
         setControllerInfos(info.getControllerInfos());
         setName(info.getName());
+        setNegotiator(info.getNegotiator());
         setVersion(info.getVersion());
     }
 }

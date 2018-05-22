@@ -23,5 +23,10 @@ public interface ServiceProxyFactory {
      * @throws IOException
      */
     RMIServiceProxy build() throws IOException;
+
+    /**
+     *
+     * @param info
+     */
     void setTargetService(RMIServiceInfo info);
 }

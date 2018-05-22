@@ -1,6 +1,6 @@
 package com.doodream.rmovjs.model;
 
-import com.doodream.rmovjs.net.SerdeUtil;
+import com.doodream.rmovjs.util.SerdeUtil;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +20,7 @@ public class Response<T> {
     Class bodyCls;
     T body;
     boolean isSuccessful;
-    ErrorBody errorBody;
+    ResponseBody errorBody;
     int code;
 
     static Response from(Response response) {
@@ -51,10 +51,10 @@ public class Response<T> {
     }
 
     public static Response error(int code, String mesg) {
-        return Response.<ErrorBody>builder()
+        return Response.<ResponseBody>builder()
                 .code(code)
                 .isSuccessful(false)
-                .errorBody(new ErrorBody(mesg))
+                .errorBody(new ResponseBody(mesg))
                 .build();
     }
 
@@ -62,17 +62,17 @@ public class Response<T> {
         return Response.builder()
                 .code(Code.SUCCESS)
                 .isSuccessful(true)
-                .body(new ErrorBody(msg))
-                .bodyCls(ErrorBody.class)
+                .body(new ResponseBody(msg))
+                .bodyCls(ResponseBody.class)
                 .build();
     }
 
     @Data
-    public static class ErrorBody {
+    public static class ResponseBody {
         @SerializedName("msg")
         String message;
 
-        private ErrorBody(String msg) {
+        private ResponseBody(String msg) {
             message = msg;
         }
     }

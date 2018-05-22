@@ -1,12 +1,14 @@
 package com.doodream.rmovjs.net.inet;
 
 import com.doodream.rmovjs.model.*;
-import com.doodream.rmovjs.net.HandshakeFailException;
+import com.doodream.rmovjs.net.RMINegotiator;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.RMISocket;
 import io.reactivex.Observable;
 import io.reactivex.schedulers.Schedulers;
 import lombok.Data;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -16,6 +18,8 @@ import java.io.PrintStream;
 
 @Data
 public class InetServiceProxy implements RMIServiceProxy {
+
+    private static final Logger Log = LogManager.getLogger(InetServiceProxy.class);
 
     private RMIServiceInfo serviceInfo;
     private RMISocket socket;
@@ -33,16 +37,12 @@ public class InetServiceProxy implements RMIServiceProxy {
     }
 
     @Override
-    public void open() throws IOException {
+    public void open() throws IOException, IllegalAccessException, InstantiationException {
         socket.open();
+        RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
+        socket = negotiator.handshake(socket, serviceInfo, true);
+        Log.info("Successfully Opened");
         reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        write(this.serviceInfo.toJson());
-        Response response = Response.fromJson(reader.readLine());
-        if((response != null) &&
-                response.isSuccessful()) {
-            return;
-        }
-        throw new HandshakeFailException();
     }
 
     private void write(String s) throws IOException {
@@ -59,17 +59,23 @@ public class InetServiceProxy implements RMIServiceProxy {
                 .map(Request::toJson)
                 .doOnNext(this::write)
                 .map(s -> reader.readLine())
-                .doOnError(throwable -> this.close())
+                .doOnError(this::onError)
                 .map(s -> Response.fromJson(s, endpoint.getResponseType()))
                 .subscribeOn(Schedulers.io())
                 .blockingSingle();
 
     }
 
+    private void onError(Throwable throwable) {
+        Log.error(throwable);
+        try {
+            close();
+        } catch (IOException ignored) { }
+    }
 
     @Override
     public void close() throws IOException {
-        System.out.println("Closed");
+        Log.debug("Closed");
         if(socket.isClosed()) {
             return;
         }

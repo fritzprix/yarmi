@@ -1,5 +1,6 @@
 ## yarmi (yet-another-RMI)
-> yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing server & client based distributed application within a narrow range of network 
+> yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing server & client based distributed application within a network of small scale 
+
 
 ### Features
 1. Zero-cost migration to (from) RESTful application 
@@ -13,6 +14,32 @@
 > yarmi also provides abstraction over transport layer so it can over any kinds of transport like tcp / ip or bluetooth rfcomm.
 
 ### How-To
+
+#### Using Maven
+1. Add Maven Repository
+```xml
+<repositories>
+    <repository>
+        <id>yarmi-mvn-repo</id>
+        <url>https://raw.github.com/fritzprix/yarmi/mvn-repo/</url>
+        <snapshots>
+            <enabled>true</enabled>
+            <updatePolicy>always</updatePolicy>
+        </snapshots>
+    </repository>
+</repositories>
+```
+2. Add dependency 
+```xml
+<dependencies>
+        <dependency>
+            <groupId>com.doodream</groupId>
+            <artifactId>yarmi-core</artifactId>
+            <version>x.y.z</version>
+        </dependency>
+</dependencies>
+```
+
 #### Build Service (Server)
 1. Declare controller stub in a very similar way doing with Spring REST Controller
 ```java

@@ -22,7 +22,7 @@ public interface ServiceAdapter {
      * @return proxyFactoryHint as string
      * @throws IOException
      */
-    String listen(RMIServiceInfo serviceInfo, Function<Request, Response> requestHandler) throws IOException;
+    String listen(RMIServiceInfo serviceInfo, Function<Request, Response> requestHandler) throws IOException, IllegalAccessException, InstantiationException;
     ServiceProxyFactory getProxyFactory(RMIServiceInfo info);
     void close() throws IOException;
 }

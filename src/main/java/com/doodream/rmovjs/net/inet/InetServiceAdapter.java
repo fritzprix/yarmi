@@ -5,6 +5,7 @@ import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
+import com.doodream.rmovjs.net.RMINegotiator;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 import io.reactivex.Observable;
@@ -12,15 +13,18 @@ import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import lombok.NonNull;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.*;
 
 public class InetServiceAdapter implements ServiceAdapter {
 
+    private static final Logger Log = LogManager.getLogger(InetServiceAdapter.class);
+
     private ServerSocket serverSocket;
     private InetSocketAddress mAddress;
-    private InetClientSocketAdapterFactory clientAdapterFactory;
     private CompositeDisposable compositeDisposable;
     private volatile boolean listen = false;
     public static final String DEFAULT_PORT = "6644";
@@ -28,7 +32,6 @@ public class InetServiceAdapter implements ServiceAdapter {
     public InetServiceAdapter(String host, String port) throws UnknownHostException {
         int p = Integer.valueOf(port);
         mAddress = new InetSocketAddress(InetAddress.getByName(host), p);
-        clientAdapterFactory = new InetClientSocketAdapterFactory();
         compositeDisposable = new CompositeDisposable();
     }
 
@@ -41,15 +44,21 @@ public class InetServiceAdapter implements ServiceAdapter {
     }
 
     @Override
-    public String listen(RMIServiceInfo serviceInfo, @NonNull Function<Request, Response> handleRequest) throws IOException {
+    public String listen(RMIServiceInfo serviceInfo, @NonNull Function<Request, Response> handleRequest) throws IOException, IllegalAccessException, InstantiationException {
+        Log.debug("Service Listen @ {} : {}", mAddress.getAddress(), mAddress.getPort());
         serverSocket = new ServerSocket();
-        listen = true;
         serverSocket.bind(mAddress);
+
+        RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
+        listen = true;
+
         compositeDisposable.add(Observable.just(serverSocket)
                 .map(ServerSocket::accept)
-                .doOnNext(client -> System.out.println(client.getInetAddress()))
+                .doOnNext(client -> Log.debug("Client @ {}", client.getInetAddress()))
                 .repeatUntil(() -> !listen)
-                .map(socket -> clientAdapterFactory.handshake(serviceInfo, new InetRMISocket(socket)))
+                .map(InetRMISocket::new)
+                .map(client -> negotiator.handshake(client, serviceInfo, false))
+                .map(InetClientSocketAdapter::new)
                 .subscribeOn(Schedulers.io())
                 .subscribe(adapter-> onHandshakeSuccess(adapter, handleRequest),this::onError));
 
@@ -87,6 +96,7 @@ public class InetServiceAdapter implements ServiceAdapter {
 
 
     private void onError(Throwable throwable) throws IOException {
+        Log.error(throwable);
         if(serverSocket.isClosed()) {
             return;
         }

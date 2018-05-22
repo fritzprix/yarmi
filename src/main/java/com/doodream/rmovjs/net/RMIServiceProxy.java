@@ -9,19 +9,19 @@ import com.doodream.rmovjs.model.Response;
 import java.io.IOException;
 
 public interface RMIServiceProxy {
-    public static final RMIServiceProxy NULL_PROXY = new RMIServiceProxy() {
+    RMIServiceProxy NULL_PROXY = new RMIServiceProxy() {
         @Override
-        public void open() throws IOException {
+        public void open() {
 
         }
 
         @Override
-        public Response request(Endpoint endpoint) throws IOException {
+        public Response request(Endpoint endpoint) {
             return RMIError.NOT_FOUND.getResponse(Request.builder().build());
         }
 
         @Override
-        public void close() throws IOException {
+        public void close() {
 
         }
 
@@ -31,7 +31,7 @@ public interface RMIServiceProxy {
         }
     };
 
-    void open() throws IOException;
+    void open() throws IOException, IllegalAccessException, InstantiationException;
     Response request(Endpoint endpoint) throws IOException;
     void close() throws IOException;
     boolean provide(Class<UserIDPController> userIDPControllerClass);

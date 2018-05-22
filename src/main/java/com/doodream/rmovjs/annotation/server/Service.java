@@ -1,7 +1,9 @@
 package com.doodream.rmovjs.annotation.server;
 
 
+import com.doodream.rmovjs.net.RMINegotiator;
 import com.doodream.rmovjs.net.ServiceAdapter;
+import com.doodream.rmovjs.net.SimpleNegotiator;
 import com.doodream.rmovjs.net.inet.InetServiceAdapter;
 
 import java.lang.annotation.Retention;
@@ -36,4 +38,6 @@ public @interface Service {
      * @return parameters to adapter constructor
      */
     String[] params() default {};
+
+    Class<? extends RMINegotiator> negotiator() default SimpleNegotiator.class;
 }
