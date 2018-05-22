@@ -1,7 +1,6 @@
 package com.doodream.rmovjs.annotation.server;
 
 
-import com.doodream.rmovjs.annotation.parameter.KeyValue;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.inet.InetServiceAdapter;
 

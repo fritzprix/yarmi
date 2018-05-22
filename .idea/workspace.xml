@@ -2,7 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="161b0c21-8793-4914-8ada-e3ebceb6a3e3" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/Properties.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/Properties.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/server/RMIService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/server/RMIService.java" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <ignored path="$PROJECT_DIR$/target/" />
@@ -18,32 +21,11 @@
       <file leaf-file-name="RMIService.java" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/server/RMIService.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1458">
-              <caret line="97" column="27" selection-start-line="97" selection-start-column="27" selection-end-line="97" selection-end-column="27" />
+            <state relative-caret-position="268">
+              <caret line="43" column="18" selection-start-line="43" selection-start-column="18" selection-end-line="43" selection-end-column="18" />
               <folding>
                 <element signature="imports" expanded="true" />
               </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="Main.java" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/Main.java">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="252">
-              <caret line="29" column="19" selection-start-line="29" selection-start-column="19" selection-end-line="29" selection-end-column="19" />
-              <folding>
-                <element signature="imports" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="RMIBasicTest.java" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/test/java/com/doodream/rmovjs/test/RMIBasicTest.java">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="270">
-              <caret line="23" column="35" selection-start-line="23" selection-start-column="35" selection-end-line="23" selection-end-column="35" />
             </state>
           </provider>
         </entry>
@@ -66,12 +48,12 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="README.md" pinned="false" current-in-tab="true">
+      <file leaf-file-name="README.md" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/README.md">
           <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
             <state split_layout="SPLIT">
-              <first_editor relative-caret-position="198">
-                <caret line="11" column="24" selection-start-line="11" selection-start-column="24" selection-end-line="11" selection-end-column="24" />
+              <first_editor relative-caret-position="1583">
+                <caret line="128" column="12" selection-start-line="128" selection-start-column="12" selection-end-line="128" selection-end-column="12" />
                 <folding>
                   <element signature="e#402#403#0" expanded="true" />
                   <element signature="e#429#430#0" expanded="true" />
@@ -84,14 +66,47 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="InetServiceAdapter.java" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/net/inet/InetServiceAdapter.java">
+      <file leaf-file-name="RMIMethod.java" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/method/RMIMethod.java">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="738">
-              <caret line="54" selection-start-line="54" selection-end-line="54" />
-              <folding>
-                <element signature="imports" expanded="true" />
-              </folding>
+            <state relative-caret-position="1170">
+              <caret line="73" column="26" selection-start-line="73" selection-start-column="26" selection-end-line="73" selection-end-column="26" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="project.properties" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/main/resources/project.properties">
+          <provider selected="true" editor-type-id="text-editor">
+            <state>
+              <caret column="13" selection-start-column="13" selection-end-column="13" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="pom.xml" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/pom.xml">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="423">
+              <caret line="124" column="19" lean-forward="true" selection-start-line="124" selection-start-column="19" selection-end-line="124" selection-end-column="19" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="Properties.java" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/Properties.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="324">
+              <caret line="18" column="1" selection-start-line="18" selection-start-column="1" selection-end-line="18" selection-end-column="1" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="RMIServiceInfo.java" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/model/RMIServiceInfo.java">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="423">
+              <caret line="57" column="38" selection-start-line="57" selection-start-column="38" selection-end-line="57" selection-end-column="38" />
             </state>
           </provider>
         </entry>
@@ -101,27 +116,6 @@
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="684">
               <caret line="48" column="20" selection-start-line="48" selection-start-column="20" selection-end-line="48" selection-end-column="20" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="BaseServiceDiscovery.java" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/sdp/BaseServiceDiscovery.java">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="144">
-              <caret line="21" column="7" selection-start-line="21" selection-start-column="7" selection-end-line="21" selection-end-column="7" />
-              <folding>
-                <element signature="imports" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="ServiceAdvertiser.java" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/sdp/ServiceAdvertiser.java">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="216">
-              <caret line="14" column="9" selection-start-line="14" selection-start-column="9" selection-end-line="14" selection-end-column="9" />
             </state>
           </provider>
         </entry>
@@ -166,7 +160,6 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/annotation/parameter/KeyValue.java" />
         <option value="$PROJECT_DIR$/src/test/java/com/doodream/rmovjs/test/service/TestService.java" />
         <option value="$PROJECT_DIR$/src/test/java/com/doodream/rmovjs/test/RMIServerTest.java" />
         <option value="$PROJECT_DIR$/src/test/java/com/doodream/rmovjs/test/RMIClientTest.java" />
@@ -196,7 +189,6 @@
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/model/RMIError.java" />
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/net/HandshakeFailException.java" />
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/client/RMIClient.java" />
-        <option value="$PROJECT_DIR$/pom.xml" />
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/net/RMISocketFactory.java" />
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/net/ServiceAdapter.java" />
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/sdp/SimpleServiceDiscovery.java" />
@@ -211,12 +203,14 @@
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/net/inet/InetServiceProxy.java" />
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/net/inet/InetServiceAdapter.java" />
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/sdp/ServiceAdvertiser.java" />
-        <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/server/RMIService.java" />
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/Main.java" />
         <option value="$PROJECT_DIR$/src/test/java/com/doodream/rmovjs/test/RMIBasicTest.java" />
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/sdp/SimpleServiceAdvertiser.java" />
         <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/net/ServiceProxyFactory.java" />
         <option value="$PROJECT_DIR$/README.md" />
+        <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/Properties.java" />
+        <option value="$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/server/RMIService.java" />
+        <option value="$PROJECT_DIR$/pom.xml" />
       </list>
     </option>
   </component>
@@ -309,13 +303,26 @@
               <item name="main" type="462c0819:PsiDirectoryNode" />
               <item name="java" type="462c0819:PsiDirectoryNode" />
               <item name="rmovjs" type="462c0819:PsiDirectoryNode" />
-              <item name="sdp" type="462c0819:PsiDirectoryNode" />
+              <item name="example" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="rmover-json" type="b2602c69:ProjectViewProjectNode" />
               <item name="rmover-json" type="462c0819:PsiDirectoryNode" />
               <item name="src" type="462c0819:PsiDirectoryNode" />
               <item name="main" type="462c0819:PsiDirectoryNode" />
+              <item name="resources" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="rmover-json" type="b2602c69:ProjectViewProjectNode" />
+              <item name="rmover-json" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="test" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="rmover-json" type="b2602c69:ProjectViewProjectNode" />
+              <item name="rmover-json" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="test" type="462c0819:PsiDirectoryNode" />
               <item name="resources" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
@@ -496,12 +503,12 @@
       <workItem from="1526817481326" duration="19772000" />
       <workItem from="1526883780705" duration="20329000" />
       <workItem from="1526909828037" duration="23926000" />
-      <workItem from="1526961837160" duration="492000" />
+      <workItem from="1526961837160" duration="3635000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="177772000" />
+    <option name="totallyTimeSpent" value="180915000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -535,9 +542,9 @@
       <window_info id="Image Layers" order="7" />
       <window_info anchor="right" id="Capture Analysis" order="7" />
       <window_info anchor="bottom" id="Version Control" order="10" weight="0.33978495" />
-      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49806523" weight="0.36869746" />
-      <window_info active="true" anchor="bottom" id="Terminal" order="9" sideWeight="0.49585405" visible="true" weight="0.4012605" />
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.29275042" />
+      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49806523" visible="true" weight="0.36869746" />
+      <window_info anchor="bottom" id="Terminal" order="9" sideWeight="0.49585405" weight="0.4012605" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.29275042" />
       <window_info anchor="right" id="SciView" order="9" />
       <window_info anchor="right" id="Theme Preview" order="9" />
       <window_info id="Favorites" order="5" side_tool="true" />
@@ -633,13 +640,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/method/RMIMethod.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="257">
-          <caret line="73" column="26" selection-start-line="73" selection-start-column="26" selection-end-line="73" selection-end-column="26" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/model/Endpoint.java">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="47">
@@ -648,16 +648,6 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/sdp/BaseServiceAdvertiser.java" />
-    <entry file="file://$PROJECT_DIR$/src/main/resources/project.properties">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/Properties.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="10" column="23" selection-start-line="10" selection-start-column="23" selection-end-line="10" selection-end-column="23" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/sdp/ServiceDiscoveryListener.java">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="90">
@@ -716,13 +706,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="108">
           <caret line="9" column="52" selection-start-line="9" selection-start-column="52" selection-end-line="9" selection-end-column="52" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/pom.xml">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="477">
-          <caret line="116" column="21" selection-start-line="116" selection-start-column="21" selection-end-line="116" selection-end-column="21" />
         </state>
       </provider>
     </entry>
@@ -797,13 +780,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/model/RMIServiceInfo.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="513">
-          <caret line="94" column="38" selection-start-line="94" selection-start-column="38" selection-end-line="94" selection-end-column="38" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/model/Request.java">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="88">
@@ -870,16 +846,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/server/RMIService.java">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1458">
-          <caret line="97" column="27" selection-start-line="97" selection-start-column="27" selection-end-line="97" selection-end-column="27" />
-          <folding>
-            <element signature="imports" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/Main.java">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="252">
@@ -938,8 +904,8 @@
     <entry file="file://$PROJECT_DIR$/README.md">
       <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
         <state split_layout="SPLIT">
-          <first_editor relative-caret-position="198">
-            <caret line="11" column="24" selection-start-line="11" selection-start-column="24" selection-end-line="11" selection-end-column="24" />
+          <first_editor relative-caret-position="1583">
+            <caret line="128" column="12" selection-start-line="128" selection-start-column="12" selection-end-line="128" selection-end-column="12" />
             <folding>
               <element signature="e#402#403#0" expanded="true" />
               <element signature="e#429#430#0" expanded="true" />
@@ -948,6 +914,51 @@
             </folding>
           </first_editor>
           <second_editor />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/method/RMIMethod.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1170">
+          <caret line="73" column="26" selection-start-line="73" selection-start-column="26" selection-end-line="73" selection-end-column="26" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/resources/project.properties">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="13" selection-start-column="13" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/model/RMIServiceInfo.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="423">
+          <caret line="57" column="38" selection-start-line="57" selection-start-column="38" selection-end-line="57" selection-end-column="38" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/Properties.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="324">
+          <caret line="18" column="1" selection-start-line="18" selection-start-column="1" selection-end-line="18" selection-end-column="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/java/com/doodream/rmovjs/server/RMIService.java">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="268">
+          <caret line="43" column="18" selection-start-line="43" selection-start-column="18" selection-end-line="43" selection-end-column="18" />
+          <folding>
+            <element signature="imports" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/pom.xml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="423">
+          <caret line="124" column="19" lean-forward="true" selection-start-line="124" selection-start-column="19" selection-end-line="124" selection-end-column="19" />
         </state>
       </provider>
     </entry>

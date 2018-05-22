@@ -1,16 +1,13 @@
 package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.net.RMIServiceProxy;
-import com.doodream.rmovjs.net.ServiceAdapter;
-import io.reactivex.Observable;
-import io.reactivex.disposables.Disposable;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
+import java.net.SocketException;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
 /**

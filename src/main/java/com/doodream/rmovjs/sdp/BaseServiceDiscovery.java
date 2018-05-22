@@ -6,7 +6,6 @@ import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

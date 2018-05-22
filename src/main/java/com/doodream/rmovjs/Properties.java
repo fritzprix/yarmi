@@ -6,14 +6,14 @@ import lombok.Data;
 public class Properties {
 
     public static String VERSION = "TEST_VERSION";
-    public static String ARTIFACT_ID = "TEST_ARTIFACT";
-
-    public static void load() {
+    public static String ARTIFACT_ID = "TEST_NAME";
+    static {
         java.util.Properties props = new java.util.Properties();
         try {
-            props.load(Properties.class.getResourceAsStream("project.properties"));
+            props.load(Properties.class.getClassLoader().getResourceAsStream("project.properties"));
             Properties.VERSION = props.getProperty("version");
             Properties.ARTIFACT_ID = props.getProperty("artifactId");
         } catch (Exception ignore) {}
     }
+
 }

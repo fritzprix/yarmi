@@ -1,9 +1,9 @@
 package com.doodream.rmovjs.net;
 
 
+import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.model.RMIServiceInfo;
 import io.reactivex.Observable;
 
 import java.io.IOException;
