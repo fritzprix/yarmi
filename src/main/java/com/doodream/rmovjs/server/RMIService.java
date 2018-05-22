@@ -7,7 +7,6 @@ import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.sdp.ServiceAdvertiser;
 import io.reactivex.Observable;
-import io.reactivex.schedulers.Schedulers;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -41,7 +40,6 @@ public class RMIService {
 
     public static <T> RMIService create(Class<T> cls, ServiceAdvertiser advertiser) throws IllegalAccessException, InstantiationException, InvocationTargetException {
 
-        Properties.load();
         Service service = cls.getAnnotation(Service.class);
         String[] params = service.params();
 

@@ -24,7 +24,6 @@
     <scm>
         <url>https://github.com/fritzprix/yarmi</url>
     </scm>
-
     <build>
         <resources>
             <resource>
@@ -48,6 +47,11 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>2.6</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <executions>
                     <execution>
@@ -59,13 +63,6 @@
                             <descriptorRefs>
                                 <descriptorRef>jar-with-dependencies</descriptorRef>
                             </descriptorRefs>
-                            <!--<archive>-->
-                                <!--<manifest>-->
-                                    <!--<mainClass>-->
-                                        <!--com.doodream.rmovjs.Main-->
-                                    <!--</mainClass>-->
-                                <!--</manifest>-->
-                            <!--</archive>-->
                         </configuration>
                     </execution>
                 </executions>
@@ -99,7 +96,6 @@
             <artifactId>lombok</artifactId>
             <version>1.16.18</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.apple/dnssd -->
         <dependency>
             <groupId>jmdns</groupId>
             <artifactId>jmdns</artifactId>
@@ -125,11 +121,6 @@
             <groupId>io.reactivex.rxjava2</groupId>
             <artifactId>rxjava</artifactId>
             <version>2.1.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.dagger</groupId>
-            <artifactId>dagger</artifactId>
-            <version>2.0</version>
         </dependency>
     </dependencies>
 </project>
