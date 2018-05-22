@@ -9,8 +9,8 @@
 2. No Java RMI package dependency
 > yarmi uses JSON as its ser-deserializer, so any language specific dependency is not required.
 > and also intended to be cross-platform to support constrained system (such as Raspberrypi) in which the Java runtime is not available or restricted (NOT SUPPORTED YET)
-3. Support various network technology  
-> yarmi also provides service discovery module which support various network from TCP/IP to its counter part in Bluetooth (like RFCOMM)
+3. Support various transport  
+> yarmi also provides abstraction over transport layer so it can over any kinds of transport like tcp / ip or bluetooth rfcomm.
 
 ### How-To
 #### Build Service (Server)
