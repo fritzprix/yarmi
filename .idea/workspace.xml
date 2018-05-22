@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="161b0c21-8793-4914-8ada-e3ebceb6a3e3" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
@@ -71,8 +70,8 @@
         <entry file="file://$PROJECT_DIR$/README.md">
           <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
             <state split_layout="SPLIT">
-              <first_editor relative-caret-position="1404">
-                <caret line="78" column="85" lean-forward="true" selection-start-line="78" selection-start-column="85" selection-end-line="78" selection-end-column="85" />
+              <first_editor relative-caret-position="198">
+                <caret line="11" column="24" selection-start-line="11" selection-start-column="24" selection-end-line="11" selection-end-column="24" />
                 <folding>
                   <element signature="e#402#403#0" expanded="true" />
                   <element signature="e#429#430#0" expanded="true" />
@@ -497,12 +496,12 @@
       <workItem from="1526817481326" duration="19772000" />
       <workItem from="1526883780705" duration="20329000" />
       <workItem from="1526909828037" duration="23926000" />
-      <workItem from="1526961837160" duration="374000" />
+      <workItem from="1526961837160" duration="492000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="177654000" />
+    <option name="totallyTimeSpent" value="177772000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -537,8 +536,8 @@
       <window_info anchor="right" id="Capture Analysis" order="7" />
       <window_info anchor="bottom" id="Version Control" order="10" weight="0.33978495" />
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49806523" weight="0.36869746" />
-      <window_info anchor="bottom" id="Terminal" order="9" sideWeight="0.49585405" visible="true" weight="0.4012605" />
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.29275042" />
+      <window_info active="true" anchor="bottom" id="Terminal" order="9" sideWeight="0.49585405" visible="true" weight="0.4012605" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.29275042" />
       <window_info anchor="right" id="SciView" order="9" />
       <window_info anchor="right" id="Theme Preview" order="9" />
       <window_info id="Favorites" order="5" side_tool="true" />
@@ -939,8 +938,8 @@
     <entry file="file://$PROJECT_DIR$/README.md">
       <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
         <state split_layout="SPLIT">
-          <first_editor relative-caret-position="1404">
-            <caret line="78" column="85" lean-forward="true" selection-start-line="78" selection-start-column="85" selection-end-line="78" selection-end-column="85" />
+          <first_editor relative-caret-position="198">
+            <caret line="11" column="24" selection-start-line="11" selection-start-column="24" selection-end-line="11" selection-end-column="24" />
             <folding>
               <element signature="e#402#403#0" expanded="true" />
               <element signature="e#429#430#0" expanded="true" />
