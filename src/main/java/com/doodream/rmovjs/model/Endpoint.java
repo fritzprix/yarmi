@@ -7,7 +7,7 @@ import com.doodream.rmovjs.annotation.method.Post;
 import com.doodream.rmovjs.annotation.method.Put;
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.method.RMIMethod;
-import com.doodream.rmovjs.net.SerdeUtil;
+import com.doodream.rmovjs.util.SerdeUtil;
 import com.doodream.rmovjs.parameter.Param;
 import io.reactivex.Observable;
 import lombok.AllArgsConstructor;

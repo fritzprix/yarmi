@@ -17,6 +17,5 @@ public interface ClientSocketAdapter {
      */
     void write(Response response) throws IOException;
     Observable<Request> listen() throws IOException;
-    boolean handshake(RMIServiceInfo serviceInfo) throws IOException;
     String who();
 }

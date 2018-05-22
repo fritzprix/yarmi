@@ -3,7 +3,7 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
-import com.doodream.rmovjs.net.SerdeUtil;
+import com.doodream.rmovjs.util.SerdeUtil;
 import com.doodream.rmovjs.parameter.Param;
 import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;

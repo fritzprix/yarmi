@@ -52,6 +52,7 @@ public class RMIService {
         RMIServiceInfo serviceInfo = RMIServiceInfo.builder()
                 .name(service.name())
                 .adapter(service.adapter())
+                .negotiator(service.negotiator())
                 .params(Arrays.asList(service.params()))
                 .version(Properties.VERSION)
                 .build();

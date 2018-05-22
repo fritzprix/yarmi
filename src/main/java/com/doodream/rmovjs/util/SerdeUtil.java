@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.net;
+package com.doodream.rmovjs.util;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

@@ -12,6 +12,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -27,12 +29,15 @@ import java.util.Map;
 @Data
 public class RMIClient {
 
+    private static final Logger Log = LogManager.getLogger(RMIClient.class);
+
     private String controllerPath;
     private Map<Method, Endpoint> methodMap;
     private WeakReference<Object> proxyWeakReference;
     private RMIServiceProxy serviceProxy;
 
     private static LinkedList<RMIClient> controllerClients = new LinkedList<>();
+
 
     public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) throws IllegalAccessException, InstantiationException, IOException {
         Service service = (Service) svc.getAnnotation(Service.class);
@@ -59,13 +64,13 @@ public class RMIClient {
                     .zipWith(endpointObservable, RMIClient::zipIntoMethodMap)
                     .collectInto(new HashMap<>(), RMIClient::collectMethodMap);
 
+
             builder.controllerPath(controller.path())
                     .serviceProxy(serviceProxy);
 
             RMIClient rmiClient = builder
                     .methodMap(hashMapSingle.blockingGet())
                     .build();
-
 
             Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ ctrl }, rmiClient::handleInvocation);
             rmiClient.setProxyWeakReference(new WeakReference<>(proxy));
@@ -75,7 +80,8 @@ public class RMIClient {
             // and then, the rmiClient can be freed because only referencer which was proxy has been already freed
 
             return (T) proxy;
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            Log.error(e);
             return null;
         }
     }
