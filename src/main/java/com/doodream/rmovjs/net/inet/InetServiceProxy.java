@@ -34,13 +34,15 @@ public class InetServiceProxy implements RMIServiceProxy {
 
     @Override
     public void open() throws IOException {
+        socket.open();
         reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         write(this.serviceInfo.toJson());
         Response response = Response.fromJson(reader.readLine());
-        if(response.isSuccessful()) {
+        if((response != null) &&
+                response.isSuccessful()) {
             return;
         }
-        throw new HandshakeFailException(null);
+        throw new HandshakeFailException();
     }
 
     private void write(String s) throws IOException {
@@ -51,27 +53,26 @@ public class InetServiceProxy implements RMIServiceProxy {
     public Response request(Endpoint endpoint) {
         Request request = Request.builder()
                         .endpoint(endpoint)
-                        .serviceInfo(serviceInfo)
                         .build();
 
         return Observable.just(request)
                 .map(Request::toJson)
                 .doOnNext(this::write)
                 .map(s -> reader.readLine())
-                .doOnError(this::onError)
+                .doOnError(throwable -> this.close())
                 .map(s -> Response.fromJson(s, endpoint.getResponseType()))
                 .subscribeOn(Schedulers.io())
                 .blockingSingle();
 
     }
 
-    private void onError(Throwable throwable) throws IOException {
-        // TODO: handle error
-        socket.close();
-    }
 
     @Override
     public void close() throws IOException {
+        System.out.println("Closed");
+        if(socket.isClosed()) {
+            return;
+        }
         socket.close();
     }
 

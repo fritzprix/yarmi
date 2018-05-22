@@ -8,18 +8,12 @@ import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.RMISocket;
 import com.doodream.rmovjs.net.SerdeUtil;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.TypeAdapter;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
 import io.reactivex.Observable;
 import io.reactivex.schedulers.Schedulers;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Locale;
 
 public class InetClientSocketAdapter implements ClientSocketAdapter {
 
@@ -49,7 +43,7 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
 
             Observable<Response> serviceInfoMismatchObservable = handshakeRequestSingle
                     .filter(info -> info.hashCode() != serviceInfo.hashCode())
-                    .map(info -> RMIError.FORBIDDEN.getResponse(Request.builder().serviceInfo(serviceInfo).build()));
+                    .map(info -> RMIError.FORBIDDEN.getResponse(Request.builder().build()));
 
             return serviceInfoMatchedObservable.mergeWith(serviceInfoMismatchObservable)
                     .doOnNext(this::write)
@@ -91,12 +85,7 @@ public class InetClientSocketAdapter implements ClientSocketAdapter {
 
     @Override
     public String who() {
-        return serviceInfo.getName();
-    }
-
-    @Override
-    public String unique() {
-        return String.format(Locale.getDefault(), "%d_%d", serviceInfo.hashCode(), client.hashCode());
+        return client.getRemoteName();
     }
 
 }

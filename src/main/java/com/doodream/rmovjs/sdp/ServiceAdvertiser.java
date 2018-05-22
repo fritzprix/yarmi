@@ -9,9 +9,10 @@ public interface ServiceAdvertiser {
      * start service advertising
      * should not block
      * @param info
+     * @param block
      * @throws IOException
      */
-    void startAdvertiser(RMIServiceInfo info) throws IOException;
+    void startAdvertiser(RMIServiceInfo info, boolean block) throws IOException;
 
     /**
      * stop advertising

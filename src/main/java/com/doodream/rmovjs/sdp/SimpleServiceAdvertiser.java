@@ -1,20 +1,16 @@
 package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.sdp.ServiceAdvertiser;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
-import lombok.Data;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * this class provices simple service advertising capability whose intented use is testing though,
@@ -22,7 +18,6 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * advertiser start to advertise its RMIServiceInfo with broadcasting datagram socket
  */
-@Data
 public class SimpleServiceAdvertiser implements ServiceAdvertiser {
 
     public static final int BROADCAST_PORT = 3041;
@@ -30,14 +25,18 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
 
 
     @Override
-    public synchronized void startAdvertiser(RMIServiceInfo info) {
-        disposable = Observable.interval(0L, 3L, TimeUnit.SECONDS)
+    public synchronized void startAdvertiser(RMIServiceInfo info, boolean block) {
+
+        Observable<DatagramPacket> packetObservable = Observable.interval(0L, 3L, TimeUnit.SECONDS)
                 .map(aLong -> info)
                 .map(this::buildBroadcastPackaet)
                 .doOnNext(this::broadcast)
-                .doOnError(Throwable::printStackTrace)
-                .subscribeOn(Schedulers.newThread())
-                .subscribe();
+                .doOnError(Throwable::printStackTrace);
+        if(!block) {
+            disposable = packetObservable.subscribeOn(Schedulers.io()).subscribe();
+            return;
+        }
+        packetObservable.blockingSubscribe();
     }
 
     private void broadcast(DatagramPacket datagramPacket) throws IOException {

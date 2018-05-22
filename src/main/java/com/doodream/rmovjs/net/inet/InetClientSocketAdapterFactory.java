@@ -6,8 +6,6 @@ import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.ClientSocketAdapterFactory;
 import com.doodream.rmovjs.net.HandshakeFailException;
 import com.doodream.rmovjs.net.RMISocket;
-import io.reactivex.Observable;
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 import java.io.IOException;
 

@@ -27,8 +27,7 @@ import java.util.List;
 public class Request {
 
     private transient ClientSocketAdapter client;
-    @SerializedName("service")
-    private RMIServiceInfo serviceInfo;
+    @SerializedName("endpoint")
     private Endpoint endpoint;
 
     public void response(Response s) throws IOException {

@@ -16,5 +16,12 @@ import java.io.IOException;
  *  이를 통해서 ServiceProxyFactory는 현재 서버측의 네트워킹을 위한 파라미터들을 유추 혹은 추출 할 수 있다.
  */
 public interface ServiceProxyFactory {
-    RMIServiceProxy build(RMIServiceInfo info) throws IOException;
+    /**
+     * build RMIServiceProxy to remote service adapter would be comprised of below
+     * 1. create RMISocket on which RMIServiceProxy depend
+     * @return
+     * @throws IOException
+     */
+    RMIServiceProxy build() throws IOException;
+    void setTargetService(RMIServiceInfo info);
 }

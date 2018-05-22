@@ -7,6 +7,7 @@ import com.doodream.rmovjs.net.ServiceProxyFactory;
 import java.io.IOException;
 
 public class InetServiceProxyFactory implements ServiceProxyFactory {
+    private RMIServiceInfo serviceInfo;
     private int port;
     private String host;
 
@@ -16,7 +17,7 @@ public class InetServiceProxyFactory implements ServiceProxyFactory {
     }
 
     public InetServiceProxyFactory(String port) {
-        this(InetServiceAdapter.DEFAULT_NAME, port);
+        this(null, port);
     }
 
     public InetServiceProxyFactory() {
@@ -24,7 +25,15 @@ public class InetServiceProxyFactory implements ServiceProxyFactory {
     }
 
     @Override
-    public RMIServiceProxy build(RMIServiceInfo info) throws IOException {
-        return InetServiceProxy.create(info, new InetRMISocket(host, port));
+    public RMIServiceProxy build() throws IOException {
+        if(host == null) {
+            host = serviceInfo.getProxyFactoryHint();
+        }
+        return InetServiceProxy.create(serviceInfo, new InetRMISocket(host, port));
+    }
+
+    @Override
+    public void setTargetService(RMIServiceInfo info) {
+        serviceInfo = info;
     }
 }
