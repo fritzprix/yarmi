@@ -15,7 +15,14 @@ import java.io.IOException;
  *
  */
 public interface ServiceAdapter {
-    void listen(RMIServiceInfo serviceInfo, Function<Request, Response> requestHandler) throws IOException;
+    /**
+     *
+     * @param serviceInfo
+     * @param requestHandler
+     * @return proxyFactoryHint as string
+     * @throws IOException
+     */
+    String listen(RMIServiceInfo serviceInfo, Function<Request, Response> requestHandler) throws IOException;
     ServiceProxyFactory getProxyFactory(RMIServiceInfo info);
     void close() throws IOException;
 }

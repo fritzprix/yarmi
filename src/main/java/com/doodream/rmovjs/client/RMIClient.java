@@ -4,6 +4,8 @@ import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.model.Endpoint;
+import com.doodream.rmovjs.model.RMIError;
+import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import io.reactivex.Observable;
 import io.reactivex.Single;
@@ -45,36 +47,39 @@ public class RMIClient {
 
         assert controller != null;
         assert ctrl.isInterface();
-        serviceProxy.open();
+        try {
+            serviceProxy.open();
 
-        RMIClientBuilder builder = RMIClient.builder();
+            RMIClientBuilder builder = RMIClient.builder();
+            Observable<Method> methodObservable = Observable.fromArray(ctrl.getMethods())
+                    .filter(RMIMethod::isValidMethod);
 
-        Observable<Method> methodObservable = Observable.fromArray(ctrl.getMethods())
-                .filter(RMIMethod::isValidMethod);
+            Observable<Endpoint> endpointObservable = methodObservable
+                    .map(method -> Endpoint.create(controller, method));
 
-        Observable<Endpoint> endpointObservable = methodObservable
-                .map(method -> Endpoint.create(controller, method));
+            Single<HashMap<Method, Endpoint>> hashMapSingle = methodObservable
+                    .zipWith(endpointObservable, RMIClient::zipIntoMethodMap)
+                    .collectInto(new HashMap<>(), RMIClient::collectMethodMap);
 
-        Single<HashMap<Method, Endpoint>> hashMapSingle = methodObservable
-                .zipWith(endpointObservable, RMIClient::zipIntoMethodMap)
-                .collectInto(new HashMap<>(), RMIClient::collectMethodMap);
+            builder.controllerPath(controller.path())
+                    .serviceProxy(serviceProxy);
 
-        builder.controllerPath(controller.path())
-                .serviceProxy(serviceProxy);
-
-        RMIClient rmiClient = builder
-                .methodMap(hashMapSingle.blockingGet())
-                .build();
+            RMIClient rmiClient = builder
+                    .methodMap(hashMapSingle.blockingGet())
+                    .build();
 
 
-        Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), controller.module().getInterfaces(), rmiClient::handleInvocation);
-        rmiClient.setProxyWeakReference(new WeakReference<>(proxy));
+            Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ ctrl }, rmiClient::handleInvocation);
+            rmiClient.setProxyWeakReference(new WeakReference<>(proxy));
 
-        // rmiClient has weakreference to proxy, and proxy has reference to rmiClient
-        // so the proxy is no longer used (or referenced), it can be freed by garbage collector
-        // and then, the rmiClient can be freed because only referencer which was proxy has been already freed
+            // rmiClient has weakreference to proxy, and proxy has reference to rmiClient
+            // so the proxy is no longer used (or referenced), it can be freed by garbage collector
+            // and then, the rmiClient can be freed because only referencer which was proxy has been already freed
 
-        return (T) proxy;
+            return (T) proxy;
+        } catch (IOException ignored) {
+            return null;
+        }
     }
 
     private static void collectMethodMap(Map<Method, Endpoint> into, Map<Method, Endpoint> methodEndpointMap) {
@@ -94,6 +99,11 @@ public class RMIClient {
             return null;
         }
         endpoint.applyParam(objects);
-        return serviceProxy.request(endpoint);
+        try {
+            return serviceProxy.request(endpoint);
+        } catch (IOException e) {
+            serviceProxy.close();
+            return Response.error(-1, e.getLocalizedMessage());
+        }
     }
 }

@@ -19,4 +19,5 @@ public enum RMIError {
         nresponse.setEndpoint(request.getEndpoint());
         return nresponse;
     }
+
 }

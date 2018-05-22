@@ -10,13 +10,11 @@ import com.doodream.rmovjs.net.ServiceProxyFactory;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
 import lombok.NonNull;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.UnknownHostException;
+import java.net.*;
 
 public class InetServiceAdapter implements ServiceAdapter {
 
@@ -24,8 +22,7 @@ public class InetServiceAdapter implements ServiceAdapter {
     private InetSocketAddress mAddress;
     private InetClientSocketAdapterFactory clientAdapterFactory;
     private CompositeDisposable compositeDisposable;
-    private volatile boolean listen;
-    public static final String DEFAULT_NAME = "localhost";
+    private volatile boolean listen = false;
     public static final String DEFAULT_PORT = "6644";
 
     public InetServiceAdapter(String host, String port) throws UnknownHostException {
@@ -36,7 +33,7 @@ public class InetServiceAdapter implements ServiceAdapter {
     }
 
     public InetServiceAdapter(String port) throws UnknownHostException {
-        this(DEFAULT_NAME, port);
+        this(Inet4Address.getLocalHost().getHostAddress(), port);
     }
 
     public InetServiceAdapter() throws UnknownHostException {
@@ -44,16 +41,19 @@ public class InetServiceAdapter implements ServiceAdapter {
     }
 
     @Override
-    public void listen(RMIServiceInfo serviceInfo, @NonNull Function<Request, Response> handleRequest) throws IOException {
+    public String listen(RMIServiceInfo serviceInfo, @NonNull Function<Request, Response> handleRequest) throws IOException {
         serverSocket = new ServerSocket();
+        listen = true;
         serverSocket.bind(mAddress);
         compositeDisposable.add(Observable.just(serverSocket)
                 .map(ServerSocket::accept)
+                .doOnNext(client -> System.out.println(client.getInetAddress()))
                 .repeatUntil(() -> !listen)
                 .map(socket -> clientAdapterFactory.handshake(serviceInfo, new InetRMISocket(socket)))
-                .doOnNext(adapter-> onHandshakeSuccess(adapter, handleRequest))
-                .subscribe(clientSocketAdapter -> {},this::onError));
+                .subscribeOn(Schedulers.io())
+                .subscribe(adapter-> onHandshakeSuccess(adapter, handleRequest),this::onError));
 
+        return mAddress.getAddress().getHostAddress();
     }
 
 
@@ -73,19 +73,18 @@ public class InetServiceAdapter implements ServiceAdapter {
 
     @Override
     public ServiceProxyFactory getProxyFactory(RMIServiceInfo info) {
-        // RMIServiceInfo
+        if(!RMIServiceInfo.isComplete(info)) {
+            throw new IllegalArgumentException("Incomplete service info");
+        }
         String[] params = info.getParams().toArray(new String[0]);
         return Observable.fromArray(InetServiceProxyFactory.class.getConstructors())
                 .filter(constructor -> constructor.getParameterCount() == params.length)
                 .map(constructor -> constructor.newInstance(params))
                 .cast(ServiceProxyFactory.class)
+                .doOnNext(serviceProxyFactory -> serviceProxyFactory.setTargetService(info))
                 .blockingFirst();
     }
 
-
-    private void onComplete() {
-        System.out.println("RMIService Complete");
-    }
 
     private void onError(Throwable throwable) throws IOException {
         if(serverSocket.isClosed()) {
@@ -94,14 +93,11 @@ public class InetServiceAdapter implements ServiceAdapter {
         serverSocket.close();
     }
 
-    private void onDispose() throws IOException {
-        close();
-    }
-
 
     @Override
     public void close() throws IOException {
         System.out.println("Closed");
+        listen = false;
         if(serverSocket != null
                 && !serverSocket.isClosed()) {
                 serverSocket.close();

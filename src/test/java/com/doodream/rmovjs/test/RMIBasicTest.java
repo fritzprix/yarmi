@@ -21,7 +21,7 @@ public class RMIBasicTest {
         service = RMIService.create(TestService.class, advertiser);
         server = new Thread(() -> {
             try {
-                service.listen();
+                service.listen(true);
             } catch (Exception e) {
                 e.printStackTrace();
             }

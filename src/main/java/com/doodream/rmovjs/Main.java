@@ -23,7 +23,7 @@ public class Main {
         new Thread(() -> {
             try {
                 RMIService service = RMIService.create(TestService.class, new SimpleServiceAdvertiser());
-                service.listen();
+                service.listen(true);
             } catch (Exception e) {
                 e.printStackTrace();
             }

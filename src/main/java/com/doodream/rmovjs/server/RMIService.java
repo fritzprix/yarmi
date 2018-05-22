@@ -93,9 +93,9 @@ public class RMIService {
     }
 
 
-    public void listen() throws Exception {
-        advertiser.startAdvertiser(serviceInfo);
-        adapter.listen(serviceInfo, this::routeRequest);
+    public void listen(boolean block) throws Exception {
+        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, this::routeRequest));
+        advertiser.startAdvertiser(serviceInfo, block);
     }
 
     private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException {
