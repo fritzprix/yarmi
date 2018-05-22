@@ -14,7 +14,7 @@
 
 ### How-To
 #### Build Service (Server)
-1. Declare controller    
+1. Declare controller stub in a very similar way doing with Spring REST Controller
 ```java
 public interface UserIDPController {
 
@@ -30,7 +30,7 @@ public interface UserIDPController {
 } 
 ```     
 2. Implement Controller Stub    
-```java 
+```java
 public class UserIDControllerImpl implements UserIDPController {
 
     private HashMap<Long, User> userTable = new HashMap<>();
@@ -58,10 +58,10 @@ public class UserIDControllerImpl implements UserIDPController {
     }
 }  
 ``` 
-3. Declare your service with route setting
+3. Declare your service with route configuration
 ```java
 @Service(name = "test-service",
-        params = {"127.0.0.1", "6644"})
+        params = {"6644"})
 public class TestService {
 
     @Controller(path = "/user", version = 1, module = UserIDControllerImpl.class)
@@ -69,13 +69,14 @@ public class TestService {
 }
 
 ```   
-4. Start & advertise your service 
+4. Start service & avertise it 
 ```java
 public static class SimpleServer {
     
     public static void main (String[] args) {
         RMIService service = RMIService.create(TestService.class, new SimpleServiceAdvertiser());
-        service.listen();
+        service.listen(true);
+        // listen will block, you can change the blocking behaviour with the argument
     }
 }
 ```
@@ -102,13 +103,14 @@ public static class SimpleClient {
     
                 @Override
                 public void onDiscoveryFinished() {
-                    // discovery finished 
                     // pick RMIServiceProxy and create client
                     if(discoveredService.size() > 0) {
                         RMIServiceProxy serviceProxy = discoveredService.get(0);
                         assert serviceProxy.provide(UserIDPController.class);
                         try {
                             UserIDPController userCtr = RMIClient.create(serviceProxy, TestService.class, UserIDPController.class);
+                            // will be create client-side proxy 
+                            // and use it just like simple method call
                             
                             User user = new User();
                             user.setName("David");
@@ -128,7 +130,6 @@ public static class SimpleClient {
     }
 }
 ```
-
 
 ### License
 > Apache License, Version 2.0
