@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.example;
+package com.doodream.rmovjs.example.template;
 
 import com.doodream.rmovjs.annotation.method.Get;
 import com.doodream.rmovjs.annotation.method.Post;

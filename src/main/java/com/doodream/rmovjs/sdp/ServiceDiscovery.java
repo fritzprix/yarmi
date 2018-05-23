@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 public interface ServiceDiscovery {
-    void startDiscovery(RMIServiceInfo info , ServiceDiscoveryListener listener, long timeout, TimeUnit unit) throws IOException;
-    void startDiscovery(RMIServiceInfo info, ServiceDiscoveryListener listener) throws IOException;
-    void cancelDiscovery(RMIServiceInfo info) throws IOException;
+    void startDiscovery(Class service , ServiceDiscoveryListener listener, long timeout, TimeUnit unit) throws IOException;
+    void startDiscovery(Class service, ServiceDiscoveryListener listener) throws IOException;
+    void cancelDiscovery(Class service) throws IOException;
 }

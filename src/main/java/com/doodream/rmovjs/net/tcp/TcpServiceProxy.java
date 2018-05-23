@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.net.inet;
+package com.doodream.rmovjs.net.tcp;
 
 import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.RMINegotiator;
@@ -6,7 +6,6 @@ import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.RMISocket;
 import io.reactivex.Observable;
 import io.reactivex.schedulers.Schedulers;
-import lombok.Data;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -16,37 +15,49 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 
 
-@Data
-public class InetServiceProxy implements RMIServiceProxy {
+public class TcpServiceProxy implements RMIServiceProxy {
 
-    private static final Logger Log = LogManager.getLogger(InetServiceProxy.class);
+    private static final Logger Log = LogManager.getLogger(TcpServiceProxy.class);
 
+    private volatile boolean isOpened;
     private RMIServiceInfo serviceInfo;
     private RMISocket socket;
     private BufferedReader reader;
     private PrintStream writer;
 
 
-    public static InetServiceProxy create(RMIServiceInfo info, RMISocket socket) throws IOException {
-        return new InetServiceProxy(info, socket);
+    public static TcpServiceProxy create(RMIServiceInfo info, RMISocket socket) throws IOException {
+        return new TcpServiceProxy(info, socket);
     }
 
-    private InetServiceProxy(RMIServiceInfo info, RMISocket socket) throws IOException {
+    private TcpServiceProxy(RMIServiceInfo info, RMISocket socket) throws IOException {
         serviceInfo = info;
+        isOpened = false;
         this.socket = socket;
     }
 
     @Override
-    public void open() throws IOException, IllegalAccessException, InstantiationException {
-        socket.open();
+    public synchronized void open() throws IOException, IllegalAccessException, InstantiationException {
+        if(isOpened) {
+            return;
+        }
         RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
+        socket.open();
         socket = negotiator.handshake(socket, serviceInfo, true);
         Log.info("Successfully Opened");
+        isOpened = true;
         reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        writer = new PrintStream(socket.getOutputStream());
+    }
+
+    @Override
+    public boolean isOpen() {
+        return isOpened;
     }
 
     private void write(String s) throws IOException {
-        socket.getOutputStream().write(s.concat("\n").getBytes());
+        writer.println(s);
+        writer.flush();
     }
 
     @Override
@@ -75,11 +86,15 @@ public class InetServiceProxy implements RMIServiceProxy {
 
     @Override
     public void close() throws IOException {
-        Log.debug("Closed");
+        if(!isOpened) {
+            return;
+        }
+        Log.debug("Close()");
         if(socket.isClosed()) {
             return;
         }
         socket.close();
+        isOpened = false;
     }
 
     @Override

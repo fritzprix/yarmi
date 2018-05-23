@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.net.inet;
+package com.doodream.rmovjs.net.tcp;
 
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
@@ -19,9 +19,9 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.*;
 
-public class InetServiceAdapter implements ServiceAdapter {
+public class TcpServiceAdapter implements ServiceAdapter {
 
-    private static final Logger Log = LogManager.getLogger(InetServiceAdapter.class);
+    private static final Logger Log = LogManager.getLogger(TcpServiceAdapter.class);
 
     private ServerSocket serverSocket;
     private InetSocketAddress mAddress;
@@ -29,17 +29,17 @@ public class InetServiceAdapter implements ServiceAdapter {
     private volatile boolean listen = false;
     public static final String DEFAULT_PORT = "6644";
 
-    public InetServiceAdapter(String host, String port) throws UnknownHostException {
+    public TcpServiceAdapter(String host, String port) throws UnknownHostException {
         int p = Integer.valueOf(port);
         mAddress = new InetSocketAddress(InetAddress.getByName(host), p);
         compositeDisposable = new CompositeDisposable();
     }
 
-    public InetServiceAdapter(String port) throws UnknownHostException {
+    public TcpServiceAdapter(String port) throws UnknownHostException {
         this(Inet4Address.getLocalHost().getHostAddress(), port);
     }
 
-    public InetServiceAdapter() throws UnknownHostException {
+    public TcpServiceAdapter() throws UnknownHostException {
         this(DEFAULT_PORT);
     }
 
@@ -56,9 +56,9 @@ public class InetServiceAdapter implements ServiceAdapter {
                 .map(ServerSocket::accept)
                 .doOnNext(client -> Log.debug("Client @ {}", client.getInetAddress()))
                 .repeatUntil(() -> !listen)
-                .map(InetRMISocket::new)
+                .map(TcpRMISocket::new)
                 .map(client -> negotiator.handshake(client, serviceInfo, false))
-                .map(InetClientSocketAdapter::new)
+                .map(TcpClientSocketAdapter::new)
                 .subscribeOn(Schedulers.io())
                 .subscribe(adapter-> onHandshakeSuccess(adapter, handleRequest),this::onError));
 
@@ -86,7 +86,7 @@ public class InetServiceAdapter implements ServiceAdapter {
             throw new IllegalArgumentException("Incomplete service info");
         }
         String[] params = info.getParams().toArray(new String[0]);
-        return Observable.fromArray(InetServiceProxyFactory.class.getConstructors())
+        return Observable.fromArray(TcpServiceProxyFactory.class.getConstructors())
                 .filter(constructor -> constructor.getParameterCount() == params.length)
                 .map(constructor -> constructor.newInstance(params))
                 .cast(ServiceProxyFactory.class)

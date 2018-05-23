@@ -4,7 +4,7 @@ package com.doodream.rmovjs.annotation.server;
 import com.doodream.rmovjs.net.RMINegotiator;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.SimpleNegotiator;
-import com.doodream.rmovjs.net.inet.InetServiceAdapter;
+import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -29,7 +29,7 @@ public @interface Service {
      * class of network adapter implementation upon which service depend.
      * @return network adapter class
      */
-    Class<? extends ServiceAdapter> adapter() default InetServiceAdapter.class;
+    Class<? extends ServiceAdapter> adapter() default TcpServiceAdapter.class;
 
     /**
      * parameters for constrcutor of network adapter class, will be passed as argument whenever the adapter class

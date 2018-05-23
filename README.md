@@ -115,7 +115,7 @@ public static class SimpleClient {
     
     public static void main (String[] args) {
             // build target service information
-            List<RMIServiceProxy> discoveredService = new LinkedList<>();
+            List<RMIServiceProxy> discoveredService = null;
             RMIServiceInfo serviceInfo = RMIServiceInfo.from(TestService.class);
             
             SimpleServiceDiscovery discovery = new SimpleServiceDiscovery();
@@ -126,33 +126,41 @@ public static class SimpleClient {
                 }
     
                 @Override
-                public void onDiscoveryStarted() { }
+                public void onDiscoveryStarted() { 
+                    discoveredService = new LinkedList<>();
+                }
     
                 @Override
                 public void onDiscoveryFinished() {
                     // pick RMIServiceProxy and create client
+                    if(discoveredService == null) {
+                        return;
+                    }
                     if(discoveredService.size() > 0) {
                         RMIServiceProxy serviceProxy = discoveredService.get(0);
                         assert serviceProxy.provide(UserIDPController.class);
                         try {
-                            UserIDPController userCtr = RMIClient.create(serviceProxy, TestService.class, UserIDPController.class);
-                            // will be create client-side proxy 
-                            // and use it just like simple method call
-                            
-                            User user = new User();
-                            user.setName("David");
-    
-                            Response<User> response = userCtr.createUser(user);
-                            assert response.isSuccessful();
-                            response = userCtr.getUser(1L);
-                            assert !response.isSuccessful();
-                            assert user.equals(response.getBody());
-                        } catch (IllegalAccessException | InstantiationException | IOException e) {
-                            e.printStackTrace();
+                                UserIDPController userCtr = RMIClient.create(serviceProxy, TestService.class, UserIDPController.class);
+                                // will be create client-side proxy 
+                                // and use it just like simple method call
+                                
+                                User user = new User();
+                                user.setName("David");
+        
+                                Response<User> response = userCtr.createUser(user);
+                                assert response.isSuccessful();
+                                user = response.getBody();
+                                
+                                response = userCtr.getUser(user.getId());
+                                assert response.isSuccessful();
+                                response.getBody();
+                            } catch (IllegalAccessException | InstantiationException | IOException e) {
+                                e.printStackTrace();
+                            }    
                         }
+                        
                     }
-                }
-            }, 2L, TimeUnit.SECONDS);
+            });
             
     }
 }

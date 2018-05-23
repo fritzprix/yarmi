@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.net.inet;
+package com.doodream.rmovjs.net.tcp;
 
 
 import com.doodream.rmovjs.model.Request;
@@ -14,15 +14,15 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-public class InetClientSocketAdapter implements ClientSocketAdapter {
+public class TcpClientSocketAdapter implements ClientSocketAdapter {
 
-    private static final Logger Log = LogManager.getLogger(InetClientSocketAdapter.class);
+    private static final Logger Log = LogManager.getLogger(TcpClientSocketAdapter.class);
     private RMISocket client;
     private Observable<String> lineObservable;
     private BufferedReader reader;
 
 
-    InetClientSocketAdapter(RMISocket socket) throws IOException {
+    TcpClientSocketAdapter(RMISocket socket) throws IOException {
         client = socket;
         reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
     }

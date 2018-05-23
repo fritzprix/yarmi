@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.net.inet;
+package com.doodream.rmovjs.net.tcp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.net.RMIServiceProxy;
@@ -6,22 +6,22 @@ import com.doodream.rmovjs.net.ServiceProxyFactory;
 
 import java.io.IOException;
 
-public class InetServiceProxyFactory implements ServiceProxyFactory {
+public class TcpServiceProxyFactory implements ServiceProxyFactory {
     private RMIServiceInfo serviceInfo;
     private int port;
     private String host;
 
-    public InetServiceProxyFactory(String address, String port) {
+    public TcpServiceProxyFactory(String address, String port) {
         host = address;
         this.port = Integer.valueOf(port);
     }
 
-    public InetServiceProxyFactory(String port) {
+    public TcpServiceProxyFactory(String port) {
         this(null, port);
     }
 
-    public InetServiceProxyFactory() {
-        this(InetServiceAdapter.DEFAULT_PORT);
+    public TcpServiceProxyFactory() {
+        this(TcpServiceAdapter.DEFAULT_PORT);
     }
 
     @Override
@@ -29,7 +29,7 @@ public class InetServiceProxyFactory implements ServiceProxyFactory {
         if(host == null) {
             host = serviceInfo.getProxyFactoryHint();
         }
-        return InetServiceProxy.create(serviceInfo, new InetRMISocket(host, port));
+        return TcpServiceProxy.create(serviceInfo, new TcpRMISocket(host, port));
     }
 
     @Override
