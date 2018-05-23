@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.net.inet;
+package com.doodream.rmovjs.net.tcp;
 
 
 import com.doodream.rmovjs.net.RMISocket;
@@ -10,16 +10,16 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 
-public class InetRMISocket implements RMISocket {
+public class TcpRMISocket implements RMISocket {
 
     private Socket socket;
     private SocketAddress remoteAddress;
-    public InetRMISocket(Socket client) {
+    public TcpRMISocket(Socket client) {
         socket = client;
         remoteAddress = socket.getRemoteSocketAddress();
     }
 
-    public InetRMISocket(String host, int port) {
+    public TcpRMISocket(String host, int port) {
         remoteAddress = InetSocketAddress.createUnresolved(host, port);
         socket = null;
     }

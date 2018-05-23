@@ -20,7 +20,7 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
 
     private static final long TIMEOUT_IN_SEC = 5L;
     private long tickIntervalinMillisec;
-    private HashMap<RMIServiceInfo, Disposable> disposableMap;
+    private HashMap<Class, Disposable> disposableMap;
 
     public BaseServiceDiscovery(long interval, TimeUnit unit) {
         tickIntervalinMillisec = unit.toMillis(interval);
@@ -28,8 +28,8 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
     @Override
-    public void startDiscovery(RMIServiceInfo info, ServiceDiscoveryListener listener) {
-        startDiscovery(info, listener, TIMEOUT_IN_SEC, TimeUnit.SECONDS);
+    public void startDiscovery(Class service, ServiceDiscoveryListener listener) {
+        startDiscovery(service, listener, TIMEOUT_IN_SEC, TimeUnit.SECONDS);
     }
 
 
@@ -38,7 +38,11 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
     @Override
-    public void startDiscovery(RMIServiceInfo info, ServiceDiscoveryListener listener, long timeout, TimeUnit unit) {
+    public void startDiscovery(Class service, ServiceDiscoveryListener listener, long timeout, TimeUnit unit) {
+        if(disposableMap.containsKey(service)) {
+            return;
+        }
+        final RMIServiceInfo info = RMIServiceInfo.from(service);
         HashSet<RMIServiceInfo> discoveryCache = new HashSet<>();
 
         Observable<RMIServiceInfo> serviceInfoObservable = observeTick()
@@ -50,23 +54,27 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
                 .timeout(timeout, unit);
 
 
-        disposableMap.put(info, serviceInfoObservable
+        disposableMap.put(service, serviceInfoObservable
                 .map(RMIServiceInfo::getAdapter)
                 .map(Class::newInstance)
                 .cast(ServiceAdapter.class)
                 .map(serviceAdapter -> serviceAdapter.getProxyFactory(info))
                 .map(ServiceProxyFactory::build)
                 .doOnDispose(() -> {
-                    listener.onDiscoveryFinished();
                     close();
+                    disposableMap.remove(service);
+                    listener.onDiscoveryFinished();
+
                 })
                 .doOnError(throwable -> {
-                    listener.onDiscoveryFinished();
                     close();
+                    disposableMap.remove(service);
+                    listener.onDiscoveryFinished();
                 })
                 .doOnComplete(() -> {
-                    listener.onDiscoveryFinished();
                     close();
+                    disposableMap.remove(service);
+                    listener.onDiscoveryFinished();
                 })
                 .onErrorReturn(throwable -> RMIServiceProxy.NULL_PROXY)
                 .filter(proxy -> !RMIServiceProxy.NULL_PROXY.equals(proxy))
@@ -76,8 +84,8 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
 
 
     @Override
-    public void cancelDiscovery(RMIServiceInfo info) {
-        Disposable disposable = disposableMap.get(info);
+    public void cancelDiscovery(Class service) {
+        Disposable disposable = disposableMap.get(service);
         if(disposable == null) {
             return;
         }

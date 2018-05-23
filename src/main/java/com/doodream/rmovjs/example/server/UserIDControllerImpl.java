@@ -1,5 +1,7 @@
-package com.doodream.rmovjs.example;
+package com.doodream.rmovjs.example.server;
 
+import com.doodream.rmovjs.example.template.User;
+import com.doodream.rmovjs.example.template.UserIDPController;
 import com.doodream.rmovjs.model.Response;
 
 import java.util.HashMap;
@@ -26,7 +28,7 @@ public class UserIDControllerImpl implements UserIDPController {
     public Response<User> createUser(User user) {
         int id = user.hashCode();
         userTable.put((long) id, user);
-        user.id = (long) id;
+        user.setId((long) id);
         return Response.success(user, User.class);
     }
 }
