@@ -40,7 +40,7 @@ public class TestClient {
                     Preconditions.checkNotNull(controller);
 
                     User user = new User();
-                    user.setName("nu100");
+                    user.setName("David");
 
                     Response<User> response = controller.createUser(user);
 

@@ -1,11 +1,15 @@
 package com.doodream.rmovjs.model;
 
+import com.doodream.rmovjs.net.RMISocket;
 import com.doodream.rmovjs.util.SerdeUtil;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -67,6 +71,15 @@ public class Response<T> {
                 .build();
     }
 
+    public static Response from(RMIError error) {
+        // TODO : consider the case which the endpoinst is not applicable (e.g. handshake response)
+        return error.getResponse();
+    }
+
+    public void to(RMISocket client) throws IOException {
+        client.getOutputStream().write(SerdeUtil.toByteArray(this));
+    }
+
     @Data
     public static class ResponseBody {
         @SerializedName("msg")
@@ -78,7 +91,7 @@ public class Response<T> {
     }
 
     public static class Code {
-
         public static final int SUCCESS = 200;
     }
+
 }

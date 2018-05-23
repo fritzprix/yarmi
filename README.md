@@ -115,11 +115,9 @@ public static class SimpleClient {
     
     public static void main (String[] args) {
             // build target service information
-            List<RMIServiceProxy> discoveredService = null;
-            RMIServiceInfo serviceInfo = RMIServiceInfo.from(TestService.class);
             
             SimpleServiceDiscovery discovery = new SimpleServiceDiscovery();
-            discovery.startDiscovery(serviceInfo, new ServiceDiscoveryListener() {
+            discovery.startDiscovery(TestService.class, new ServiceDiscoveryListener() {
                 @Override
                 public void onDiscovered(RMIServiceProxy proxy)  {
                     discoveredService.add(proxy);
@@ -138,7 +136,10 @@ public static class SimpleClient {
                     }
                     if(discoveredService.size() > 0) {
                         RMIServiceProxy serviceProxy = discoveredService.get(0);
-                        assert serviceProxy.provide(UserIDPController.class);
+                        if(!serviceProxy.provide(UserIDPController.class)) {
+                            // check given controller is provided from the service
+                            return;
+                        }
                         try {
                                 UserIDPController userCtr = RMIClient.create(serviceProxy, TestService.class, UserIDPController.class);
                                 // will be create client-side proxy 

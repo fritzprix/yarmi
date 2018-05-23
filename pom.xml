@@ -12,6 +12,15 @@
         <github.global.server>github</github.global.server>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>debug</id>
+        </profile>
+        <profile>
+            <id>release</id>
+        </profile>
+    </profiles>
+
     <name>yarmi-core</name>
     <description>yarmi-core project</description>
     <url>https://github.com/fritzprix/yarmi</url>

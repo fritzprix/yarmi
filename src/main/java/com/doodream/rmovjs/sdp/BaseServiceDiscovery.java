@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.sdp;
 
+import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.ServiceAdapter;

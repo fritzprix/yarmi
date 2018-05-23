@@ -6,6 +6,7 @@ import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.sdp.ServiceAdvertiser;
+import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -99,12 +100,25 @@ public class RMIService {
 
     private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException {
         final String path = request.getPath();
-        assert path != null;
-        RMIController controller = controllerMap.get(request.getPath());
-        if(controller != null) {
-            return controller.handleRequest(request);
+        Response response;
+
+        if(request.isValid()) {
+            response = Response.from(RMIError.BAD_REQUEST);
         }
-        return RMIError.NOT_FOUND.getResponse(request);
+        Preconditions.checkNotNull(path);
+        RMIController controller = controllerMap.get(request.getPath());
+
+        if(controller != null) {
+            response = controller.handleRequest(request);
+        } else {
+            response = Response.from(RMIError.NOT_FOUND);
+        }
+        if(response == null) {
+            response = Response.from(RMIError.NOT_IMPLEMENTED);
+        }
+        Preconditions.checkNotNull(response);
+        response.setEndpoint(request.getEndpoint());
+        return response;
     }
 
     public void stop() throws Exception {

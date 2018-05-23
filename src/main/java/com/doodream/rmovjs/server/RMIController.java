@@ -83,11 +83,11 @@ public class RMIController {
     Response handleRequest(Request request) throws InvocationTargetException, IllegalAccessException {
         final Map<String, Endpoint> pathMap = endpointMap.get(request.getMethodType());
         if(pathMap == null) {
-            return RMIError.NOT_FOUND.getResponse(request);
+            return Response.from(RMIError.NOT_FOUND);
         }
         final Endpoint endpoint = pathMap.get(request.getPath());
         if(endpoint == null) {
-            return RMIError.NOT_FOUND.getResponse(request);
+            return Response.from(RMIError.NOT_FOUND);
         }
         List<Object> params = Observable.fromIterable(request.getParameters())
                 .sorted(Param::sort)

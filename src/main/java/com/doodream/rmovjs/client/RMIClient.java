@@ -75,7 +75,7 @@ public class RMIClient implements InvocationHandler  {
             // rmiClient has weakreference to proxy, and proxy has reference to rmiClient
             // so the proxy is no longer used (or referenced), it can be freed by garbage collector
             // and then, the rmiClient can be freed because only referencer which was proxy has been already freed
-
+            Log.debug("Client Created");
             return (T) proxy;
         } catch (IOException e) {
             Log.error(e);
