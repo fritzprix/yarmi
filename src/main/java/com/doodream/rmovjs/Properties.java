@@ -16,7 +16,7 @@ public class Properties {
             Properties.VERSION = props.getProperty("version");
             Properties.ARTIFACT_ID = props.getProperty("artifactId");
 
-            ConfigurationSource log4jConfig = ConfigurationSource.fromResource("log4j.xml", Properties.class.getClassLoader());
+            ConfigurationSource log4jConfig = ConfigurationSource.fromResource("log4j2.xml", Properties.class.getClassLoader());
             Configurator.initialize(null, log4jConfig);
 
         } catch (Exception e) {

@@ -59,7 +59,7 @@ public class SimpleNegotiator implements RMINegotiator {
 
             Observable<Response> serviceInfoMismatchObservable = handshakeRequestSingle
                     .filter(info -> info.hashCode() != service.hashCode())
-                    .map(info -> RMIError.FORBIDDEN.getResponse(Request.builder().build()));
+                    .map(info -> Response.from(RMIError.BAD_REQUEST));
 
             boolean success = serviceInfoMatchedObservable.mergeWith(serviceInfoMismatchObservable)
                     .doOnNext(response -> Log.info("Handshake Response : ({}) {}", response.getCode(), response.getBody()))
@@ -68,6 +68,7 @@ public class SimpleNegotiator implements RMINegotiator {
                     .map(Response::isSuccessful)
                     .filter(Boolean::booleanValue)
                     .blockingSingle(false);
+
             if (success) {
                 return;
             }

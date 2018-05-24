@@ -12,6 +12,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 public class SerdeUtil {
+    private SerdeUtil() {}
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
                 @Override

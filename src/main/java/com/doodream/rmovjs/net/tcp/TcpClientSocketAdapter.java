@@ -3,60 +3,30 @@ package com.doodream.rmovjs.net.tcp;
 
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.net.*;
-import com.doodream.rmovjs.util.SerdeUtil;
+import com.doodream.rmovjs.net.ClientSocketAdapter;
+import com.doodream.rmovjs.net.RMISocket;
 import io.reactivex.Observable;
-import io.reactivex.schedulers.Schedulers;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 
 public class TcpClientSocketAdapter implements ClientSocketAdapter {
 
-    private static final Logger Log = LogManager.getLogger(TcpClientSocketAdapter.class);
     private RMISocket client;
-    private Observable<String> lineObservable;
-    private BufferedReader reader;
 
-
-    TcpClientSocketAdapter(RMISocket socket) throws IOException {
+    TcpClientSocketAdapter(RMISocket socket) {
         client = socket;
-        reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
-    }
-
-
-    private void setListenable() {
-        if(lineObservable != null) {
-            return;
-        }
-
-        lineObservable = Observable.create(emitter -> {
-            try {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    emitter.onNext(line);
-                }
-                emitter.onComplete();
-            } catch (IOException e) {
-                emitter.onError(e);
-            }
-        });
     }
 
 
     @Override
     public void write(Response response) throws IOException {
-        Log.debug("Response {}", response);
-        client.getOutputStream().write(SerdeUtil.toByteArray(response));
+        response.to(client);
     }
 
     @Override
     public Observable<Request> listen() throws IOException {
-        setListenable();
-        return lineObservable.subscribeOn(Schedulers.io()).map(Request::fromJson);
+        return Request.from(client);
+
     }
 
     @Override

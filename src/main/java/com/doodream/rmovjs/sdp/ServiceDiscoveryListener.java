@@ -7,5 +7,5 @@ import java.io.IOException;
 public interface ServiceDiscoveryListener {
     void onDiscovered(RMIServiceProxy proxy);
     void onDiscoveryStarted();
-    void onDiscoveryFinished() throws IllegalAccessException, IOException, InstantiationException;
+    void onDiscoveryFinished() throws IllegalAccessException;
 }

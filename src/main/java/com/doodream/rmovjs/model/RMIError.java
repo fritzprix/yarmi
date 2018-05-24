@@ -5,7 +5,9 @@ package com.doodream.rmovjs.model;
  */
 public enum RMIError {
     NOT_FOUND(404, Response.error(404, "Not Found")),
-    FORBIDDEN(403, Response.error(403, "serviceInfo is not matched"));
+    NOT_IMPLEMENTED(500, Response.error(501,"Not implemented method")),
+    FORBIDDEN(403, Response.error(403, "ServiceInfo is not matched")),
+    BAD_REQUEST(400, Response.error(400, "Bad Request"));
 
     private final int code;
     private final Response response;
@@ -14,10 +16,7 @@ public enum RMIError {
         this.response = response;
     }
 
-    public Response getResponse(Request request) {
-        Response nresponse = Response.from(response);
-        nresponse.setEndpoint(request.getEndpoint());
-        return nresponse;
+    Response getResponse() {
+        return response;
     }
-
 }

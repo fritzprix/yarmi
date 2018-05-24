@@ -55,7 +55,7 @@ public class TcpServiceProxy implements RMIServiceProxy {
         return isOpened;
     }
 
-    private void write(String s) throws IOException {
+    private void write(String s) {
         writer.println(s);
         writer.flush();
     }

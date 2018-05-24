@@ -6,6 +6,7 @@ import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.sdp.ServiceAdvertiser;
+import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -97,14 +98,41 @@ public class RMIService {
         advertiser.startAdvertiser(serviceInfo, block);
     }
 
-    private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException {
-        final String path = request.getPath();
-        assert path != null;
-        RMIController controller = controllerMap.get(request.getPath());
-        if(controller != null) {
-            return controller.handleRequest(request);
+    private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException, InvalidResponseException {
+        if(!Request.isValid(request)) {
+            return end(Response.from(RMIError.BAD_REQUEST), request);
         }
-        return RMIError.NOT_FOUND.getResponse(request);
+
+        final String path = request.getPath();
+        Response response;
+        Preconditions.checkNotNull(path);
+        RMIController controller = controllerMap.get(path);
+
+        if(controller != null) {
+            response = controller.handleRequest(request);
+        } else {
+            response = Response.from(RMIError.NOT_FOUND);
+        }
+
+        if(response == null) {
+            response = Response.from(RMIError.NOT_IMPLEMENTED);
+        }
+        return end(response, request);
+    }
+
+    private Response end(Response res, Request req) throws InvalidResponseException {
+
+        try {
+            Response.validate(res);
+        } catch (RuntimeException e) {
+            InvalidResponseException exception = new InvalidResponseException(String.format("Invalid response for endpoint : %s", req.getEndpoint().getUnique()));
+            exception.initCause(e);
+            throw exception;
+        }
+
+        res.setEndpoint(req.getEndpoint());
+        res.setBodyCls(req.getEndpoint().getResponseType());
+        return res;
     }
 
     public void stop() throws Exception {

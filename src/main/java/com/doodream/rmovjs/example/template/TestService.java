@@ -9,7 +9,7 @@ import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
 @Service(name = "test-service",
         negotiator = SimpleNegotiator.class,
         adapter = TcpServiceAdapter.class,
-        params = {"127.0.0.1", "6644"})
+        params = {"6644"})
 public class TestService {
 
     @Controller(path = "/user", version = 1, module = UserIDControllerImpl.class)

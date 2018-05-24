@@ -6,6 +6,7 @@ import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.RMIServiceProxy;
+import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import lombok.AllArgsConstructor;
@@ -35,17 +36,18 @@ public class RMIClient implements InvocationHandler  {
     private RMIServiceProxy serviceProxy;
 
 
-    public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) throws IllegalAccessException, InstantiationException, IOException {
+    public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) throws IllegalAccessException, InstantiationException {
         Service service = (Service) svc.getAnnotation(Service.class);
-        assert service != null;
+        Preconditions.checkNotNull(service);
 
         Controller controller = Observable.fromArray(svc.getDeclaredFields())
                 .filter(field -> field.getType().equals(ctrl))
                 .map(field -> field.getAnnotation(Controller.class))
                 .blockingFirst();
 
-        assert controller != null;
-        assert ctrl.isInterface();
+        Preconditions.checkNotNull(controller);
+        Preconditions.checkArgument(ctrl.isInterface());
+
         try {
 
             if(!serviceProxy.isOpen()) {
@@ -75,7 +77,7 @@ public class RMIClient implements InvocationHandler  {
             // rmiClient has weakreference to proxy, and proxy has reference to rmiClient
             // so the proxy is no longer used (or referenced), it can be freed by garbage collector
             // and then, the rmiClient can be freed because only referencer which was proxy has been already freed
-
+            Log.debug("Client Created");
             return (T) proxy;
         } catch (IOException e) {
             Log.error(e);

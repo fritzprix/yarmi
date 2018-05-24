@@ -3,16 +3,22 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
+import com.doodream.rmovjs.net.RMISocket;
 import com.doodream.rmovjs.util.SerdeUtil;
 import com.doodream.rmovjs.parameter.Param;
 import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
+import io.reactivex.Observable;
+import io.reactivex.schedulers.Schedulers;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.util.List;
 
 @Builder
@@ -24,6 +30,8 @@ public class Request {
     private transient ClientSocketAdapter client;
     @SerializedName("endpoint")
     private Endpoint endpoint;
+
+
 
     public void response(Response s) throws IOException {
         if(client == null) {
@@ -52,21 +60,32 @@ public class Request {
         return SerdeUtil.toJson(request);
     }
 
-    public static boolean valid(Request request) {
+    public static boolean isValid(Request request) {
         return (request.getEndpoint() != null) &&
                 (request.getPath() != null) &&
+                (request.getParameters() != null) &&
                 (request.getMethodType() != null);
     }
 
-    public Response answerWith(Response response) {
-        response.setEndpoint(endpoint);
-        response.setBodyCls(endpoint.responseType);
+    public Response to(RMISocket socket) throws IOException {
+        socket.getOutputStream().write(SerdeUtil.toByteArray(this));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        return Response.fromJson(reader.readLine());
+    }
 
-        if(response.code == Response.Code.SUCCESS) {
-            Preconditions.checkNotNull(response.getBody(), "Successful response must have non-null body");
-        } else {
-            Preconditions.checkNotNull(response.getErrorBody(), "Error response must have non-null error body");
-        }
-        return response;
+    public static Observable<Request> from(RMISocket client) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
+        Observable<String> lineObservable = Observable.create(emitter -> {
+            try {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    emitter.onNext(line);
+                }
+                emitter.onComplete();
+            } catch (IOException e) {
+                emitter.onError(e);
+            }
+        });
+        return lineObservable.subscribeOn(Schedulers.io()).map(Request::fromJson);
     }
 }

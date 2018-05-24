@@ -53,6 +53,10 @@ public enum RMIMethod {
     }
 
     public String extractPath(java.lang.reflect.Method method) {
+        //  want to make like -> return method.getAnnotation(this.methodCls).value();
+        //  but still inheritance of annotation is not supported (as I know)
+        // TODO : fix if Java provides annotation inheritance feature
+
         switch (this) {
             case GET:
                 Get get = method.getAnnotation(Get.class);

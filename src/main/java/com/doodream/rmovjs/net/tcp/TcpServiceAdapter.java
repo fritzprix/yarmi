@@ -71,8 +71,8 @@ public class TcpServiceAdapter implements ServiceAdapter {
         compositeDisposable.add(adapter
                 .listen()
                 .doOnNext(request -> request.setClient(adapter))
-                .doOnNext(request -> System.out.println("Server <= " + request))
-                .filter(Request::valid)
+                .doOnNext(request -> Log.info("Server <= {}", request))
+                .filter(Request::isValid)
                 .map(handleRequest)
                 .doOnError(this::onError)
                 .doOnNext(adapter::write)
@@ -106,7 +106,7 @@ public class TcpServiceAdapter implements ServiceAdapter {
 
     @Override
     public void close() throws IOException {
-        System.out.println("Closed");
+        Log.debug("close() @ {}", mAddress.getAddress());
         listen = false;
         if(serverSocket != null
                 && !serverSocket.isClosed()) {

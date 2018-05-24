@@ -22,7 +22,7 @@ public interface RMIServiceProxy {
 
         @Override
         public Response request(Endpoint endpoint) {
-            return RMIError.NOT_FOUND.getResponse(Request.builder().build());
+            return Response.from(RMIError.NOT_FOUND);
         }
 
         @Override

@@ -1,11 +1,13 @@
 package com.doodream.rmovjs.sdp;
 
+import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
+import lombok.NonNull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -13,10 +15,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public abstract class BaseServiceDiscovery implements ServiceDiscovery {
 
-    private static final Logger LOGGER = LogManager.getLogger(BaseServiceDiscovery.class);
+    private static final Logger Log = LogManager.getLogger(BaseServiceDiscovery.class);
 
     private static final long TIMEOUT_IN_SEC = 5L;
     private long tickIntervalinMillisec;
@@ -28,7 +31,7 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
     @Override
-    public void startDiscovery(Class service, ServiceDiscoveryListener listener) {
+    public void startDiscovery(@NonNull Class service, @NonNull ServiceDiscoveryListener listener) {
         startDiscovery(service, listener, TIMEOUT_IN_SEC, TimeUnit.SECONDS);
     }
 
@@ -38,18 +41,20 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
     @Override
-    public void startDiscovery(Class service, ServiceDiscoveryListener listener, long timeout, TimeUnit unit) {
+    public void startDiscovery(@NonNull Class service, @NonNull ServiceDiscoveryListener listener, long timeout, @NonNull TimeUnit unit) {
         if(disposableMap.containsKey(service)) {
             return;
         }
         final RMIServiceInfo info = RMIServiceInfo.from(service);
         HashSet<RMIServiceInfo> discoveryCache = new HashSet<>();
+        listener.onDiscoveryStarted();
 
         Observable<RMIServiceInfo> serviceInfoObservable = observeTick()
                 .map(seq -> recvServiceInfo())
                 .onErrorReturn(throwable -> RMIServiceInfo.builder().build())
                 .filter(discoveryCache::add)
                 .filter(info::equals)
+                .doOnNext(discovered -> Log.debug("Discovered New Service : {} @ {}", discovered.getName(), discovered.getProxyFactoryHint()))
                 .doOnNext(info::copyFrom)
                 .timeout(timeout, unit);
 
@@ -67,6 +72,11 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
 
                 })
                 .doOnError(throwable -> {
+                    if(throwable instanceof TimeoutException) {
+                        Log.debug("Discovery Timeout");
+                    } else {
+                        Log.warn(throwable);
+                    }
                     close();
                     disposableMap.remove(service);
                     listener.onDiscoveryFinished();

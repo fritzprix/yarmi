@@ -26,7 +26,7 @@ import java.util.*;
 public class RMIController {
 
     private Controller controller;
-    private Map<RMIMethod, Map<String, Endpoint>> endpointMap;
+    private Map<String, Endpoint> endpointMap;
     private Set<String> endpoints;
     private Object impl;
     private Class itfcCls;
@@ -38,12 +38,14 @@ public class RMIController {
         Class module = controller.module();
         Object impl = module.newInstance();
 
+
+
         Observable<Endpoint> endpointsObservable = Observable.fromArray(cls.getMethods())
                 .filter(RMIMethod::isValidMethod)
                 .map(method -> Endpoint.create(controller, method));
 
-        Single<TreeMap<RMIMethod, Map<String, Endpoint>>> collection = endpointsObservable
-                .collectInto(new TreeMap<>(), RMIController::collectMethod);
+        Single<HashMap<String, Endpoint>> endpointLookupSingle = endpointsObservable
+                .collectInto(new HashMap<>(), RMIController::collectMethod);
 
         Single<Set<String>> pathCollection = endpointsObservable
                 .collectInto(new HashSet<>(), RMIController::collectPaths);
@@ -52,25 +54,19 @@ public class RMIController {
                 .map(controllerBuilder -> controllerBuilder.impl(impl))
                 .map(controllerBuilder -> controllerBuilder.controller(controller))
                 .map(controllerBuilder -> controllerBuilder.itfcCls(cls))
-                .zipWith(collection.toObservable(), RMIControllerBuilder::endpointMap)
+                .zipWith(endpointLookupSingle.toObservable(), RMIControllerBuilder::endpointMap)
                 .zipWith(pathCollection.toObservable(), RMIControllerBuilder::endpoints)
                 .map(RMIControllerBuilder::build)
                 .blockingFirst();
     }
 
+    private static void collectMethod(HashMap<String, Endpoint> map, Endpoint endpoint) {
+        map.put(endpoint.getUnique(), endpoint);
+    }
+
     private static void collectPaths(Set<String> strings, Endpoint endpoint) {
         strings.add(endpoint.getPath());
     }
-
-    private static void collectMethod(TreeMap<RMIMethod, Map<String, Endpoint>> map, Endpoint endpoint) {
-        Map<String, Endpoint> pathToEpMap = map.get(endpoint.getMethod());
-        if(pathToEpMap == null) {
-            pathToEpMap = new TreeMap<>();
-        }
-        pathToEpMap.put(endpoint.getPath(), endpoint);
-        map.put(endpoint.getMethod(), pathToEpMap);
-    }
-
 
     public static boolean isValidController(Field field) {
         return field.getAnnotation(Controller.class) != null;
@@ -81,21 +77,18 @@ public class RMIController {
     }
 
     Response handleRequest(Request request) throws InvocationTargetException, IllegalAccessException {
-        final Map<String, Endpoint> pathMap = endpointMap.get(request.getMethodType());
-        if(pathMap == null) {
-            return RMIError.NOT_FOUND.getResponse(request);
-        }
-        final Endpoint endpoint = pathMap.get(request.getPath());
+
+        Endpoint endpoint = endpointMap.get(request.getEndpoint().getUnique());
+
         if(endpoint == null) {
-            return RMIError.NOT_FOUND.getResponse(request);
+            return Response.from(RMIError.NOT_FOUND);
         }
+
         List<Object> params = Observable.fromIterable(request.getParameters())
                 .sorted(Param::sort)
                 .map(Param::instantiate)
                 .toList().blockingGet();
 
-        Response response = (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());
-        return request.answerWith(response);
+        return (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());
     }
-
 }
