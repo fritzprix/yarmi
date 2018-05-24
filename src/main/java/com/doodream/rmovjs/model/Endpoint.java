@@ -7,19 +7,21 @@ import com.doodream.rmovjs.annotation.method.Post;
 import com.doodream.rmovjs.annotation.method.Put;
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.method.RMIMethod;
-import com.doodream.rmovjs.util.SerdeUtil;
 import com.doodream.rmovjs.parameter.Param;
-import com.google.common.collect.Lists;
+import com.doodream.rmovjs.util.SerdeUtil;
+import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,6 +34,7 @@ import java.util.regex.Pattern;
 @NoArgsConstructor
 @Data
 public class Endpoint {
+    private static final Logger Log = LogManager.getLogger(Endpoint.class);
     private static final String DUPLICATE_PATH_SEPARATOR = "\\/{2,}";
     private static final Pattern TYPE_PATTNER = Pattern.compile("\\<([\\s\\S]+)\\>");
 
@@ -39,24 +42,32 @@ public class Endpoint {
     String path;
     List<Param> params;
     Class responseType;
+    String unique;
     transient Method jMethod;
 
     public static Endpoint create(Controller controller, Method method) {
 
-        assert method.getReturnType().equals(Response.class);
+        Preconditions.checkArgument(method.getReturnType().equals(Response.class));
 
         Annotation methodAnnotation = Observable
                 .fromArray(method.getAnnotations())
                 .filter(Endpoint::verifyMethod)
                 .blockingFirst();
 
-
-
         final String parentPath = controller.path();
 
-        RMIMethod httpMethod = RMIMethod.fromAnnotation(methodAnnotation);
+        RMIMethod rmiMethod = RMIMethod.fromAnnotation(methodAnnotation);
         Observable<Class> typeObservable = Observable.fromArray(method.getParameterTypes());
         Observable<Annotation[]> annotationsObservable = Observable.fromArray(method.getParameterAnnotations());
+
+        final String paramUnique = typeObservable
+                .defaultIfEmpty(Void.class)
+                .map(Class::getName)
+                .map("_"::concat)
+                .reduce(String::concat)
+                .blockingGet();
+
+        final String path = String.format(Locale.ENGLISH, "%s%s", parentPath, rmiMethod.extractPath(method)).replaceAll(DUPLICATE_PATH_SEPARATOR, "/");
 
         final int[] order = {0};
         List<Param> params = typeObservable
@@ -67,14 +78,18 @@ public class Endpoint {
         Observable<Class> responseClassObservable = Observable.just(TYPE_PATTNER.matcher(method.getGenericReturnType().getTypeName()))
                 .filter(Matcher::find)
                 .map(matcher -> matcher.group(1))
+                .defaultIfEmpty(ResponseBody.class.getName())
                 .map(Class::forName);
 
+        final String methodLookupKey = rmiMethod.name().concat(path.concat(paramUnique));
+
         return Endpoint.builder()
-                .method(httpMethod)
+                .method(rmiMethod)
                 .params(params)
                 .jMethod(method)
                 .responseType(responseClassObservable.blockingFirst())
-                .path(String.format("%s%s",parentPath, httpMethod.extractPath(method)).replaceAll(DUPLICATE_PATH_SEPARATOR,"/"))
+                .unique(methodLookupKey)
+                .path(path)
                 .build();
     }
 

@@ -2,14 +2,13 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.net.RMISocket;
 import com.doodream.rmovjs.util.SerdeUtil;
-import com.google.gson.annotations.SerializedName;
+import com.google.common.base.Preconditions;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -19,6 +18,7 @@ import java.io.UnsupportedEncodingException;
 @AllArgsConstructor
 @Builder
 public class Response<T> {
+    public static final int SUCCESS = 200;
 
     Endpoint endpoint;
     Class bodyCls;
@@ -27,20 +27,10 @@ public class Response<T> {
     ResponseBody errorBody;
     int code;
 
-    static Response from(Response response) {
-        return Response.builder()
-                .endpoint(response.endpoint)
-                .body(response.body)
-                .bodyCls(response.bodyCls)
-                .isSuccessful(response.isSuccessful)
-                .code(response.code)
-                .build();
-    }
-
     public static <T> Response<T> success(T body, Class<T> cls) {
         return Response.<T>builder()
                 .body(body)
-                .code(200)
+                .code(SUCCESS)
                 .isSuccessful(true)
                 .bodyCls(cls)
                 .build();
@@ -64,7 +54,7 @@ public class Response<T> {
 
     public static Response success(String msg) {
         return Response.builder()
-                .code(Code.SUCCESS)
+                .code(SUCCESS)
                 .isSuccessful(true)
                 .body(new ResponseBody(msg))
                 .bodyCls(ResponseBody.class)
@@ -72,26 +62,18 @@ public class Response<T> {
     }
 
     public static Response from(RMIError error) {
-        // TODO : consider the case which the endpoinst is not applicable (e.g. handshake response)
         return error.getResponse();
+    }
+
+    public static void validate(Response res) {
+        if(res.code == Response.SUCCESS) {
+            Preconditions.checkNotNull(res.getBody(), "Successful response must have non-null body");
+        } else {
+            Preconditions.checkNotNull(res.getErrorBody(), "Error response must have non-null error body");
+        }
     }
 
     public void to(RMISocket client) throws IOException {
         client.getOutputStream().write(SerdeUtil.toByteArray(this));
     }
-
-    @Data
-    public static class ResponseBody {
-        @SerializedName("msg")
-        String message;
-
-        private ResponseBody(String msg) {
-            message = msg;
-        }
-    }
-
-    public static class Code {
-        public static final int SUCCESS = 200;
-    }
-
 }

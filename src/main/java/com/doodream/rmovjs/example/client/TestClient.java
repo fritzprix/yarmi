@@ -31,23 +31,26 @@ public class TestClient {
             }
 
             @Override
-            public void onDiscoveryFinished() throws IllegalAccessException, IOException, InstantiationException {
+            public void onDiscoveryFinished() {
                 if(proxies.size() > 0) {
                     RMIServiceProxy proxy = proxies.get(0);
                     Preconditions.checkNotNull(proxy);
+                    try {
+                        UserIDPController controller = RMIClient.create(proxy, TestService.class, UserIDPController.class);
+                        Preconditions.checkNotNull(controller);
 
-                    UserIDPController controller = RMIClient.create(proxy, TestService.class, UserIDPController.class);
-                    Preconditions.checkNotNull(controller);
+                        User user = new User();
+                        user.setName("David");
 
-                    User user = new User();
-                    user.setName("David");
+                        Response<User> response = controller.createUser(user);
 
-                    Response<User> response = controller.createUser(user);
+                        Preconditions.checkNotNull(response);
+                        Preconditions.checkArgument(response.isSuccessful());
+                        User created = response.getBody();
+                        Preconditions.checkNotNull(created);
+                    } catch (InstantiationException | IllegalAccessException e) {
 
-                    Preconditions.checkNotNull(response);
-                    Preconditions.checkArgument(response.isSuccessful());
-                    User created = response.getBody();
-                    Preconditions.checkNotNull(created);
+                    }
                 }
             }
         });

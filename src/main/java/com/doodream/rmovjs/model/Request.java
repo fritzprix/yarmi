@@ -18,6 +18,7 @@ import lombok.NoArgsConstructor;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.util.List;
 
 @Builder
@@ -30,21 +31,7 @@ public class Request {
     @SerializedName("endpoint")
     private Endpoint endpoint;
 
-    public static Observable<Request> from(RMISocket client) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
-        Observable<String> lineObservable = Observable.create(emitter -> {
-            try {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    emitter.onNext(line);
-                }
-                emitter.onComplete();
-            } catch (IOException e) {
-                emitter.onError(e);
-            }
-        });
-        return lineObservable.subscribeOn(Schedulers.io()).map(Request::fromJson);
-    }
+
 
     public void response(Response s) throws IOException {
         if(client == null) {
@@ -73,28 +60,32 @@ public class Request {
         return SerdeUtil.toJson(request);
     }
 
-    public static boolean valid(Request request) {
+    public static boolean isValid(Request request) {
         return (request.getEndpoint() != null) &&
                 (request.getPath() != null) &&
+                (request.getParameters() != null) &&
                 (request.getMethodType() != null);
     }
 
-    public Response answerWith(Response response) {
-        response.setEndpoint(endpoint);
-        response.setBodyCls(endpoint.responseType);
-
-        if(response.code == Response.Code.SUCCESS) {
-            Preconditions.checkNotNull(response.getBody(), "Successful response must have non-null body");
-        } else {
-            Preconditions.checkNotNull(response.getErrorBody(), "Error response must have non-null error body");
-        }
-        return response;
+    public Response to(RMISocket socket) throws IOException {
+        socket.getOutputStream().write(SerdeUtil.toByteArray(this));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        return Response.fromJson(reader.readLine());
     }
 
-    public boolean isValid() {
-        return getEndpoint() != null &&
-                getPath() != null &&
-                getMethodType() != null &&
-                getParameters() != null;
+    public static Observable<Request> from(RMISocket client) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
+        Observable<String> lineObservable = Observable.create(emitter -> {
+            try {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    emitter.onNext(line);
+                }
+                emitter.onComplete();
+            } catch (IOException e) {
+                emitter.onError(e);
+            }
+        });
+        return lineObservable.subscribeOn(Schedulers.io()).map(Request::fromJson);
     }
 }

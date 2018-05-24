@@ -98,27 +98,41 @@ public class RMIService {
         advertiser.startAdvertiser(serviceInfo, block);
     }
 
-    private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException {
+    private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException, InvalidResponseException {
+        if(!Request.isValid(request)) {
+            return end(Response.from(RMIError.BAD_REQUEST), request);
+        }
+
         final String path = request.getPath();
         Response response;
-
-        if(request.isValid()) {
-            response = Response.from(RMIError.BAD_REQUEST);
-        }
         Preconditions.checkNotNull(path);
-        RMIController controller = controllerMap.get(request.getPath());
+        RMIController controller = controllerMap.get(path);
 
         if(controller != null) {
             response = controller.handleRequest(request);
         } else {
             response = Response.from(RMIError.NOT_FOUND);
         }
+
         if(response == null) {
             response = Response.from(RMIError.NOT_IMPLEMENTED);
         }
-        Preconditions.checkNotNull(response);
-        response.setEndpoint(request.getEndpoint());
-        return response;
+        return end(response, request);
+    }
+
+    private Response end(Response res, Request req) throws InvalidResponseException {
+
+        try {
+            Response.validate(res);
+        } catch (RuntimeException e) {
+            InvalidResponseException exception = new InvalidResponseException(String.format("Invalid response for endpoint : %s", req.getEndpoint().getUnique()));
+            exception.initCause(e);
+            throw exception;
+        }
+
+        res.setEndpoint(req.getEndpoint());
+        res.setBodyCls(req.getEndpoint().getResponseType());
+        return res;
     }
 
     public void stop() throws Exception {
