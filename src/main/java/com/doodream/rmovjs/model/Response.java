@@ -21,18 +21,16 @@ public class Response<T> {
     public static final int SUCCESS = 200;
 
     Endpoint endpoint;
-    Class bodyCls;
     T body;
     boolean isSuccessful;
     ResponseBody errorBody;
     int code;
 
-    public static <T> Response<T> success(T body, Class<T> cls) {
+    public static <T> Response<T> success(T body) {
         return Response.<T>builder()
                 .body(body)
                 .code(SUCCESS)
                 .isSuccessful(true)
-                .bodyCls(cls)
                 .build();
     }
 
@@ -57,7 +55,6 @@ public class Response<T> {
                 .code(SUCCESS)
                 .isSuccessful(true)
                 .body(new ResponseBody(msg))
-                .bodyCls(ResponseBody.class)
                 .build();
     }
 

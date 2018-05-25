@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Builder
 @AllArgsConstructor
@@ -38,19 +39,20 @@ public class RMIClient implements InvocationHandler  {
 
     public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) throws IllegalAccessException, InstantiationException {
         Service service = (Service) svc.getAnnotation(Service.class);
-        Preconditions.checkNotNull(service);
-
-        Controller controller = Observable.fromArray(svc.getDeclaredFields())
-                .filter(field -> field.getType().equals(ctrl))
-                .map(field -> field.getAnnotation(Controller.class))
-                .blockingFirst();
-
-        Preconditions.checkNotNull(controller);
-        Preconditions.checkArgument(ctrl.isInterface());
 
         try {
+            Preconditions.checkNotNull(service);
 
-            if(!serviceProxy.isOpen()) {
+            Controller controller = Observable.fromArray(svc.getDeclaredFields())
+                    .filter(field -> field.getType().equals(ctrl))
+                    .map(field -> field.getAnnotation(Controller.class))
+                    .blockingFirst(null);
+
+            Preconditions.checkNotNull(controller, "no matched controller");
+            Preconditions.checkArgument(ctrl.isInterface());
+
+
+            if (!serviceProxy.isOpen()) {
                 serviceProxy.open();
             }
 
@@ -72,14 +74,14 @@ public class RMIClient implements InvocationHandler  {
                     .methodMap(hashMapSingle.blockingGet())
                     .build();
 
-            Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ ctrl }, rmiClient);
+            Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ctrl}, rmiClient);
 
             // rmiClient has weakreference to proxy, and proxy has reference to rmiClient
             // so the proxy is no longer used (or referenced), it can be freed by garbage collector
             // and then, the rmiClient can be freed because only referencer which was proxy has been already freed
-            Log.debug("Client Created");
+            Log.debug("service proxy is created");
             return (T) proxy;
-        } catch (IOException e) {
+        } catch (Exception e) {
             Log.error(e);
             return null;
         }

@@ -22,7 +22,6 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -41,7 +40,6 @@ public class Endpoint {
     RMIMethod method;
     String path;
     List<Param> params;
-    Class responseType;
     String unique;
     transient Method jMethod;
 
@@ -75,11 +73,6 @@ public class Endpoint {
                 .doOnNext(param -> param.setOrder(order[0]++))
                 .toList().blockingGet();
 
-        Observable<Class> responseClassObservable = Observable.just(TYPE_PATTNER.matcher(method.getGenericReturnType().getTypeName()))
-                .filter(Matcher::find)
-                .map(matcher -> matcher.group(1))
-                .defaultIfEmpty(ResponseBody.class.getName())
-                .map(Class::forName);
 
         final String methodLookupKey = rmiMethod.name().concat(path.concat(paramUnique));
 
@@ -87,7 +80,6 @@ public class Endpoint {
                 .method(rmiMethod)
                 .params(params)
                 .jMethod(method)
-                .responseType(responseClassObservable.blockingFirst())
                 .unique(methodLookupKey)
                 .path(path)
                 .build();
