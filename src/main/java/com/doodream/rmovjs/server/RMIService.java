@@ -131,7 +131,7 @@ public class RMIService {
         }
 
         res.setEndpoint(req.getEndpoint());
-        res.setBodyCls(req.getEndpoint().getResponseType());
+//        res.setBodyCls(req.getEndpoint().getResponseType());
         return res;
     }
 

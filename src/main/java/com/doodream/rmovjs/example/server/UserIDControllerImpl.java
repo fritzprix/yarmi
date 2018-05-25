@@ -16,7 +16,7 @@ public class UserIDControllerImpl implements UserIDPController {
         if(user == null) {
             return Response.error(400, "Invalid User Id");
         }
-        return Response.success(user, User.class);
+        return Response.success(user);
     }
 
     @Override
@@ -29,6 +29,6 @@ public class UserIDControllerImpl implements UserIDPController {
         int id = user.hashCode();
         userTable.put((long) id, user);
         user.setId((long) id);
-        return Response.success(user, User.class);
+        return Response.success(user);
     }
 }

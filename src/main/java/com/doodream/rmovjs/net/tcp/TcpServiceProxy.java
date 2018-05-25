@@ -71,7 +71,7 @@ public class TcpServiceProxy implements RMIServiceProxy {
                 .doOnNext(this::write)
                 .map(s -> reader.readLine())
                 .doOnError(this::onError)
-                .map(s -> Response.fromJson(s, endpoint.getResponseType()))
+                .map(Response::fromJson)
                 .subscribeOn(Schedulers.io())
                 .blockingSingle();
 
