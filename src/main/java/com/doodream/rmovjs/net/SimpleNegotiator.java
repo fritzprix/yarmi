@@ -4,13 +4,14 @@ import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.serde.Converter;
-import com.doodream.rmovjs.util.SerdeUtil;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 
 public class SimpleNegotiator implements RMINegotiator {
     private static final Logger Log = LogManager.getLogger(SimpleNegotiator.class);
