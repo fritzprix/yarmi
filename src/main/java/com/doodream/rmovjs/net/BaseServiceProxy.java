@@ -1,9 +1,6 @@
-package com.doodream.rmovjs.net.tcp;
+package com.doodream.rmovjs.net;
 
 import com.doodream.rmovjs.model.*;
-import com.doodream.rmovjs.net.RMINegotiator;
-import com.doodream.rmovjs.net.RMIServiceProxy;
-import com.doodream.rmovjs.net.RMISocket;
 import com.doodream.rmovjs.serde.Converter;
 import io.reactivex.Observable;
 import io.reactivex.schedulers.Schedulers;
@@ -15,9 +12,9 @@ import java.io.Reader;
 import java.io.Writer;
 
 
-public class TcpServiceProxy implements RMIServiceProxy {
+public class BaseServiceProxy implements RMIServiceProxy {
 
-    private static final Logger Log = LogManager.getLogger(TcpServiceProxy.class);
+    private static final Logger Log = LogManager.getLogger(BaseServiceProxy.class);
 
     private volatile boolean isOpened;
     private RMIServiceInfo serviceInfo;
@@ -27,11 +24,11 @@ public class TcpServiceProxy implements RMIServiceProxy {
     private Writer writer;
 
 
-    public static TcpServiceProxy create(RMIServiceInfo info, RMISocket socket)  {
-        return new TcpServiceProxy(info, socket);
+    public static BaseServiceProxy create(RMIServiceInfo info, RMISocket socket)  {
+        return new BaseServiceProxy(info, socket);
     }
 
-    private TcpServiceProxy(RMIServiceInfo info, RMISocket socket)  {
+    private BaseServiceProxy(RMIServiceInfo info, RMISocket socket)  {
         serviceInfo = info;
         isOpened = false;
         this.socket = socket;
@@ -48,7 +45,7 @@ public class TcpServiceProxy implements RMIServiceProxy {
         reader = converter.reader(socket.getInputStream());
         writer = converter.writer(socket.getOutputStream());
         socket = negotiator.handshake(socket, serviceInfo, converter, true);
-        Log.info("Successfully Opened");
+        Log.info("proxy for {} opened", serviceInfo.getName());
         isOpened = true;
     }
 
@@ -58,11 +55,13 @@ public class TcpServiceProxy implements RMIServiceProxy {
     }
 
     @Override
-    public Response request(Endpoint endpoint) {
+    public Response request(Endpoint endpoint, Object ...args) {
 
         return Observable.just(Request.builder())
-                .map(builder -> builder.endpoint(endpoint))
+                .map(builder -> builder.endpoint(endpoint.getUnique()))
+                .map(builder -> builder.params(endpoint.convertParams(args)))
                 .map(Request.RequestBuilder::build)
+                .doOnNext(request -> Log.debug("request => {}", request))
                 .doOnNext(request -> converter.write(request, writer))
                 .map(request -> converter.read(reader, Response.class))
                 .doOnError(this::onError)
@@ -77,12 +76,11 @@ public class TcpServiceProxy implements RMIServiceProxy {
         } catch (IOException ignored) { }
     }
 
-    @Override
     public void close() throws IOException {
         if(!isOpened) {
             return;
         }
-        Log.debug("Close()");
+        Log.debug("proxy for {} closed", serviceInfo.getName());
         if(socket.isClosed()) {
             return;
         }

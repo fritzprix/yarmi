@@ -52,7 +52,6 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
 
     private DatagramPacket buildBroadcastPackaet(RMIServiceInfo info, Converter converter) throws UnsupportedEncodingException {
         byte[] infoByteString = converter.convert(info);
-        Log.debug("broadcasting : {}", new String(infoByteString));
         return new DatagramPacket(infoByteString, infoByteString.length, new InetSocketAddress(BROADCAST_PORT));
     }
 

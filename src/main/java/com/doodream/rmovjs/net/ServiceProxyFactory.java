@@ -22,7 +22,7 @@ public interface ServiceProxyFactory {
      * @return
      * @throws IOException
      */
-    RMIServiceProxy build() throws IOException;
+    RMIServiceProxy build();
 
     /**
      *

@@ -20,6 +20,8 @@ import org.apache.logging.log4j.Logger;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -73,18 +75,15 @@ public class Endpoint {
                 .doOnNext(param -> param.setOrder(order[0]++))
                 .toList().blockingGet();
 
+        final String methodLookupKey = String.format("%x%x%x", rmiMethod.name().hashCode(), controller.path().hashCode(), paramUnique.hashCode()).toUpperCase();
 
-        final String methodLookupKey = rmiMethod.name().concat(path.concat(paramUnique));
-
-        Endpoint endpoint = Endpoint.builder()
+        return Endpoint.builder()
                 .method(rmiMethod)
                 .params(params)
                 .jMethod(method)
                 .unique(methodLookupKey)
                 .path(path)
                 .build();
-//        Log.debug("{}", endpoint);
-        return endpoint;
     }
 
     private static boolean verifyMethod(Annotation annotation) {
@@ -95,13 +94,15 @@ public class Endpoint {
                 || (cls == Delete.class);
     }
 
-    public void applyParam(Object[] objects) {
+    // TODO : change name of method reflecting the function
+    public List<Param> convertParams(Object[] objects) {
         if(objects == null) {
-            return;
+            return Collections.EMPTY_LIST;
         }
-        Observable.fromIterable(params).zipWith(Observable.fromArray(objects), (param, o) -> {
+
+        return Observable.fromIterable(params).zipWith(Observable.fromArray(objects), (param, o) -> {
             param.apply(o);
             return param;
-        }).subscribe();
+        }).collectInto(new ArrayList<Param>(), List::add).blockingGet();
     }
 }
