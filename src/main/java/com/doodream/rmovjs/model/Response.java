@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 public class Response<T> {
     public static final int SUCCESS = 200;
 
-    Endpoint endpoint;
+    String endpoint;
     T body;
     boolean isSuccessful;
     ResponseBody errorBody;

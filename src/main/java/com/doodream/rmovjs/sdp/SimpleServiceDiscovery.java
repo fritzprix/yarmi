@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class SimpleServiceDiscovery extends BaseServiceDiscovery {
 
-    private static Logger Log = LogManager.getLogger(SimpleServiceDiscovery.class);
     private DatagramSocket serviceBroadcastSocket;
 
     public SimpleServiceDiscovery() throws SocketException {
@@ -31,14 +30,11 @@ public class SimpleServiceDiscovery extends BaseServiceDiscovery {
 
     @Override
     protected RMIServiceInfo recvServiceInfo(Converter converter) throws IOException {
-        Log.debug(converter);
         byte[] buffer = new byte[64 * 1024];
         Arrays.fill(buffer, (byte) 0);
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         serviceBroadcastSocket.receive(packet);
-        RMIServiceInfo info = converter.invert(packet.getData(), RMIServiceInfo.class);
-        Log.debug(info);
-        return info;
+        return converter.invert(packet.getData(), RMIServiceInfo.class);
     }
 
     @Override

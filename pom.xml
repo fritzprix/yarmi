@@ -6,7 +6,7 @@
 
     <groupId>com.doodream</groupId>
     <artifactId>yarmi-core</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.2</version>
     <packaging>jar</packaging>
     <properties>
         <github.global.server>github</github.global.server>

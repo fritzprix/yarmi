@@ -20,7 +20,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -92,8 +91,7 @@ public class RMIService {
     }
 
     private static void buildControllerMap(HashMap<String, RMIController> map, RMIController controller) {
-        List<String> paths = controller.getPaths();
-        Observable.fromIterable(paths)
+        Observable.fromIterable(controller.getEndpoints())
                 .doOnNext(s -> map.put(s, controller))
                 .subscribe();
     }
@@ -109,10 +107,9 @@ public class RMIService {
             return end(Response.from(RMIError.BAD_REQUEST), request);
         }
 
-        final String path = request.getPath();
         Response response;
-        Preconditions.checkNotNull(path);
-        RMIController controller = controllerMap.get(path);
+        Preconditions.checkNotNull(request.getEndpoint());
+        RMIController controller = controllerMap.get(request.getEndpoint());
 
         if(controller != null) {
             response = controller.handleRequest(request);
@@ -131,7 +128,7 @@ public class RMIService {
         try {
             Response.validate(res);
         } catch (RuntimeException e) {
-            InvalidResponseException exception = new InvalidResponseException(String.format("Invalid response for endpoint : %s", req.getEndpoint().getUnique()));
+            InvalidResponseException exception = new InvalidResponseException(String.format("Invalid response for endpoint : %s", req.getEndpoint()));
             exception.initCause(e);
             throw exception;
         }

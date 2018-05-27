@@ -31,7 +31,6 @@ public class RMIController {
     private static final Logger Log = LogManager.getLogger(RMIController.class);
     private Controller controller;
     private Map<String, Endpoint> endpointMap;
-    private Set<String> endpoints;
     private Object impl;
     private Class itfcCls;
 
@@ -49,15 +48,11 @@ public class RMIController {
         Single<HashMap<String, Endpoint>> endpointLookupSingle = endpointsObservable
                 .collectInto(new HashMap<>(), RMIController::collectMethod);
 
-        Single<Set<String>> pathCollection = endpointsObservable
-                .collectInto(new HashSet<>(), RMIController::collectPaths);
-
         return Observable.just(RMIController.builder())
                 .map(controllerBuilder -> controllerBuilder.impl(impl))
                 .map(controllerBuilder -> controllerBuilder.controller(controller))
                 .map(controllerBuilder -> controllerBuilder.itfcCls(cls))
                 .zipWith(endpointLookupSingle.toObservable(), RMIControllerBuilder::endpointMap)
-                .zipWith(pathCollection.toObservable(), RMIControllerBuilder::endpoints)
                 .map(RMIControllerBuilder::build)
                 .blockingFirst();
     }
@@ -66,21 +61,18 @@ public class RMIController {
         map.put(endpoint.getUnique(), endpoint);
     }
 
-    private static void collectPaths(Set<String> strings, Endpoint endpoint) {
-        strings.add(endpoint.getPath());
-    }
-
     public static boolean isValidController(Field field) {
         return field.getAnnotation(Controller.class) != null;
     }
 
-    List<String> getPaths() {
-        return Observable.fromIterable(endpoints).toList().blockingGet();
+    public List<String> getEndpoints() {
+        return new ArrayList<>(endpointMap.keySet());
     }
 
     Response handleRequest(Request request) throws InvocationTargetException, IllegalAccessException {
 
-        Endpoint endpoint = endpointMap.get(request.getEndpoint().getUnique());
+        Endpoint endpoint = endpointMap.get(request.getEndpoint());
+        Log.debug("Endpoint Lookup : {} => {}", request.getEndpoint(), endpoint);
 
         if(endpoint == null) {
             return Response.from(RMIError.NOT_FOUND);
@@ -88,12 +80,9 @@ public class RMIController {
 
         Observable<Type> typeObservable = Observable.fromArray(endpoint.getJMethod().getGenericParameterTypes());
 
-        Log.debug(endpoint);
-        List<Object> params = Observable.fromIterable(request.getParameters())
-                .doOnNext(Log::debug)
+        List<Object> params = Observable.fromIterable(request.getParams())
                 .sorted(Param::sort)
                 .zipWith(typeObservable, Param::instantiate)
-//                .map(param -> Param.instantiate(param))
                 .toList().blockingGet();
 
         return (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());

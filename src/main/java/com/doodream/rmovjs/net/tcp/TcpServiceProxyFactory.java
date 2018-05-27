@@ -1,6 +1,7 @@
 package com.doodream.rmovjs.net.tcp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
+import com.doodream.rmovjs.net.BaseServiceProxy;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 
@@ -25,11 +26,11 @@ public class TcpServiceProxyFactory implements ServiceProxyFactory {
     }
 
     @Override
-    public RMIServiceProxy build() throws IOException {
+    public RMIServiceProxy build() {
         if(host == null) {
             host = serviceInfo.getProxyFactoryHint();
         }
-        return TcpServiceProxy.create(serviceInfo, new TcpRMISocket(host, port));
+        return BaseServiceProxy.create(serviceInfo, new TcpRMISocket(host, port));
     }
 
     @Override

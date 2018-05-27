@@ -41,7 +41,7 @@ public class RMIClient implements InvocationHandler  {
 
 
 
-    public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) throws IllegalAccessException, InstantiationException {
+    public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) {
         Service service = (Service) svc.getAnnotation(Service.class);
 
         try {
@@ -114,9 +114,8 @@ public class RMIClient implements InvocationHandler  {
         if(endpoint == null) {
             return null;
         }
-        endpoint.applyParam(args);
         try {
-            return serviceProxy.request(endpoint);
+            return serviceProxy.request(endpoint, args);
         } catch (IOException e) {
             serviceProxy.close();
             return Response.error(-1, e.getLocalizedMessage());
