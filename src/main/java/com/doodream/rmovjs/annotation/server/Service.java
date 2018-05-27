@@ -5,6 +5,7 @@ import com.doodream.rmovjs.net.RMINegotiator;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.SimpleNegotiator;
 import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
+import com.doodream.rmovjs.serde.GsonConverter;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -40,4 +41,6 @@ public @interface Service {
     String[] params() default {};
 
     Class<? extends RMINegotiator> negotiator() default SimpleNegotiator.class;
+
+    Class<GsonConverter> converter() default GsonConverter.class;
 }

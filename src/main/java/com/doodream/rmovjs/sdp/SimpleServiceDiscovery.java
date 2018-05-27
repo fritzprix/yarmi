@@ -1,6 +1,9 @@
 package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
+import com.doodream.rmovjs.serde.Converter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -18,6 +21,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class SimpleServiceDiscovery extends BaseServiceDiscovery {
 
+    private static Logger Log = LogManager.getLogger(SimpleServiceDiscovery.class);
     private DatagramSocket serviceBroadcastSocket;
 
     public SimpleServiceDiscovery() throws SocketException {
@@ -26,12 +30,15 @@ public class SimpleServiceDiscovery extends BaseServiceDiscovery {
     }
 
     @Override
-    protected RMIServiceInfo recvServiceInfo() throws IOException {
+    protected RMIServiceInfo recvServiceInfo(Converter converter) throws IOException {
+        Log.debug(converter);
         byte[] buffer = new byte[64 * 1024];
         Arrays.fill(buffer, (byte) 0);
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         serviceBroadcastSocket.receive(packet);
-        return RMIServiceInfo.from(packet.getData());
+        RMIServiceInfo info = converter.invert(packet.getData(), RMIServiceInfo.class);
+        Log.debug(info);
+        return info;
     }
 
     @Override

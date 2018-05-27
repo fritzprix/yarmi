@@ -1,6 +1,7 @@
 package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
+import com.doodream.rmovjs.serde.Converter;
 
 import java.io.IOException;
 
@@ -12,7 +13,7 @@ public interface ServiceAdvertiser {
      * @param block
      * @throws IOException
      */
-    void startAdvertiser(RMIServiceInfo info, boolean block) throws IOException;
+    void startAdvertiser(RMIServiceInfo info, Converter converter, boolean block) throws IOException;
 
     /**
      * stop advertising

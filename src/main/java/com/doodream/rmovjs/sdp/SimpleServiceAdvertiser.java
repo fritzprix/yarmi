@@ -1,9 +1,12 @@
 package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
+import com.doodream.rmovjs.serde.Converter;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -20,18 +23,20 @@ import java.util.concurrent.TimeUnit;
  */
 public class SimpleServiceAdvertiser implements ServiceAdvertiser {
 
+    private Logger Log = LogManager.getLogger(SimpleServiceDiscovery.class);
     public static final int BROADCAST_PORT = 3041;
     private Disposable disposable;
 
 
     @Override
-    public synchronized void startAdvertiser(RMIServiceInfo info, boolean block) {
+    public synchronized void startAdvertiser(RMIServiceInfo info, Converter converter, boolean block) {
 
         Observable<DatagramPacket> packetObservable = Observable.interval(0L, 3L, TimeUnit.SECONDS)
                 .map(aLong -> info)
-                .map(this::buildBroadcastPackaet)
+                .map(i -> buildBroadcastPackaet(i, converter))
                 .doOnNext(this::broadcast)
                 .doOnError(Throwable::printStackTrace);
+
         if(!block) {
             disposable = packetObservable.subscribeOn(Schedulers.io()).subscribe();
             return;
@@ -45,8 +50,9 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
         socket.send(datagramPacket);
     }
 
-    private DatagramPacket buildBroadcastPackaet(RMIServiceInfo info) throws UnsupportedEncodingException {
-        byte[] infoByteString = info.toJson().getBytes("UTF-8");
+    private DatagramPacket buildBroadcastPackaet(RMIServiceInfo info, Converter converter) throws UnsupportedEncodingException {
+        byte[] infoByteString = converter.convert(info);
+        Log.debug("broadcasting : {}", new String(infoByteString));
         return new DatagramPacket(infoByteString, infoByteString.length, new InetSocketAddress(BROADCAST_PORT));
     }
 

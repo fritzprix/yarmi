@@ -1,6 +1,7 @@
 package com.doodream.rmovjs.net;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
+import com.doodream.rmovjs.serde.Converter;
 
 public interface RMINegotiator {
 
@@ -14,5 +15,5 @@ public interface RMINegotiator {
      * @return opened socket
      * @throws HandshakeFailException
      */
-    RMISocket handshake(RMISocket socket, RMIServiceInfo service, boolean isClient) throws HandshakeFailException;
+    RMISocket handshake(RMISocket socket, RMIServiceInfo service, Converter converter, boolean isClient) throws HandshakeFailException;
 }

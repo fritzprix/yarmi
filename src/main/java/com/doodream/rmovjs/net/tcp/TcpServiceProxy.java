@@ -4,15 +4,15 @@ import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.RMINegotiator;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.RMISocket;
+import com.doodream.rmovjs.serde.Converter;
 import io.reactivex.Observable;
 import io.reactivex.schedulers.Schedulers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.Reader;
+import java.io.Writer;
 
 
 public class TcpServiceProxy implements RMIServiceProxy {
@@ -22,15 +22,16 @@ public class TcpServiceProxy implements RMIServiceProxy {
     private volatile boolean isOpened;
     private RMIServiceInfo serviceInfo;
     private RMISocket socket;
-    private BufferedReader reader;
-    private PrintStream writer;
+    private Converter converter;
+    private Reader reader;
+    private Writer writer;
 
 
-    public static TcpServiceProxy create(RMIServiceInfo info, RMISocket socket) throws IOException {
+    public static TcpServiceProxy create(RMIServiceInfo info, RMISocket socket)  {
         return new TcpServiceProxy(info, socket);
     }
 
-    private TcpServiceProxy(RMIServiceInfo info, RMISocket socket) throws IOException {
+    private TcpServiceProxy(RMIServiceInfo info, RMISocket socket)  {
         serviceInfo = info;
         isOpened = false;
         this.socket = socket;
@@ -42,12 +43,13 @@ public class TcpServiceProxy implements RMIServiceProxy {
             return;
         }
         RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
+        this.converter = (Converter) serviceInfo.getConverter().newInstance();
         socket.open();
-        socket = negotiator.handshake(socket, serviceInfo, true);
+        reader = converter.reader(socket.getInputStream());
+        writer = converter.writer(socket.getOutputStream());
+        socket = negotiator.handshake(socket, serviceInfo, converter, true);
         Log.info("Successfully Opened");
         isOpened = true;
-        reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        writer = new PrintStream(socket.getOutputStream());
     }
 
     @Override
@@ -55,26 +57,17 @@ public class TcpServiceProxy implements RMIServiceProxy {
         return isOpened;
     }
 
-    private void write(String s) {
-        writer.println(s);
-        writer.flush();
-    }
-
     @Override
     public Response request(Endpoint endpoint) {
-        Request request = Request.builder()
-                        .endpoint(endpoint)
-                        .build();
 
-        return Observable.just(request)
-                .map(Request::toJson)
-                .doOnNext(this::write)
-                .map(s -> reader.readLine())
+        return Observable.just(Request.builder())
+                .map(builder -> builder.endpoint(endpoint))
+                .map(Request.RequestBuilder::build)
+                .doOnNext(request -> converter.write(request, writer))
+                .map(request -> converter.read(reader, Response.class))
                 .doOnError(this::onError)
-                .map(Response::fromJson)
                 .subscribeOn(Schedulers.io())
                 .blockingSingle();
-
     }
 
     private void onError(Throwable throwable) {
