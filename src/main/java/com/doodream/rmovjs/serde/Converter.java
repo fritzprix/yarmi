@@ -15,9 +15,9 @@ public interface Converter {
 
     <T> T read(Reader reader, Class<T> rawClass, Class<?> parameter) throws IOException;
 
-    Reader reader(InputStream inputStream);
+    Reader reader(InputStream inputStream) throws UnsupportedEncodingException;
 
-    Writer writer(OutputStream outputStream);
+    Writer writer(OutputStream outputStream) throws UnsupportedEncodingException;
 
     <T> T read(Reader reader, Class<T> cls) throws IOException;
 

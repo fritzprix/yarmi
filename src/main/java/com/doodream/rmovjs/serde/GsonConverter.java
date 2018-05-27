@@ -6,16 +6,12 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 public class GsonConverter implements Converter {
-
-    private static final Logger Log = LogManager.getLogger(GsonConverter.class);
 
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
@@ -69,18 +65,17 @@ public class GsonConverter implements Converter {
         if(line == null) {
             return null;
         }
-        Log.debug("read : {}", line);
         return GSON.fromJson(line, getType(rawClass, parameter));
     }
 
     @Override
-    public Reader reader(InputStream inputStream) {
-        return new BufferedReader(new InputStreamReader(inputStream));
+    public Reader reader(InputStream inputStream) throws UnsupportedEncodingException {
+        return new BufferedReader(new InputStreamReader(inputStream,"UTF-8"));
     }
 
     @Override
-    public Writer writer(OutputStream outputStream) {
-        return new BufferedWriter(new OutputStreamWriter(outputStream));
+    public Writer writer(OutputStream outputStream) throws UnsupportedEncodingException {
+        return new BufferedWriter(new OutputStreamWriter(outputStream, "UTF-8"));
     }
 
     @Override
@@ -95,14 +90,11 @@ public class GsonConverter implements Converter {
 
     @Override
     public byte[] convert(Object src) throws UnsupportedEncodingException {
-        return GSON.toJson(src).concat("\n").getBytes();
+        return GSON.toJson(src).concat("\n").getBytes("UTF-8");
     }
 
     @Override
     public <T> T invert(byte[] b, Class<T> cls) throws UnsupportedEncodingException {
-        Log.debug("invert {}", new String(b));
-        // TODO : 명시적으로 텍스 트인코 딩 정의되도 록
-        // TODO : line separator가 영향이 있음
-        return GSON.fromJson(new String(b).trim(), cls);
+        return GSON.fromJson(new String(b,"UTF-8").trim(), cls);
     }
 }
