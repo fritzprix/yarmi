@@ -5,10 +5,12 @@ import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.example.server.UserIDControllerImpl;
 import com.doodream.rmovjs.net.SimpleNegotiator;
 import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
+import com.doodream.rmovjs.serde.GsonConverter;
 
 @Service(name = "test-service",
         negotiator = SimpleNegotiator.class,
         adapter = TcpServiceAdapter.class,
+        converter = GsonConverter.class,
         params = {"6644"})
 public class TestService {
 

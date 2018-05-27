@@ -4,8 +4,10 @@ import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.model.Endpoint;
+import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.RMIServiceProxy;
+import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
@@ -22,7 +24,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Builder
 @AllArgsConstructor
@@ -35,6 +36,9 @@ public class RMIClient implements InvocationHandler  {
     private String controllerPath;
     private Map<Method, Endpoint> methodMap;
     private RMIServiceProxy serviceProxy;
+    private RMIServiceInfo serviceInfo;
+    private Converter converter;
+
 
 
     public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) throws IllegalAccessException, InstantiationException {
@@ -42,14 +46,18 @@ public class RMIClient implements InvocationHandler  {
 
         try {
             Preconditions.checkNotNull(service);
-
             Controller controller = Observable.fromArray(svc.getDeclaredFields())
                     .filter(field -> field.getType().equals(ctrl))
                     .map(field -> field.getAnnotation(Controller.class))
                     .blockingFirst(null);
 
+            final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
+
             Preconditions.checkNotNull(controller, "no matched controller");
             Preconditions.checkArgument(ctrl.isInterface());
+            Preconditions.checkNotNull(serviceInfo, "Invalid Service Class %s", svc);
+
+            final Converter converter = (Converter) serviceInfo.getConverter().newInstance();
 
 
             if (!serviceProxy.isOpen()) {
@@ -72,6 +80,8 @@ public class RMIClient implements InvocationHandler  {
 
             RMIClient rmiClient = builder
                     .methodMap(hashMapSingle.blockingGet())
+                    .serviceInfo(serviceInfo)
+                    .converter(converter)
                     .build();
 
             Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ctrl}, rmiClient);

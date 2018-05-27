@@ -2,17 +2,13 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.annotation.server.Service;
-import com.doodream.rmovjs.util.SerdeUtil;
 import com.doodream.rmovjs.server.RMIController;
 import com.google.gson.annotations.SerializedName;
-import com.google.gson.stream.JsonReader;
 import io.reactivex.Observable;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.io.StringReader;
-import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -32,6 +28,9 @@ public class RMIServiceInfo {
 
     @SerializedName("negotiator")
     private Class negotiator;
+
+    @SerializedName("converter")
+    private Class converter;
 
     @SerializedName("params")
     private List<String> params;
@@ -54,6 +53,7 @@ public class RMIServiceInfo {
         builder.version(Properties.VERSION)
                 .adapter(service.adapter())
                 .negotiator(service.negotiator())
+                .converter(service.converter())
                 .params(Arrays.asList(service.params()))
                 .name(service.name());
 
@@ -71,16 +71,6 @@ public class RMIServiceInfo {
     public static boolean isComplete(RMIServiceInfo info) {
         return (info.getProxyFactoryHint() != null) &&
                 (info.getControllerInfos() != null);
-    }
-
-    public String toJson() {
-        return SerdeUtil.toJson(this);
-    }
-
-    public static RMIServiceInfo from(byte[] bytes) throws UnsupportedEncodingException {
-        JsonReader reader = new JsonReader(new StringReader(new String(bytes, "UTF-8")));
-        reader.setLenient(true);
-        return SerdeUtil.fromJson(reader, RMIServiceInfo.class);
     }
 
     public void copyFrom(RMIServiceInfo info) {

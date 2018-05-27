@@ -17,7 +17,7 @@ import java.util.List;
 
 public class TestClient {
 
-    public static void main(String[] args) throws SocketException, InterruptedException {
+    public static void main(String[] args) throws SocketException, InterruptedException, IllegalAccessException, InstantiationException {
         List<RMIServiceProxy> proxies = new ArrayList<>();
         new SimpleServiceDiscovery().startDiscovery(TestService.class, new ServiceDiscoveryListener() {
             @Override

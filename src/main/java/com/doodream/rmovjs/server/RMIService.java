@@ -6,12 +6,15 @@ import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.sdp.ServiceAdvertiser;
+import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -30,17 +33,18 @@ import java.util.List;
 public class RMIService {
 
     private static Properties properties = new Properties();
+    private static final Logger Log = LogManager.getLogger(RMIService.class);
 
     private Service service;
     private HashMap<String, RMIController> controllerMap;
     private RMIServiceInfo serviceInfo;
     private ServiceAdapter adapter;
     private ServiceAdvertiser advertiser;
+    private Converter converter;
 
     protected static final String TAG = RMIService.class.getCanonicalName();
 
     public static <T> RMIService create(Class<T> cls, ServiceAdvertiser advertiser) throws IllegalAccessException, InstantiationException, InvocationTargetException {
-
         Service service = cls.getAnnotation(Service.class);
         String[] params = service.params();
 
@@ -54,13 +58,14 @@ public class RMIService {
                 .name(service.name())
                 .adapter(service.adapter())
                 .negotiator(service.negotiator())
+                .converter(service.converter())
                 .params(Arrays.asList(service.params()))
                 .version(Properties.VERSION)
                 .build();
 
-
+        final Converter converter = (Converter) serviceInfo.getConverter().newInstance();
+        Preconditions.checkNotNull(converter, "coverter is not declared");
         RMIServiceBuilder builder = RMIService.builder();
-
 
         Observable<RMIController> controllerObservable = Observable.fromArray(cls.getDeclaredFields())
                 .filter(RMIController::isValidController)
@@ -81,6 +86,7 @@ public class RMIService {
                 .adapter(adapter)
                 .service(service)
                 .advertiser(advertiser)
+                .converter(converter)
                 .serviceInfo(serviceInfo)
                 .build();
     }
@@ -94,8 +100,8 @@ public class RMIService {
 
 
     public void listen(boolean block) throws Exception {
-        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, this::routeRequest));
-        advertiser.startAdvertiser(serviceInfo, block);
+        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, converter, this::routeRequest));
+        advertiser.startAdvertiser(serviceInfo, converter, block);
     }
 
     private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException, InvalidResponseException {

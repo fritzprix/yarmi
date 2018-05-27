@@ -14,9 +14,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Type;
 import java.util.*;
 
 @AllArgsConstructor
@@ -25,6 +28,7 @@ import java.util.*;
 @Data
 public class RMIController {
 
+    private static final Logger Log = LogManager.getLogger(RMIController.class);
     private Controller controller;
     private Map<String, Endpoint> endpointMap;
     private Set<String> endpoints;
@@ -37,8 +41,6 @@ public class RMIController {
         assert controller != null;
         Class module = controller.module();
         Object impl = module.newInstance();
-
-
 
         Observable<Endpoint> endpointsObservable = Observable.fromArray(cls.getMethods())
                 .filter(RMIMethod::isValidMethod)
@@ -84,9 +86,14 @@ public class RMIController {
             return Response.from(RMIError.NOT_FOUND);
         }
 
+        Observable<Type> typeObservable = Observable.fromArray(endpoint.getJMethod().getGenericParameterTypes());
+
+        Log.debug(endpoint);
         List<Object> params = Observable.fromIterable(request.getParameters())
+                .doOnNext(Log::debug)
                 .sorted(Param::sort)
-                .map(Param::instantiate)
+                .zipWith(typeObservable, Param::instantiate)
+//                .map(param -> Param.instantiate(param))
                 .toList().blockingGet();
 
         return (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());

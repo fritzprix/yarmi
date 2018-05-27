@@ -1,10 +1,11 @@
 package com.doodream.rmovjs.sdp;
 
-import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
+import com.doodream.rmovjs.serde.Converter;
+import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import lombok.NonNull;
@@ -31,7 +32,7 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
     @Override
-    public void startDiscovery(@NonNull Class service, @NonNull ServiceDiscoveryListener listener) {
+    public void startDiscovery(@NonNull Class service, @NonNull ServiceDiscoveryListener listener) throws InstantiationException, IllegalAccessException {
         startDiscovery(service, listener, TIMEOUT_IN_SEC, TimeUnit.SECONDS);
     }
 
@@ -41,16 +42,19 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
     @Override
-    public void startDiscovery(@NonNull Class service, @NonNull ServiceDiscoveryListener listener, long timeout, @NonNull TimeUnit unit) {
+    public void startDiscovery(@NonNull Class service, @NonNull ServiceDiscoveryListener listener, long timeout, @NonNull TimeUnit unit) throws IllegalAccessException, InstantiationException {
         if(disposableMap.containsKey(service)) {
             return;
         }
         final RMIServiceInfo info = RMIServiceInfo.from(service);
+        Converter converter = (Converter) info.getConverter().newInstance();
+        Preconditions.checkNotNull(info, "Invalid service type %s", service);
+        Preconditions.checkNotNull(converter, "converter is not declared");
+
         HashSet<RMIServiceInfo> discoveryCache = new HashSet<>();
         listener.onDiscoveryStarted();
-
         Observable<RMIServiceInfo> serviceInfoObservable = observeTick()
-                .map(seq -> recvServiceInfo())
+                .map(seq -> recvServiceInfo(converter))
                 .onErrorReturn(throwable -> RMIServiceInfo.builder().build())
                 .filter(discoveryCache::add)
                 .filter(info::equals)
@@ -106,6 +110,6 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
 
-    protected abstract RMIServiceInfo recvServiceInfo() throws IOException;
+    protected abstract RMIServiceInfo recvServiceInfo(Converter converter) throws IOException;
     protected abstract void close();
 }

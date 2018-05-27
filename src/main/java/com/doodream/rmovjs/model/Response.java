@@ -1,14 +1,10 @@
 package com.doodream.rmovjs.model;
 
-import com.doodream.rmovjs.net.RMISocket;
-import com.doodream.rmovjs.util.SerdeUtil;
 import com.google.common.base.Preconditions;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.io.IOException;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -32,14 +28,6 @@ public class Response<T> {
                 .code(SUCCESS)
                 .isSuccessful(true)
                 .build();
-    }
-
-    public static Response fromJson(String json) {
-        return SerdeUtil.fromJson(json, Response.class);
-    }
-
-    public static Response fromJson(String json, Class cls) {
-        return SerdeUtil.fromJson(json, Response.class, cls);
     }
 
     public static Response error(int code, String mesg) {
@@ -68,9 +56,5 @@ public class Response<T> {
         } else {
             Preconditions.checkNotNull(res.getErrorBody(), "Error response must have non-null error body");
         }
-    }
-
-    public void to(RMISocket client) throws IOException {
-        client.getOutputStream().write(SerdeUtil.toByteArray(this));
     }
 }

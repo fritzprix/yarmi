@@ -30,7 +30,7 @@ public class RMIBasicTest {
     }
 
     @Test
-    public void createTestClient() throws SocketException {
+    public void createTestClient() throws SocketException, IllegalAccessException, InstantiationException {
         new SimpleServiceDiscovery().startDiscovery(TestService.class, new ServiceDiscoveryListener() {
             @Override
             public void onDiscovered(RMIServiceProxy proxy) {
