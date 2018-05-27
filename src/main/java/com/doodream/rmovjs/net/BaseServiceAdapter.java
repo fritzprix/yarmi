@@ -55,17 +55,21 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     }
 
 
-    private void onError(Throwable throwable) throws IOException {
+    private void onError(Throwable throwable) {
         Log.error(throwable);
         close();
     }
 
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         listen = false;
         if(!isClosed()) {
-            onClose();
+            try {
+                onClose();
+            } catch (IOException e) {
+                Log.warn(e);
+            }
         }
         compositeDisposable.dispose();
         compositeDisposable.clear();
