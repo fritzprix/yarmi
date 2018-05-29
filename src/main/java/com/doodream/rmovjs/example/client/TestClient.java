@@ -12,12 +12,13 @@ import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class TestClient {
 
-    public static void main(String[] args) throws SocketException, InterruptedException, IllegalAccessException, InstantiationException {
+    public static void main(String[] args) throws IOException, InterruptedException, IllegalAccessException, InstantiationException {
         List<RMIServiceProxy> proxies = new ArrayList<>();
         new SimpleServiceDiscovery().startDiscovery(TestService.class, new ServiceDiscoveryListener() {
             @Override

@@ -23,11 +23,11 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     private static final Logger Log = LogManager.getLogger(BaseServiceDiscovery.class);
 
     private static final long TIMEOUT_IN_SEC = 5L;
-    private long tickIntervalinMillisec;
+    private long tickIntervalInMilliSec;
     private HashMap<Class, Disposable> disposableMap;
 
     public BaseServiceDiscovery(long interval, TimeUnit unit) {
-        tickIntervalinMillisec = unit.toMillis(interval);
+        tickIntervalInMilliSec = unit.toMillis(interval);
         disposableMap = new HashMap<>();
     }
 
@@ -38,7 +38,7 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
 
 
     private Observable<Long> observeTick() {
-        return Observable.interval(0L, tickIntervalinMillisec, TimeUnit.MILLISECONDS);
+        return Observable.interval(0L, tickIntervalInMilliSec, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -54,7 +54,8 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
         HashSet<RMIServiceInfo> discoveryCache = new HashSet<>();
         listener.onDiscoveryStarted();
         Observable<RMIServiceInfo> serviceInfoObservable = observeTick()
-                .map(seq -> recvServiceInfo(converter))
+                .map(seq -> receiveServiceInfo(converter))
+                .doOnNext(Log::debug)
                 .onErrorReturn(throwable -> RMIServiceInfo.builder().build())
                 .filter(discoveryCache::add)
                 .filter(info::equals)
@@ -110,6 +111,6 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
 
-    protected abstract RMIServiceInfo recvServiceInfo(Converter converter) throws IOException;
+    protected abstract RMIServiceInfo receiveServiceInfo(Converter converter) throws IOException;
     protected abstract void close();
 }

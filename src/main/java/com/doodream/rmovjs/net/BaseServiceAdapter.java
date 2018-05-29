@@ -34,11 +34,13 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
         listen = true;
         compositeDisposable.add(Observable.just(converter)
                 .map(c -> acceptClient())
+                .doOnNext(socket -> Log.debug("{} connected", socket.getRemoteName()))
                 .repeatUntil(() -> !listen)
                 .map(client -> negotiator.handshake(client, serviceInfo, converter, false))
                 .map(socket -> new ClientSocketAdapter(socket, converter))
                 .subscribeOn(Schedulers.io())
                 .subscribe(adapter-> onHandshakeSuccess(adapter, handleRequest),this::onError));
+
         return getProxyConnectionHint(serviceInfo);
     }
 

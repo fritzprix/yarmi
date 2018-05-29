@@ -49,7 +49,7 @@ public class RMIService {
 
 
         Constructor constructor = Observable.fromArray(service.adapter().getConstructors())
-                .filter(cstr -> cstr.getParameterCount() == params.length)
+                .filter(ctor -> ctor.getParameterCount() == params.length)
                 .blockingFirst();
 
         ServiceAdapter adapter = (ServiceAdapter) constructor.newInstance(params);
@@ -63,7 +63,7 @@ public class RMIService {
                 .build();
 
         final Converter converter = (Converter) serviceInfo.getConverter().newInstance();
-        Preconditions.checkNotNull(converter, "coverter is not declared");
+        Preconditions.checkNotNull(converter, "converter is not declared");
         RMIServiceBuilder builder = RMIService.builder();
 
         Observable<RMIController> controllerObservable = Observable.fromArray(cls.getDeclaredFields())

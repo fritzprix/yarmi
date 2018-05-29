@@ -6,10 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetSocketAddress;
-import java.net.SocketException;
+import java.net.*;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -23,13 +20,14 @@ public class SimpleServiceDiscovery extends BaseServiceDiscovery {
 
     private DatagramSocket serviceBroadcastSocket;
 
-    public SimpleServiceDiscovery() throws SocketException {
+    public SimpleServiceDiscovery() throws IOException {
         super(100L, TimeUnit.MILLISECONDS);
-        serviceBroadcastSocket = new DatagramSocket(new InetSocketAddress(SimpleServiceAdvertiser.BROADCAST_PORT));
+        serviceBroadcastSocket = new DatagramSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
+        serviceBroadcastSocket.setBroadcast(true);
     }
 
     @Override
-    protected RMIServiceInfo recvServiceInfo(Converter converter) throws IOException {
+    protected RMIServiceInfo receiveServiceInfo(Converter converter) throws IOException {
         byte[] buffer = new byte[64 * 1024];
         Arrays.fill(buffer, (byte) 0);
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);

@@ -39,6 +39,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
         if(isOpened) {
             return;
         }
+        Log.debug("Try to connect {}", socket.getRemoteName());
         RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
         this.converter = (Converter) serviceInfo.getConverter().newInstance();
         socket.open();
