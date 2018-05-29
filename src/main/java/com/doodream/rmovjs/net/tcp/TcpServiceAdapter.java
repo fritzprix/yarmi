@@ -19,6 +19,7 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
     public static final String DEFAULT_PORT = "6644";
 
     public TcpServiceAdapter(String host, String port) throws UnknownHostException {
+        Log.debug("ServiceAdapter On {}/{}", host, port);
         int p = Integer.valueOf(port);
         mAddress = new InetSocketAddress(InetAddress.getByName(host), p);
     }
@@ -48,6 +49,7 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
     @Override
     protected void onStart() throws IOException {
         serverSocket = new ServerSocket();
+        Log.debug("service address {}", mAddress.getAddress().getHostAddress());
         serverSocket.bind(mAddress);
         Log.debug("service started @ {}", mAddress.getAddress().getHostAddress());
     }

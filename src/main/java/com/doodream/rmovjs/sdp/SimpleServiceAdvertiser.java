@@ -10,9 +10,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetSocketAddress;
+import java.net.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -29,11 +27,11 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
 
 
     @Override
-    public synchronized void startAdvertiser(RMIServiceInfo info, Converter converter, boolean block) {
+    public synchronized void startAdvertiser(RMIServiceInfo info, Converter converter, boolean block) throws IOException {
 
         Observable<DatagramPacket> packetObservable = Observable.interval(0L, 3L, TimeUnit.SECONDS)
                 .map(aLong -> info)
-                .map(i -> buildBroadcastPackaet(i, converter))
+                .map(i -> buildBroadcastPacket(i, converter))
                 .doOnNext(this::broadcast)
                 .doOnError(Throwable::printStackTrace);
 
@@ -48,18 +46,20 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
         DatagramSocket socket = new DatagramSocket();
         socket.setBroadcast(true);
         socket.send(datagramPacket);
+        socket.close();
     }
 
-    private DatagramPacket buildBroadcastPackaet(RMIServiceInfo info, Converter converter) throws UnsupportedEncodingException {
+    private DatagramPacket buildBroadcastPacket(RMIServiceInfo info, Converter converter) throws UnsupportedEncodingException, UnknownHostException {
         byte[] infoByteString = converter.convert(info);
-        return new DatagramPacket(infoByteString, infoByteString.length, new InetSocketAddress(BROADCAST_PORT));
+        return new DatagramPacket(infoByteString, infoByteString.length, Inet4Address.getByName("255.255.255.255"), BROADCAST_PORT);
     }
 
     @Override
-    public synchronized void stopAdvertiser() throws IOException {
+    public synchronized void stopAdvertiser() {
         if(disposable == null) {
             return;
         }
         disposable.dispose();
     }
+
 }

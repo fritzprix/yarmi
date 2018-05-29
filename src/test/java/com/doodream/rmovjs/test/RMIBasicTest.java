@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 
 public class RMIBasicTest {
 
@@ -30,7 +31,7 @@ public class RMIBasicTest {
     }
 
     @Test
-    public void createTestClient() throws SocketException, IllegalAccessException, InstantiationException {
+    public void createTestClient() throws IOException, IllegalAccessException, InstantiationException {
         new SimpleServiceDiscovery().startDiscovery(TestService.class, new ServiceDiscoveryListener() {
             @Override
             public void onDiscovered(RMIServiceProxy proxy) {
