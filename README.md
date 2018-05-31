@@ -20,12 +20,15 @@
 ```xml
 <repositories>
     <repository>
-        <id>yarmi-mvn-repo</id>
-        <url>https://raw.github.com/fritzprix/yarmi/mvn-repo/</url>
-        <snapshots>
+        <id>yarmi-core</id>
+        <name>yarmi</name>
+        <releases>
             <enabled>true</enabled>
-            <updatePolicy>always</updatePolicy>
+        </releases>
+        <snapshots>
+            <enabled>false</enabled>
         </snapshots>
+        <url>https://raw.github.com/fritzprix/yarmi.git/releases</url>
     </repository>
 </repositories>
 ```
@@ -35,7 +38,7 @@
         <dependency>
             <groupId>com.doodream</groupId>
             <artifactId>yarmi-core</artifactId>
-            <version>x.y.z</version>
+            <version>0.0.2</version>
         </dependency>
 </dependencies>
 ```
@@ -96,7 +99,7 @@ public class TestService {
 }
 
 ```   
-4. Start service & avertise it 
+4. Start service & advertise it 
 ```java
 public static class SimpleServer {
     
