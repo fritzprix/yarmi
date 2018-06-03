@@ -11,6 +11,7 @@ import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.parameter.Param;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
+import io.reactivex.Single;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,10 +22,9 @@ import org.apache.logging.log4j.Logger;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -37,11 +37,12 @@ import java.util.Locale;
 public class Endpoint {
     private static final Logger Log = LogManager.getLogger(Endpoint.class);
     private static final String DUPLICATE_PATH_SEPARATOR = "\\/{2,}";
+    private static final Pattern TYPE_PATTERN = Pattern.compile("[^\\<\\>]+\\<([\\s\\S]+)\\>");
 
-    RMIMethod method;
-    String path;
-    List<Param> params;
-    String unique;
+    private RMIMethod method;
+    private String path;
+    private List<Param> params;
+    private String unique;
     transient Method jMethod;
     transient BlobSession session;
 
@@ -67,6 +68,22 @@ public class Endpoint {
                 .map("_"::concat)
                 .reduce(String::concat)
                 .blockingGet();
+
+        Single<Long> respBlobObservable = Observable.fromArray(method.getGenericReturnType().getTypeName())
+                .map(TYPE_PATTERN::matcher)
+                .filter(Matcher::matches)
+                .map(matcher -> matcher.group(1))
+                .filter(s -> s.contains(BlobSession.class.getName()))
+                .count();
+
+        final Long blobCount = typeObservable
+                .filter(aClass -> aClass.equals(BlobSession.class))
+                .count().zipWith(respBlobObservable, Math::addExact).blockingGet();
+
+        if(blobCount > 1) {
+            throw new IllegalArgumentException(String.format("too many BlobSession in method @ %s", method.getName()));
+        }
+
 
         final String path = String.format(Locale.ENGLISH, "%s%s", parentPath, rmiMethod.extractPath(method)).replaceAll(DUPLICATE_PATH_SEPARATOR, "/");
 
@@ -120,11 +137,12 @@ public class Endpoint {
                     .endpoint(getUnique())
                     .build();
         } else {
-            return Request.builder()
+            Optional<BlobSession> optionalSession = BlobSession.findOne(args);
+            Request.RequestBuilder builder =  Request.builder()
                     .params(convertParams(this, args))
-                    .endpoint(getUnique())
-                    .session(session)
-                    .build();
+                    .endpoint(getUnique());
+            optionalSession.ifPresent(builder::session);
+            return builder.build();
         }
     }
 }

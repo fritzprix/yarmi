@@ -5,6 +5,7 @@ import com.doodream.rmovjs.net.session.SessionCommand;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.net.session.param.SCMReasonParam;
+import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
@@ -12,6 +13,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.IOException;
 import java.io.Writer;
 
 /**
@@ -93,9 +95,14 @@ public class Response<T> {
         }
     }
 
-    public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
+    public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer, Converter converter) {
         // TODO : return SessionControlMessageWriter
-        return null;
+        return new SessionControlMessageWriter() {
+            @Override
+            public void write(SessionControlMessage controlMessage) throws IOException {
+                converter.write(Response.builder().scm(controlMessage).build(), writer);
+            }
+        };
     }
 
     public boolean hasScm() {

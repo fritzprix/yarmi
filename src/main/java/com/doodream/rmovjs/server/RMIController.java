@@ -7,6 +7,7 @@ import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
+import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.parameter.Param;
 import io.reactivex.Observable;
 import io.reactivex.Single;
@@ -20,7 +21,10 @@ import org.apache.logging.log4j.Logger;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @AllArgsConstructor
 @Builder
@@ -72,7 +76,6 @@ public class RMIController {
     Response handleRequest(Request request) throws InvocationTargetException, IllegalAccessException {
 
         Endpoint endpoint = endpointMap.get(request.getEndpoint());
-        Log.debug("Endpoint Lookup : {} => {}", request.getEndpoint(), endpoint);
 
         if(endpoint == null) {
             return Response.from(RMIError.NOT_FOUND);
@@ -83,7 +86,14 @@ public class RMIController {
         List<Object> params = Observable.fromIterable(request.getParams())
                 .sorted(Param::sort)
                 .zipWith(typeObservable, Param::instantiate)
+                .map(o -> {
+                    if(o instanceof BlobSession) {
+                        return request.getSession();
+                    }
+                    return o;
+                })
                 .toList().blockingGet();
+
 
         return (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());
     }
