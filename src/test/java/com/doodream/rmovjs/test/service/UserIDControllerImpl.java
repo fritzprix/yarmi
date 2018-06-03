@@ -1,6 +1,7 @@
 package com.doodream.rmovjs.test.service;
 
 import com.doodream.rmovjs.model.Response;
+import com.doodream.rmovjs.net.session.BlobSession;
 
 import java.util.List;
 
@@ -19,5 +20,16 @@ public class UserIDControllerImpl implements UserIDPController {
     public Response<User> createUser(User user) {
         return null;
     }
+
+//    @Override
+//    public Response<BlobSession> badMethod1(BlobSession data) {
+//        return null;
+//    }
+
+//    @Override
+//    public Response<User> badMethod2(BlobSession data, BlobSession data2) {
+//        return null;
+//    }
+
 
 }

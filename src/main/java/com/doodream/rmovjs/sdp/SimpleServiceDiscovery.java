@@ -2,11 +2,11 @@ package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.serde.Converter;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -18,12 +18,13 @@ import java.util.concurrent.TimeUnit;
  */
 public class SimpleServiceDiscovery extends BaseServiceDiscovery {
 
-    private DatagramSocket serviceBroadcastSocket;
+    private MulticastSocket serviceBroadcastSocket;
 
     public SimpleServiceDiscovery() throws IOException {
         super(100L, TimeUnit.MILLISECONDS);
-        serviceBroadcastSocket = new DatagramSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
-        serviceBroadcastSocket.setBroadcast(true);
+        serviceBroadcastSocket = new MulticastSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
+        serviceBroadcastSocket.joinGroup(InetAddress.getByName(SimpleServiceAdvertiser.MULTICAST_GROUP_IP));
+//        serviceBroadcastSocket.setBroadcast(true);
     }
 
     @Override

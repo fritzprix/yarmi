@@ -1,9 +1,5 @@
 package com.doodream.rmovjs.serde;
 
-import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.model.Request;
-import io.reactivex.Observable;
-
 import java.io.*;
 
 /**

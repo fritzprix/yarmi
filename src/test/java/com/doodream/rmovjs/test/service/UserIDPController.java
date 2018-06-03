@@ -6,6 +6,7 @@ import com.doodream.rmovjs.annotation.parameter.Body;
 import com.doodream.rmovjs.annotation.parameter.Path;
 import com.doodream.rmovjs.annotation.parameter.Query;
 import com.doodream.rmovjs.model.Response;
+import com.doodream.rmovjs.net.session.BlobSession;
 
 import java.util.List;
 
@@ -20,5 +21,10 @@ public interface UserIDPController {
     @Post("/new")
     Response<User> createUser(@Body(name = "user") User user);
 
+//    @Post("/bad/request1")
+//    Response<BlobSession> badMethod1(@Body(name = "data") BlobSession data);
+
+//    @Post("/bad/request2")
+//    Response<User> badMethod2(@Body(name = "data") BlobSession data, @Body(name = "data2") BlobSession data2);
 
 }

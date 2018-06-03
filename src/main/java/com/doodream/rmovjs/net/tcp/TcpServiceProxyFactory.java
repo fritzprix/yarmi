@@ -5,8 +5,6 @@ import com.doodream.rmovjs.net.BaseServiceProxy;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 
-import java.io.IOException;
-
 public class TcpServiceProxyFactory implements ServiceProxyFactory {
     private RMIServiceInfo serviceInfo;
     private int port;

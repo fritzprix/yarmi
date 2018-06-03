@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
@@ -103,7 +104,7 @@ public class RMIService {
         advertiser.startAdvertiser(serviceInfo, converter, block);
     }
 
-    private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException, InvalidResponseException {
+    private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException, InvalidResponseException, IOException {
         if(!Request.isValid(request)) {
             return end(Response.from(RMIError.BAD_REQUEST), request);
         }
@@ -124,7 +125,7 @@ public class RMIService {
         return end(response, request);
     }
 
-    private Response end(Response res, Request req) throws InvalidResponseException {
+    private Response end(Response res, Request req) throws InvalidResponseException, IOException {
         res.setNonce(req.getNonce());
         final BlobSession session = req.getSession();
         if(session != null) {
