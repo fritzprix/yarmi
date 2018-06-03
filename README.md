@@ -4,6 +4,9 @@ yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing
 
 
 ### Features
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/0b86b0c8ffb74f08a8707e87c36fe0e5)](https://app.codacy.com/app/innocentevil0914/yarmi?utm_source=github.com&utm_medium=referral&utm_content=fritzprix/yarmi&utm_campaign=badger)
+
 1. Zero-cost migration to (from) RESTful application 
 > Provides conceptual similarity to popular RESTful application framework (like service / controller mapping). 
 > and that means not only the migration from / to RESTful implementation is easy
