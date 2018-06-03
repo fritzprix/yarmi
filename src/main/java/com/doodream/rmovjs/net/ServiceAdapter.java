@@ -23,6 +23,7 @@ import java.io.IOException;
  *  4. client와 server 사이의 negotiation protocol에 대한 처리 (단, 상세 negotiation 구현은 {@link RMIServiceInfo}의 {@link RMINegotiator}로써 제공됨)
  */
 public interface ServiceAdapter {
+
     /**
      *
      * client로 부터의 네트워크 연결을 대기하며 client로 부터의 {@link Request}를 처리하기 위한 handler를 등록한다.
@@ -31,6 +32,8 @@ public interface ServiceAdapter {
      * @param requestHandler {@link Request}의 수신 및 {@link Response}의 응답을 처리하기 위한 handler로 {@link com.doodream.rmovjs.server.RMIService}
      * @return proxyFactoryHint as string
      * @throws IOException server 측 네트워크 endpoint 생성의 실패 혹은 I/O 오류
+     * @throws IllegalAccessError the error thrown when {@link ServiceAdapter} fails to instantiate dependency object (e.g. negotiator,
+     * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
      */
     String listen(RMIServiceInfo serviceInfo, Converter converter, Function<Request, Response> requestHandler) throws IOException, IllegalAccessException, InstantiationException;
 

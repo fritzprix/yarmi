@@ -1,10 +1,18 @@
 package com.doodream.rmovjs.model;
 
+import com.doodream.rmovjs.net.session.BlobSession;
+import com.doodream.rmovjs.net.session.SessionCommand;
+import com.doodream.rmovjs.net.session.SessionControlMessage;
+import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
+import com.doodream.rmovjs.net.session.param.SCMReasonParam;
 import com.google.common.base.Preconditions;
+import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.io.Writer;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -16,11 +24,15 @@ import lombok.NoArgsConstructor;
 public class Response<T> {
     public static final int SUCCESS = 200;
 
-    String endpoint;
-    T body;
-    boolean isSuccessful;
-    ResponseBody errorBody;
-    int code;
+    private String endpoint;
+    private T body;
+    private boolean isSuccessful;
+    private boolean hasSessionSwitch;
+    private ResponseBody errorBody;
+    private int code;
+    private int nonce;
+    @SerializedName("scm")
+    private SessionControlMessage scm;
 
     public static <T> Response<T> success(T body) {
         return Response.<T>builder()
@@ -30,11 +42,34 @@ public class Response<T> {
                 .build();
     }
 
+    public static Response<BlobSession> success(BlobSession session) {
+        return Response.<BlobSession>builder()
+                .body(session)
+                .code(SUCCESS)
+                .isSuccessful(true)
+                .hasSessionSwitch(true)
+                .build();
+    }
+
     public static Response error(int code, String mesg) {
         return Response.<ResponseBody>builder()
                 .code(code)
                 .isSuccessful(false)
                 .errorBody(new ResponseBody(mesg))
+                .build();
+    }
+
+    public static Response error(SessionControlMessage scm, String msg) {
+        SessionControlMessage<SCMReasonParam> controlMessage = SessionControlMessage.<SCMReasonParam>builder()
+                .key(scm.getKey())
+                .command(SessionCommand.ERR)
+                .param(SCMReasonParam.build(scm.getCommand(), msg))
+                .build();
+
+        return Response.builder()
+                .code(600)
+                .isSuccessful(false)
+                .scm(controlMessage)
                 .build();
     }
 
@@ -56,5 +91,14 @@ public class Response<T> {
         } else {
             Preconditions.checkNotNull(res.getErrorBody(), "Error response must have non-null error body");
         }
+    }
+
+    public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
+        // TODO : return SessionControlMessageWriter
+        return null;
+    }
+
+    public boolean hasScm() {
+        return scm != null;
     }
 }

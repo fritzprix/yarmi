@@ -33,17 +33,20 @@ public class Param {
     private boolean required;
     private String name;
     private String value;
+    private Class cls;
 
     public static Param create(Class paramCls, Annotation[] annotations) {
         List<Annotation> filteredAnnotations = Observable.fromArray(annotations)
                 .filter(ParamType::isSupportedAnnotation)
-                .toList().blockingGet();
+                .toList()
+                .blockingGet();
 
         Annotation annotation = filteredAnnotations.get(0);
         ParamType type = ParamType.fromAnnotation(annotation);
 
         return Param.builder()
                 .type(type)
+                .cls(paramCls)
                 .name(type.getName(annotation))
                 .required(type.isRequired(annotation))
                 .build();
@@ -59,5 +62,11 @@ public class Param {
 
     public static Object instantiate(Param param, Type type) {
         return GSON.fromJson(param.value, type);
+    }
+
+    public boolean isInstanceOf(Class<?> itfc) {
+        return !Observable.fromArray(this.cls.getInterfaces())
+                .filter(aClass -> aClass.equals(itfc))
+                .isEmpty().blockingGet();
     }
 }

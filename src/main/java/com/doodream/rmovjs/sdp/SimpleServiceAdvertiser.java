@@ -51,7 +51,9 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
 
     private DatagramPacket buildBroadcastPacket(RMIServiceInfo info, Converter converter) throws UnsupportedEncodingException, UnknownHostException {
         byte[] infoByteString = converter.convert(info);
-        return new DatagramPacket(infoByteString, infoByteString.length, Inet4Address.getByName("255.255.255.255"), BROADCAST_PORT);
+//        return new DatagramPacket(infoByteString, infoByteString.length, Inet4Address.getByName("255.255.255.255"), BROADCAST_PORT);
+        return new DatagramPacket(infoByteString, infoByteString.length, new InetSocketAddress(BROADCAST_PORT));
+
     }
 
     @Override
