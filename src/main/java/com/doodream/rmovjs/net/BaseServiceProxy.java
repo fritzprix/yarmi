@@ -129,11 +129,15 @@ public class BaseServiceProxy implements RMIServiceProxy {
         if(sessionRegistry.put(session.getKey(), session) != null){
             Log.warn("session : {} collision in registry", session.getKey());
         }
-        session.start(reader, Request.buildSessionMessageWriter(writer), () -> {
-            if(sessionRegistry.remove(session.getKey()) != null) {
-                Log.warn("fail to remove session : session not exists {}", session.getKey());
-            }
-        });
+        session.start(reader, Request.buildSessionMessageWriter(writer, converter), () -> unregisterSession(session));
+    }
+
+    private void unregisterSession(BlobSession session ) {
+        if(sessionRegistry.remove(session.getKey()) == null) {
+            Log.warn("fail to remove session : session not exists {}", session.getKey());
+        } else {
+            Log.debug("remove session : {}", session.getKey());
+        }
     }
 
     private void onError(Throwable throwable) {
@@ -147,14 +151,16 @@ public class BaseServiceProxy implements RMIServiceProxy {
         if(!isOpened) {
             return;
         }
-        Log.debug("proxy for {} closed", serviceInfo.getName());
         if(socket.isClosed()) {
             return;
         }
         socket.close();
         isOpened = false;
-        compositeDisposable.dispose();
+        if(!compositeDisposable.isDisposed()) {
+            compositeDisposable.dispose();
+        }
         compositeDisposable.clear();
+        Log.debug("proxy for {} closed", serviceInfo.getName());
     }
 
     @Override

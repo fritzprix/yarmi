@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientSocketAdapter {
 
@@ -40,11 +39,7 @@ public class ClientSocketAdapter {
         if(response.isHasSessionSwitch()) {
             BlobSession session = (BlobSession) response.getBody();
             sessionRegistry.put(session.getKey(), session);
-            session.start(reader, Response.buildSessionMessageWriter(writer), () -> {
-                if(sessionRegistry.remove(session.getKey()) == null) {
-                    Log.warn("fail to remove session : session not exists {}", session.getKey());
-                }
-            });
+            session.start(reader, Response.buildSessionMessageWriter(writer, converter), () -> unregisterSession(session));
         }
         converter.write(response, writer);
     }
@@ -70,10 +65,7 @@ public class ClientSocketAdapter {
                             Log.warn("session conflict");
                             return;
                         }
-                        session.start(reader, Response.buildSessionMessageWriter(writer), () -> {
-                            // this callback called in session teardown
-                            sessionRegistry.remove(session.getKey());
-                        });
+                        session.start(reader, Response.buildSessionMessageWriter(writer, converter), () -> unregisterSession(session));
                         // forward request to transfer session object to application
                     }
                     emitter.onNext(request);
@@ -83,6 +75,14 @@ public class ClientSocketAdapter {
                 emitter.onError(e);
             }
         });
+    }
+
+    private void unregisterSession(BlobSession session ) {
+        if(sessionRegistry.remove(session.getKey()) == null) {
+            Log.warn("fail to remove session : session not exists {}", session.getKey());
+        } else {
+            Log.debug("remove session : {}", session.getKey());
+        }
     }
 
     private void handleSessionControlMessage(Request request) throws IllegalStateException {

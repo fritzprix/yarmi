@@ -1,6 +1,5 @@
 package com.doodream.rmovjs.net;
 
-import com.doodream.rmovjs.example.template.UserIDPController;
 import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.Response;
@@ -11,7 +10,6 @@ public interface RMIServiceProxy {
         RMIServiceProxy NULL_PROXY = new RMIServiceProxy() {
             @Override
             public void open() {
-
             }
 
             @Override
@@ -26,7 +24,6 @@ public interface RMIServiceProxy {
 
             @Override
             public void close() {
-
             }
 
             @Override

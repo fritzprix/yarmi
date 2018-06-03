@@ -3,15 +3,17 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.session.BlobSession;
+import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.parameter.Param;
-import com.doodream.rmovjs.net.session.SessionControlMessage;
+import com.doodream.rmovjs.serde.Converter;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
 
@@ -52,9 +54,16 @@ public class Request {
                 (request.getParams() != null);
     }
 
-    public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
+    public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer, Converter converter) {
         // TODO : return SessionControlMessageWriter
-        return null;
+        return new SessionControlMessageWriter() {
+            @Override
+            public void write(SessionControlMessage controlMessage) throws IOException {
+                converter.write(Request.builder()
+                        .scm(controlMessage)
+                        .build(), writer);
+            }
+        };
     }
 
     public boolean hasScm() {

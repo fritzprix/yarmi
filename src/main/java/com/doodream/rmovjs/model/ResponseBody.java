@@ -10,7 +10,7 @@ import lombok.Data;
 @Data
 public class ResponseBody {
     @SerializedName("msg")
-    String message;
+    private String message;
 
     ResponseBody(String msg) {
         message = msg;

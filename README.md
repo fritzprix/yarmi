@@ -1,7 +1,8 @@
 <p align="center"><img src="https://s33.postimg.cc/getb2kc33/LOGO_YARMI_Hzt_500px.png"></p>
 
-yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing server & client based distributed application within a network of small scale 
-
+yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing server & client based distributed application within a network of small scale
+ 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/5c9f40d574c64e629af11f284c447bea)](https://www.codacy.com/app/innocentevil0914/yarmi?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fritzprix/yarmi&amp;utm_campaign=Badge_Grade)
 
 ### Features
 1. Zero-cost migration to (from) RESTful application 

@@ -58,8 +58,9 @@ public enum ParamType {
                 return ((Path) annotation).name();
             case QUERY:
                 return ((Query) annotation).name();
+            default:
+                throw new IllegalArgumentException("Annotation is not supported");
         }
-        throw new IllegalArgumentException("Annotation is not supported");
     }
 
     public boolean isRequired(Annotation annotation) {
@@ -72,8 +73,9 @@ public enum ParamType {
                 return ((Path) annotation).required();
             case QUERY:
                 return ((Query) annotation).required();
+            default:
+                throw new IllegalArgumentException("Annotation is not supported");
         }
-        throw new IllegalArgumentException("Annotation is not supported");
     }
 
 }

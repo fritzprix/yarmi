@@ -4,7 +4,6 @@ import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.serde.Converter;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -45,6 +44,7 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
                 .map(i -> buildMulticastPacket(i, converter))
                 .doOnNext(this::broadcast)
                 .doOnError(Throwable::printStackTrace);
+        Log.info("advertising service : {} {} @ {}", info.getName(), info.getVersion(), MULTICAST_GROUP_IP);
 
         if(!block) {
             compositeDisposable.add(packetObservable.subscribeOn(Schedulers.io()).subscribe());
@@ -60,7 +60,6 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
 
     private void broadcast(DatagramPacket datagramPacket) throws IOException {
         DatagramSocket socket = new DatagramSocket();
-//        socket.setBroadcast(true);
         socket.send(datagramPacket);
         socket.close();
     }
@@ -68,7 +67,6 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
     private DatagramPacket buildMulticastPacket(RMIServiceInfo info, Converter converter) throws UnsupportedEncodingException, UnknownHostException {
         byte[] infoByteString = converter.convert(info);
         return new DatagramPacket(infoByteString, infoByteString.length, InetAddress.getByName(MULTICAST_GROUP_IP), BROADCAST_PORT);
-//        return new DatagramPacket(infoByteString, infoByteString.length, new InetSocketAddress(BROADCAST_PORT));
     }
 
     @Override
