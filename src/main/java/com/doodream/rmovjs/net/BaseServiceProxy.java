@@ -98,10 +98,11 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 .doOnNext(request -> request.setNonce(++requestNonce))
                 .doOnNext(this::registerSession)
                 .doOnNext(request -> Log.debug("request => {}", request))
-                .doOnNext(request -> converter.write(request, writer))
                 .map(request -> {
                     requestWaitQueue.put(request.getNonce(), request);
+                    converter.write(request, writer);
                     synchronized (request) {
+                        // caller block here
                         request.wait();
                     }
                     return request.getResponse();

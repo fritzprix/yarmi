@@ -18,12 +18,13 @@ import java.util.concurrent.TimeUnit;
  */
 public class SimpleServiceDiscovery extends BaseServiceDiscovery {
 
-    private DatagramSocket serviceBroadcastSocket;
+    private MulticastSocket serviceBroadcastSocket;
 
     public SimpleServiceDiscovery() throws IOException {
         super(100L, TimeUnit.MILLISECONDS);
-        serviceBroadcastSocket = new DatagramSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
-        serviceBroadcastSocket.setBroadcast(true);
+        serviceBroadcastSocket = new MulticastSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
+        serviceBroadcastSocket.joinGroup(InetAddress.getByName(SimpleServiceAdvertiser.MULTICAST_GROUP_IP));
+//        serviceBroadcastSocket.setBroadcast(true);
     }
 
     @Override
