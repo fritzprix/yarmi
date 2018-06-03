@@ -7,6 +7,7 @@ import com.doodream.rmovjs.annotation.method.Post;
 import com.doodream.rmovjs.annotation.method.Put;
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.method.RMIMethod;
+import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.parameter.Param;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
@@ -42,6 +43,7 @@ public class Endpoint {
     List<Param> params;
     String unique;
     transient Method jMethod;
+    transient BlobSession session;
 
     public static Endpoint create(Controller controller, Method method) {
 
@@ -94,15 +96,35 @@ public class Endpoint {
                 || (cls == Delete.class);
     }
 
-    // TODO : change name of method reflecting the function
-    public List<Param> convertParams(Object[] objects) {
+    private static List<Param> convertParams(Endpoint endpoint, Object[] objects) {
         if(objects == null) {
             return Collections.EMPTY_LIST;
         }
 
-        return Observable.fromIterable(params).zipWith(Observable.fromArray(objects), (param, o) -> {
+        return Observable.fromIterable(endpoint.params).zipWith(Observable.fromArray(objects), (param, o) -> {
             param.apply(o);
+            if(param.isInstanceOf(BlobSession.class)) {
+                Log.debug("Endpoint {} has session param : {}", endpoint, param);
+                if(o != null) {
+                    endpoint.session = (BlobSession) o;
+                }
+            }
             return param;
         }).collectInto(new ArrayList<Param>(), List::add).blockingGet();
+    }
+
+    public Request toRequest(Object ...args) {
+        if(args == null) {
+            return Request.builder()
+                    .params(Collections.EMPTY_LIST)
+                    .endpoint(getUnique())
+                    .build();
+        } else {
+            return Request.builder()
+                    .params(convertParams(this, args))
+                    .endpoint(getUnique())
+                    .session(session)
+                    .build();
+        }
     }
 }

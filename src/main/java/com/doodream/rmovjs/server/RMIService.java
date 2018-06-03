@@ -5,6 +5,7 @@ import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.ServiceAdapter;
+import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.sdp.ServiceAdvertiser;
 import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
@@ -124,7 +125,11 @@ public class RMIService {
     }
 
     private Response end(Response res, Request req) throws InvalidResponseException {
-
+        res.setNonce(req.getNonce());
+        final BlobSession session = req.getSession();
+        if(session != null) {
+            session.close();
+        }
         try {
             Response.validate(res);
         } catch (RuntimeException e) {

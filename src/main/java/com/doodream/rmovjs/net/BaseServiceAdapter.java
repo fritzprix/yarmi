@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.net;
 
+import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
@@ -14,6 +15,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.util.Optional;
 
 public abstract class BaseServiceAdapter implements ServiceAdapter {
 
@@ -44,24 +46,36 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
         return getProxyConnectionHint(serviceInfo);
     }
 
-    private void onHandshakeSuccess(ClientSocketAdapter adapter, Function<Request, Response> handleRequest) throws IOException {
-        compositeDisposable.add(adapter
-                .listen()
+    private void onHandshakeSuccess(ClientSocketAdapter adapter, Function<Request, Response> handleRequest) {
+
+        compositeDisposable.add(adapter.listen()
+                .groupBy(Request::isValid)
+                .flatMap(booleanRequestGroupedObservable -> Observable.<Optional<Request>>create(emitter -> {
+                    if(booleanRequestGroupedObservable.getKey()) {
+                        emitter.setDisposable(booleanRequestGroupedObservable.subscribe(request -> emitter.onNext(Optional.of(request))));
+                    } else {
+                        // bad request handle added
+                        emitter.setDisposable(booleanRequestGroupedObservable.subscribe(request -> {
+                            adapter.write(Response.from(RMIError.BAD_REQUEST));
+                            emitter.onNext(Optional.empty());
+                        }));
+                    }
+                }))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
                 .doOnNext(request -> request.setClient(adapter))
                 .doOnNext(request -> Log.info("Server <= {}", request))
-                .filter(Request::isValid)
                 .map(handleRequest)
                 .doOnError(this::onError)
                 .doOnNext(adapter::write)
+                .subscribeOn(Schedulers.io())
                 .subscribe());
     }
-
 
     private void onError(Throwable throwable) {
         Log.error(throwable);
         close();
     }
-
 
     @Override
     public void close() {
