@@ -39,7 +39,7 @@ public class ClientSocketAdapter {
         if(response.isHasSessionSwitch()) {
             BlobSession session = (BlobSession) response.getBody();
             sessionRegistry.put(session.getKey(), session);
-            session.start(reader, Response.buildSessionMessageWriter(writer, converter), () -> unregisterSession(session));
+            session.start(reader, writer, converter, Response::buildSessionMessageWriter, () -> unregisterSession(session));
         }
         converter.write(response, writer);
     }
@@ -65,7 +65,7 @@ public class ClientSocketAdapter {
                             Log.warn("session conflict");
                             return;
                         }
-                        session.start(reader, Response.buildSessionMessageWriter(writer, converter), () -> unregisterSession(session));
+                        session.start(reader, writer, converter, Response::buildSessionMessageWriter, () -> unregisterSession(session));
                         // forward request to transfer session object to application
                     }
                     emitter.onNext(request);

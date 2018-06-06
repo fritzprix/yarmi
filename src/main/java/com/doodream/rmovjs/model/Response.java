@@ -4,7 +4,7 @@ import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionCommand;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
-import com.doodream.rmovjs.net.session.param.SCMReasonParam;
+import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
@@ -62,10 +62,10 @@ public class Response<T> {
     }
 
     public static Response error(SessionControlMessage scm, String msg) {
-        SessionControlMessage<SCMReasonParam> controlMessage = SessionControlMessage.<SCMReasonParam>builder()
+        SessionControlMessage<SCMErrorParam> controlMessage = SessionControlMessage.<SCMErrorParam>builder()
                 .key(scm.getKey())
                 .command(SessionCommand.ERR)
-                .param(SCMReasonParam.build(scm.getCommand(), msg))
+                .param(SCMErrorParam.build(scm.getCommand(), msg))
                 .build();
 
         return Response.builder()
@@ -108,4 +108,5 @@ public class Response<T> {
     public boolean hasScm() {
         return scm != null;
     }
+
 }

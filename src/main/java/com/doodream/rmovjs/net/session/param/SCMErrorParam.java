@@ -10,12 +10,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @Data
-public class SCMReasonParam {
+public class SCMErrorParam {
 
     private SessionCommand command;
     private String msg;
 
-    public static SCMReasonParam build(SessionCommand command, String msg) {
-        return SCMReasonParam.builder().command(command).msg(msg).build();
+    public static SCMErrorParam build(SessionCommand command, String msg) {
+        return SCMErrorParam.builder().command(command).msg(msg).build();
     }
 }

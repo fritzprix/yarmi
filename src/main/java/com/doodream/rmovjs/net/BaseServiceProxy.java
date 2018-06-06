@@ -129,7 +129,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
         if(sessionRegistry.put(session.getKey(), session) != null){
             Log.warn("session : {} collision in registry", session.getKey());
         }
-        session.start(reader, Request.buildSessionMessageWriter(writer, converter), () -> unregisterSession(session));
+        session.start(reader, writer, converter, Request::buildSessionMessageWriter, () -> unregisterSession(session));
     }
 
     private void unregisterSession(BlobSession session ) {
