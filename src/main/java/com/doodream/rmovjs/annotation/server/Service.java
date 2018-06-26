@@ -5,7 +5,7 @@ import com.doodream.rmovjs.net.RMINegotiator;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.SimpleNegotiator;
 import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
-import com.doodream.rmovjs.serde.GsonConverter;
+import com.doodream.rmovjs.serde.gson.GsonConverter;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

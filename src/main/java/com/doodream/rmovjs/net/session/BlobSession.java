@@ -1,8 +1,11 @@
 package com.doodream.rmovjs.net.session;
 
 import com.doodream.rmovjs.net.session.param.SCMChunkParam;
+import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Converter;
-import com.doodream.rmovjs.serde.GsonConverter;
+import com.doodream.rmovjs.serde.RMIReader;
+import com.doodream.rmovjs.serde.RMIWriter;
+import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
 import lombok.Data;
@@ -15,10 +18,24 @@ import java.nio.CharBuffer;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Random;
+import java.util.function.Consumer;
 
 @Data
-public class BlobSession {
+public class BlobSession implements SessionHandler {
+    public static final String CHUNK_DELIMITER = "\r\n";
     private static final Logger Log = LogManager.getLogger(BlobSession.class);
+    static final int CHUNK_MAX_SIZE_IN_BYTE = 64 * 1024;
+    static final int CHUNK_MAX_SIZE_IN_CHAR = CHUNK_MAX_SIZE_IN_BYTE / Character.SIZE * Byte.SIZE;
+
+
+    public static final int OP_UNSUPPORTED = -1001;
+    public static final int INVALID_SIZE = -1002;
+    public static final int UNEXPECTED_SEQ = -1003;
+
+    // read error start with -2000
+    public static final int SIZE_NOT_MATCHED = -2001;
+    public static final int INVALID_EOS_CHAR = -2002;
+
     private static int GLOBAL_KEY = 0;
     private static String DEFAULT_TYPE = "application/octet-stream";
     private static final Random RANDOM = new Random();
@@ -27,24 +44,32 @@ public class BlobSession {
     private String key;
     @SerializedName("mime")
     private String mime;
-    private transient Runnable onReady;
-    private transient Runnable onTeardown;
-    private transient Reader reader;
-    private transient Writer writer;
-    private transient PipedInputStream chunkInStream;
-    private transient BufferedOutputStream chunkOutStream;
-    private transient SessionControlMessageWriter scmWriter;
 
-    public BlobSession(Runnable onReady) {
-        OptionalLong lo = RANDOM.longs(4).reduce((left, right) -> left + right);
-        if(!lo.isPresent()) {
-            throw new IllegalStateException("fail to generate random");
-        }
-        key = Integer.toHexString(String.format("%d%d%d",GLOBAL_KEY++, System.currentTimeMillis(), lo.getAsLong()).hashCode());
+    private transient Session session;
+    private transient SessionHandler sessionHandler;
+
+    /**
+     * constructor for sender
+     * @param onReady
+     */
+    public BlobSession(Consumer<Session> onReady) {
         mime = DEFAULT_TYPE;
-        this.onReady = onReady;
+        if(onReady != null) {
+            SenderSession senderSession = new SenderSession(onReady);
+            key = senderSession.getSessionKey();
+            session = senderSession;
+            sessionHandler = senderSession;
+        } else {
+            ReceiverSession receiverSession = new ReceiverSession();
+            receiverSession.setSessionKey(key);
+            session = receiverSession;
+            sessionHandler = receiverSession;
+        }
     }
 
+    /**
+     * constructor for receiver
+     */
     public BlobSession() {
         this(null);
     }
@@ -54,85 +79,32 @@ public class BlobSession {
     }
 
     public int read(byte[] b, int offset, int len) throws IOException {
-        return chunkInStream.read(b, offset, len);
-    }
-
-    public void write(byte[] b, int len) throws IOException {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(len);
-        buffer.position(0);
-        buffer.put(b);
-
-        CharBuffer cbuf = buffer.asCharBuffer();
-        SCMChunkParam chunkParam = SCMChunkParam.builder()
-                .sizeInChar(cbuf.position())
-                .build();
-
-        scmWriter.write(SessionControlMessage.builder().command(SessionCommand.CHUNK).param(chunkParam).build());
-        writer.write(cbuf.array());
+        return session.read(b, offset, len);
     }
 
     public void handle(SessionControlMessage scm) throws IllegalStateException, IOException {
         Log.debug("scm : {}" , scm);
-        switch (scm.getCommand()) {
-            case ACK:
-                if(onReady == null) {
-                    break;
-                }
-                onReady.run();
-                break;
-            case CHUNK:
-                SCMChunkParam chunkParam = (SCMChunkParam) scm.getParam();
-                char[] cbuf = new char[chunkParam.getSizeInChar()];
-                if(!(reader.read(cbuf) > 0)) {
+        sessionHandler.handle(scm);
 
-                }
-                break;
-            case ECHO:
-                try {
-                    this.scmWriter.write(SessionControlMessage.builder().command(SessionCommand.ECHO_BACK).build());
-                } catch (IOException e) {
-                    Log.error(e);
-                }
-                break;
-            case ECHO_BACK:
-
-                break;
-            case ERR:
-
-                break;
-            case RESET:
-                if(onTeardown == null) {
-                    break;
-                }
-                onTeardown.run();
-                break;
-            default:
-                throw new IllegalStateException("");
-        }
     }
 
-    public void start(Reader reader, Writer writer, Converter converter, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
-        this.reader = reader;
-        this.writer = writer;
-        this.scmWriter = builder.build(writer, converter);
-        this.onTeardown = onTeardown;
+    public void start(RMIReader reader, RMIWriter writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+        sessionHandler.start(reader, writer, builder, onTeardown);
     }
 
+    /**
+     * called by receiver
+     * @throws IOException
+     */
     public void open() throws IOException {
-        chunkInStream = new PipedInputStream();
-        chunkOutStream = new BufferedOutputStream(new PipedOutputStream(chunkInStream));
-
-        scmWriter.write(SessionControlMessage.builder().command(SessionCommand.ACK).key(key).param(null).build());
+        session.open();
     }
 
+    /**
+     * close session from the sender side
+     * @throws IOException
+     */
     public void close() throws IOException {
-        // TODO : close blob buffered stream
-        scmWriter.write(SessionControlMessage.builder()
-                .command(SessionCommand.RESET)
-                .key(key)
-                .param(null)
-                .build());
-
-        onTeardown.run();
+        session.close();
     }
 }

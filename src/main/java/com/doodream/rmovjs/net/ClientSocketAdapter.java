@@ -56,7 +56,7 @@ public class ClientSocketAdapter {
                             // chunk scm is followed by binary stream, must be consumed properly within handleSessionControlMessage
                             handleSessionControlMessage(request);
                         } catch (IllegalStateException e) {
-                            write(Response.error(request.getScm(), e.getMessage()));
+                            write(Response.error(request.getScm(), e.getMessage(), BlobSession.OP_UNSUPPORTED));
                         }
                         continue;
                     }
@@ -85,7 +85,7 @@ public class ClientSocketAdapter {
         }
     }
 
-    private void handleSessionControlMessage(Request request) throws IllegalStateException {
+    private void handleSessionControlMessage(Request request) throws IllegalStateException, IOException {
         final SessionControlMessage scm = request.getScm();
         BlobSession session = sessionRegistry.get(scm.getKey());
         if(session == null) {

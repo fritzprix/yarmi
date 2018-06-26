@@ -27,6 +27,11 @@ public interface RMIServiceProxy {
             }
 
             @Override
+            public long ping() {
+                return -1L;
+            }
+
+            @Override
             public boolean provide(Class controller) {
                 return false;
             }
@@ -43,5 +48,6 @@ public interface RMIServiceProxy {
         boolean isOpen();
         Response request(Endpoint endpoint, Object ...args) throws IOException;
         void close() throws IOException;
-        boolean provide(Class contoller);
+        long ping();
+        boolean provide(Class controller);
 }

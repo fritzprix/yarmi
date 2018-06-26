@@ -1,5 +1,8 @@
-package com.doodream.rmovjs.serde;
+package com.doodream.rmovjs.serde.gson;
 
+import com.doodream.rmovjs.serde.Converter;
+import com.doodream.rmovjs.serde.RMIReader;
+import com.doodream.rmovjs.serde.RMIWriter;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -69,13 +72,13 @@ public class GsonConverter implements Converter {
     }
 
     @Override
-    public Reader reader(InputStream inputStream) throws UnsupportedEncodingException {
-        return new BufferedReader(new InputStreamReader(inputStream,"UTF-8"));
+    public RMIReader reader(InputStream inputStream) throws UnsupportedEncodingException {
+        return new RMIReader(this, inputStream);
     }
 
     @Override
-    public Writer writer(OutputStream outputStream) throws UnsupportedEncodingException {
-        return new BufferedWriter(new OutputStreamWriter(outputStream, "UTF-8"));
+    public RMIWriter writer(OutputStream outputStream) throws UnsupportedEncodingException {
+        return new RMIWriter(this, outputStream);
     }
 
     @Override

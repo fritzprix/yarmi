@@ -15,4 +15,5 @@ public class SCMChunkParam {
 
     private int type;
     private int sizeInChar;
+    private int sequence;
 }
