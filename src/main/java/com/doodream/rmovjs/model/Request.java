@@ -6,7 +6,7 @@ import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.parameter.Param;
-import com.doodream.rmovjs.serde.Converter;
+import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,7 +14,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.IOException;
-import java.io.Writer;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 /**
@@ -54,14 +55,23 @@ public class Request {
                 (request.getParams() != null);
     }
 
-    public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer, Converter converter) {
+    public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
         // TODO : return SessionControlMessageWriter
         return new SessionControlMessageWriter() {
+
             @Override
             public void write(SessionControlMessage controlMessage) throws IOException {
-                converter.write(Request.builder()
-                        .scm(controlMessage)
-                        .build(), writer);
+                writer.write(Response.builder().scm(controlMessage).build());
+            }
+
+            @Override
+            public void writeWithBlob(SessionControlMessage controlMessage, InputStream data) throws IOException {
+                writer.writeWithBlob(Response.builder().scm(controlMessage).build(), data);
+            }
+
+            @Override
+            public void writeWithBlob(SessionControlMessage controlMessage, ByteBuffer buffer) throws IOException {
+                writer.writeWithBlob(Response.builder().scm(controlMessage).build(), buffer);
             }
         };
     }

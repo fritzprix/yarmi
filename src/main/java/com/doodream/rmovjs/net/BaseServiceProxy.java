@@ -4,6 +4,8 @@ import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.serde.Converter;
+import com.doodream.rmovjs.serde.Reader;
+import com.doodream.rmovjs.serde.Writer;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
@@ -11,8 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 
@@ -62,7 +63,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
         compositeDisposable.add(Observable.<Response>create(emitter -> {
             while (isOpened) {
-                Response response = converter.read(reader, Response.class);
+                Response response = reader.read(Response.class);
                 if(response == null) {
                     return;
                 }
@@ -100,19 +101,23 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 .doOnNext(request -> Log.debug("request => {}", request))
                 .map(request -> {
                     requestWaitQueue.put(request.getNonce(), request);
-                    converter.write(request, writer);
+                    // TODO : concurrent test required
+                    writer.write(request);
                     synchronized (request) {
                         // caller block here
                         request.wait();
                     }
-                    return request.getResponse();
+                    return Optional.ofNullable(request.getResponse());
                 })
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .defaultIfEmpty(RMIError.UNHANDLED.getResponse())
                 .doOnError(this::onError)
                 .subscribeOn(Schedulers.io())
                 .blockingSingle();
     }
 
-    private void handleSessionControlMessage(Response response) {
+    private void handleSessionControlMessage(Response response) throws IOException {
         SessionControlMessage scm = response.getScm();
         BlobSession session = sessionRegistry.get(scm.getKey());
         if(session == null) {
@@ -126,10 +131,10 @@ public class BaseServiceProxy implements RMIServiceProxy {
         if(session == null) {
             return;
         }
-        if(sessionRegistry.put(session.getKey(), session) != null){
+        if(sessionRegistry.put(session.getKey(), session) != null) {
             Log.warn("session : {} collision in registry", session.getKey());
         }
-        session.start(reader, Request.buildSessionMessageWriter(writer, converter), () -> unregisterSession(session));
+        session.start(reader, writer, Request::buildSessionMessageWriter, () -> unregisterSession(session));
     }
 
     private void unregisterSession(BlobSession session ) {
@@ -160,7 +165,18 @@ public class BaseServiceProxy implements RMIServiceProxy {
             compositeDisposable.dispose();
         }
         compositeDisposable.clear();
+        // wake blocked thread from wait queue
+        requestWaitQueue.values().forEach(request -> {
+            synchronized (request) {
+                request.notifyAll();
+            }
+        });
         Log.debug("proxy for {} closed", serviceInfo.getName());
+    }
+
+    @Override
+    public long ping() {
+        return 0;
     }
 
     @Override

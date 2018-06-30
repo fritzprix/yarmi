@@ -1,5 +1,7 @@
 package com.doodream.rmovjs.net.session;
 
+import com.doodream.rmovjs.serde.Reader;
+import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
 import lombok.Data;
@@ -7,14 +9,28 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.Random;
+import java.util.function.Consumer;
 
 @Data
-public class BlobSession {
+public class BlobSession implements SessionHandler {
+
     private static final Logger Log = LogManager.getLogger(BlobSession.class);
+
+    public static final String CHUNK_DELIMITER = "\r\n";
+    public static final int CHUNK_MAX_SIZE_IN_BYTE = 64 * 1024;
+    public static final int CHUNK_MAX_SIZE_IN_CHAR = CHUNK_MAX_SIZE_IN_BYTE / Character.SIZE * Byte.SIZE;
+
+
+    public static final int OP_UNSUPPORTED = -1001;
+    public static final int INVALID_SIZE = -1002;
+    public static final int UNEXPECTED_SEQ = -1003;
+
+    // read error start with -2000
+    public static final int SIZE_NOT_MATCHED = -2001;
+    public static final int INVALID_EOS_CHAR = -2002;
+
     private static int GLOBAL_KEY = 0;
     private static String DEFAULT_TYPE = "application/octet-stream";
     private static final Random RANDOM = new Random();
@@ -23,68 +39,67 @@ public class BlobSession {
     private String key;
     @SerializedName("mime")
     private String mime;
-    private transient Runnable onReady;
-    private transient Runnable onTeardown;
-    private transient Reader reader;
-    private transient SessionControlMessageWriter writer;
 
-    public BlobSession() {
-        OptionalLong lo = RANDOM.longs(4).reduce((left, right) -> left + right);
-        if(!lo.isPresent()) {
-            throw new IllegalStateException("fail to generate random");
-        }
-        key = Integer.toHexString(String.format("%d%d%d",GLOBAL_KEY++, System.currentTimeMillis(), lo.getAsLong()).hashCode());
+    private transient Session session;
+    private transient SessionHandler sessionHandler;
+
+    /**
+     * constructor for sender
+     * @param onReady
+     */
+    public BlobSession(Consumer<Session> onReady) {
         mime = DEFAULT_TYPE;
+        if(onReady != null) {
+            SenderSession senderSession = new SenderSession(onReady);
+            key = senderSession.getSessionKey();
+            session = senderSession;
+            sessionHandler = senderSession;
+        } else {
+            ReceiverSession receiverSession = new ReceiverSession();
+            receiverSession.setSessionKey(key);
+            session = receiverSession;
+            sessionHandler = receiverSession;
+        }
+    }
+
+    /**
+     * constructor for receiver
+     */
+    public BlobSession() {
+        this(null);
     }
 
     public static Optional<BlobSession> findOne(Object[] args) {
         return Observable.fromArray(args).filter(o -> o instanceof BlobSession).cast(BlobSession.class).map(Optional::ofNullable).blockingFirst(Optional.empty());
     }
 
-    public void onReady(Runnable action) {
-        onReady = action;
+    public int read(byte[] b, int offset, int len) throws IOException {
+        return session.read(b, offset, len);
     }
 
-    public void handle(SessionControlMessage scm) throws IllegalStateException {
+    public void handle(SessionControlMessage scm) throws IllegalStateException, IOException {
         Log.debug("scm : {}" , scm);
-        switch (scm.getCommand()) {
-            case ACK:
-                onReady.run();
-                break;
-            case CHUNK:
-                break;
-            case ECHO:
-                break;
-            case ECHOBACK:
-                break;
-            case ERR:
-                break;
-            case RESET:
-                onTeardown.run();
-                break;
-            default:
-                throw new IllegalStateException("");
-        }
+        sessionHandler.handle(scm);
+
     }
 
-    public void start(Reader reader, SessionControlMessageWriter writer, Runnable onTeardown) {
-        this.reader = reader;
-        this.writer = writer;
-        this.onTeardown = onTeardown;
+    public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+        sessionHandler.start(reader, writer, builder, onTeardown);
     }
 
+    /**
+     * called by receiver
+     * @throws IOException
+     */
     public void open() throws IOException {
-        writer.write(SessionControlMessage.builder().command(SessionCommand.ACK).key(key).param(null).build());
-        // TODO : prepare blob buffered stream
+        session.open();
     }
 
+    /**
+     * close session from the sender side
+     * @throws IOException
+     */
     public void close() throws IOException {
-        // TODO : close blob buffered stream
-        writer.write(SessionControlMessage.builder()
-                .command(SessionCommand.RESET)
-                .key(key)
-                .param(null)
-                .build());
-        onTeardown.run();
+        session.close();
     }
 }

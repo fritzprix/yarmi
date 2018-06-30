@@ -7,7 +7,8 @@ public enum RMIError {
     NOT_FOUND(404, Response.error(404, "Not Found")),
     NOT_IMPLEMENTED(500, Response.error(501,"Not implemented method")),
     FORBIDDEN(403, Response.error(403, "ServiceInfo is not matched")),
-    BAD_REQUEST(400, Response.error(400, "Bad Request"));
+    BAD_REQUEST(400, Response.error(400, "Bad Request")),
+    UNHANDLED(400, Response.error(400, "Request Not Handled"));
 
     private final int code;
     private final Response response;
@@ -16,7 +17,7 @@ public enum RMIError {
         this.response = response;
     }
 
-    Response getResponse() {
+    public Response getResponse() {
         return response;
     }
 }
