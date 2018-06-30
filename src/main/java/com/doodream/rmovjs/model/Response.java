@@ -112,7 +112,7 @@ public class Response<T> {
 
             @Override
             public void writeWithBlob(SessionControlMessage controlMessage, ByteBuffer buffer) throws IOException {
-
+                writer.writeWithBlob(Response.builder().scm(controlMessage).build(), buffer);
             }
         };
     }

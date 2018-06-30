@@ -37,11 +37,6 @@ public class ReceiverSession implements Session, SessionHandler {
         throw new NotImplementedException();
     }
 
-
-    private void readValidChunk(ByteBuffer readBuffer) throws IOException {
-        chunkOutChannel.write(readBuffer);
-    }
-
     @Override
     public void open() throws IOException {
         final PipedInputStream pipedInputStream = new PipedInputStream();
@@ -69,7 +64,7 @@ public class ReceiverSession implements Session, SessionHandler {
     }
 
     @Override
-    public void handle(SessionControlMessage scm) throws IllegalStateException, IOException {
+    public void handle(SessionControlMessage scm) throws SessionControlException, IOException {
         final SessionCommand command = scm.getCommand();
         switch (command) {
             case CHUNK:
@@ -87,8 +82,8 @@ public class ReceiverSession implements Session, SessionHandler {
                 onClose();
                 break;
             case ERR:
-                throw new RuntimeException("");
-            case ACK:
+                SCMErrorParam errorParam = (SCMErrorParam) scm.getParam();
+                throw new SessionControlException(errorParam);
             default:
                 sendErrorMessage(key, SCMErrorParam.buildUnsupportedOperation(command));
         }

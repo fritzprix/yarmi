@@ -1,7 +1,6 @@
 package com.doodream.rmovjs.net.session.param;
 
 import com.doodream.rmovjs.net.session.SessionCommand;
-import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.google.gson.Gson;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,6 +16,13 @@ public class SCMErrorParam {
     public static SCMErrorParam build(SessionCommand command, String msg, int code) {
         return null;
     }
+    private static final Gson GSON = new Gson();
+
+    private SessionCommand command;
+    private String msg;
+    private int arg;
+    private ErrorType type;
+
 
     public enum ErrorType {
         BAD_SEQUENCE(-1001) {
@@ -35,13 +41,6 @@ public class SCMErrorParam {
 
 
     }
-
-    private SessionCommand command;
-    private String msg;
-    private int arg;
-    private ErrorType type;
-
-    private static final Gson GSON = new Gson();
 
     public static SCMErrorParam buildUnsupportedOperation(SessionCommand command) {
         return null;

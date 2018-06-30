@@ -8,17 +8,19 @@ import lombok.Data;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.Random;
 import java.util.function.Consumer;
 
 @Data
 public class BlobSession implements SessionHandler {
-    public static final String CHUNK_DELIMITER = "\r\n";
+
     private static final Logger Log = LogManager.getLogger(BlobSession.class);
-    static final int CHUNK_MAX_SIZE_IN_BYTE = 64 * 1024;
-    static final int CHUNK_MAX_SIZE_IN_CHAR = CHUNK_MAX_SIZE_IN_BYTE / Character.SIZE * Byte.SIZE;
+
+    public static final String CHUNK_DELIMITER = "\r\n";
+    public static final int CHUNK_MAX_SIZE_IN_BYTE = 64 * 1024;
+    public static final int CHUNK_MAX_SIZE_IN_CHAR = CHUNK_MAX_SIZE_IN_BYTE / Character.SIZE * Byte.SIZE;
 
 
     public static final int OP_UNSUPPORTED = -1001;

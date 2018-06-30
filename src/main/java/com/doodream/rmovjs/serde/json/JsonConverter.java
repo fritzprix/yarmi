@@ -3,12 +3,13 @@ package com.doodream.rmovjs.serde.json;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
-import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
@@ -35,7 +36,7 @@ public class JsonConverter implements Converter {
             })
             .create();
 
-    static Type getType(Class<?> rawClass, Class<?> parameter) {
+    private static Type getType(Class<?> rawClass, Class<?> parameter) {
         return new ParameterizedType() {
             @Override
             public Type[] getActualTypeArguments() {

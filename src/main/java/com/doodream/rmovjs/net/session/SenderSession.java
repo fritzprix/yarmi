@@ -25,7 +25,6 @@ public class SenderSession implements Session, SessionHandler {
     private Consumer<Session> onReady;
     private Runnable onTeardown;
     private ByteBuffer writeBuffer;
-    private Writer writer;
     private SessionControlMessageWriter scmWriter;
     private int messageSeqNumber;
     private int chunkSeqNumber;
@@ -38,7 +37,6 @@ public class SenderSession implements Session, SessionHandler {
         }
 
         key = Integer.toHexString(String.format("%d%d%d",GLOBAL_KEY++, System.currentTimeMillis(), lo.getAsLong()).hashCode());
-
         chunkSeqNumber = 0;
         messageSeqNumber = 0;
         writeBuffer = ByteBuffer.allocate(BlobSession.CHUNK_MAX_SIZE_IN_BYTE);
@@ -121,7 +119,6 @@ public class SenderSession implements Session, SessionHandler {
 
     @Override
     public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
-        this.writer = writer;
         this.scmWriter = builder.build(writer);
         this.onTeardown = onTeardown;
     }
