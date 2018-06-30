@@ -4,14 +4,14 @@ import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.serde.Converter;
+import com.doodream.rmovjs.serde.Reader;
+import com.doodream.rmovjs.serde.Writer;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
 
 public class SimpleNegotiator implements RMINegotiator {
     private static final Logger Log = LogManager.getLogger(SimpleNegotiator.class);
@@ -23,9 +23,9 @@ public class SimpleNegotiator implements RMINegotiator {
             Reader reader = converter.reader(socket.getInputStream());
             Writer writer = converter.writer(socket.getOutputStream());
             if(isClient) {
-                handshakeFromClient(service, reader, writer, converter);
+                handshakeFromClient(service, reader, writer);
             } else {
-                handshakeFromServer(service, reader, writer, converter);
+                handshakeFromServer(service, reader, writer);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -33,11 +33,10 @@ public class SimpleNegotiator implements RMINegotiator {
         return socket;
     }
 
-    private void handshakeFromClient(RMIServiceInfo service, Reader reader, Writer writer, Converter converter) throws HandshakeFailException {
+    private void handshakeFromClient(RMIServiceInfo service, Reader reader, Writer writer) throws HandshakeFailException {
         try {
-            converter.write(service, writer);
-            writer.flush();
-            Response response = converter.read(reader, Response.class);
+            writer.write(service);
+            Response response = reader.read(Response.class);
             if ((response != null) &&
                     response.isSuccessful()) {
                 Log.info("Handshake Success {} (Ver. {})", service.getName(), service.getVersion());
@@ -49,9 +48,9 @@ public class SimpleNegotiator implements RMINegotiator {
         throw new HandshakeFailException();
     }
 
-    private void handshakeFromServer(RMIServiceInfo service, Reader reader, Writer writer, Converter converter) throws HandshakeFailException {
+    private void handshakeFromServer(RMIServiceInfo service, Reader reader, Writer writer) throws HandshakeFailException {
         try {
-            Observable<RMIServiceInfo> handshakeRequestSingle = Observable.just(converter.read(reader, RMIServiceInfo.class));
+            Observable<RMIServiceInfo> handshakeRequestSingle = Observable.just(reader.read(RMIServiceInfo.class));
 
             Observable<Response> serviceInfoMatchedObservable = handshakeRequestSingle
                     .filter(info -> info.hashCode() == service.hashCode())
@@ -63,7 +62,7 @@ public class SimpleNegotiator implements RMINegotiator {
 
             boolean success = serviceInfoMatchedObservable.mergeWith(serviceInfoMismatchObservable)
                     .doOnNext(response -> Log.info("Handshake Response : ({}) {}", response.getCode(), response.getBody()))
-                    .doOnNext(response -> converter.write(response,writer))
+                    .doOnNext(writer::write)
                     .map(Response::isSuccessful)
                     .filter(Boolean::booleanValue)
                     .blockingSingle(false);

@@ -7,13 +7,13 @@ import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionCommand;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.serde.Converter;
+import com.doodream.rmovjs.serde.Reader;
+import com.doodream.rmovjs.serde.Writer;
 import io.reactivex.Observable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientSocketAdapter {
@@ -39,16 +39,16 @@ public class ClientSocketAdapter {
         if(response.isHasSessionSwitch()) {
             BlobSession session = (BlobSession) response.getBody();
             sessionRegistry.put(session.getKey(), session);
-            session.start(reader, writer, converter, Response::buildSessionMessageWriter, () -> unregisterSession(session));
+            session.start(reader, writer, Response::buildSessionMessageWriter, () -> unregisterSession(session));
         }
-        converter.write(response, writer);
+        writer.write(response);
     }
 
     public Observable<Request> listen() {
         return Observable.create(emitter -> {
             try {
                 Request request;
-                while((request = converter.read(reader, Request.class)) != null) {
+                while((request = reader.read(Request.class)) != null) {
                     final BlobSession session = request.getSession();
                     if(request.hasScm()) {
                         // request has session control message, route it to dedicated session
@@ -65,7 +65,7 @@ public class ClientSocketAdapter {
                             Log.warn("session conflict");
                             return;
                         }
-                        session.start(reader, writer, converter, Response::buildSessionMessageWriter, () -> unregisterSession(session));
+                        session.start(reader, writer, Response::buildSessionMessageWriter, () -> unregisterSession(session));
                         // forward request to transfer session object to application
                     }
                     emitter.onNext(request);

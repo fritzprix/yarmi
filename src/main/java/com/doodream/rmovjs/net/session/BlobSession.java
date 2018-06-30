@@ -1,11 +1,7 @@
 package com.doodream.rmovjs.net.session;
 
-import com.doodream.rmovjs.net.session.param.SCMChunkParam;
-import com.doodream.rmovjs.net.session.param.SCMErrorParam;
-import com.doodream.rmovjs.serde.Converter;
-import com.doodream.rmovjs.serde.RMIReader;
-import com.doodream.rmovjs.serde.RMIWriter;
-import com.google.common.base.Preconditions;
+import com.doodream.rmovjs.serde.Reader;
+import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
 import lombok.Data;
@@ -13,10 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.Random;
 import java.util.function.Consumer;
 
@@ -88,7 +81,7 @@ public class BlobSession implements SessionHandler {
 
     }
 
-    public void start(RMIReader reader, RMIWriter writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+    public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
         sessionHandler.start(reader, writer, builder, onTeardown);
     }
 

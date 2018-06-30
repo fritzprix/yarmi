@@ -2,13 +2,12 @@ package com.doodream.rmovjs.net.session;
 
 import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
-import com.doodream.rmovjs.serde.RMIReader;
-import com.doodream.rmovjs.serde.RMIWriter;
+import com.doodream.rmovjs.serde.Reader;
+import com.doodream.rmovjs.serde.Writer;
 import com.google.common.base.Preconditions;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 
@@ -20,7 +19,7 @@ public class ReceiverSession implements Session, SessionHandler {
 
     private final ByteBuffer readBuffer;
     private Runnable onTeardown;
-    private RMIReader reader;
+    private Reader reader;
     private SessionControlMessageWriter scmWriter;
 
     ReceiverSession() {
@@ -76,9 +75,10 @@ public class ReceiverSession implements Session, SessionHandler {
             case CHUNK:
                 SCMChunkParam chunkParam = (SCMChunkParam) scm.getParam();
                 final int chunkSize = chunkParam.getSizeInChar();
-                char[] cs = new char[chunkSize];
-                int rsz = reader.readBlob(readBuffer, chunkSize);
-                String eoc = new String(cs, chunkSize - 2, 2);
+                byte[] b = new byte[chunkSize * Character.SIZE - Byte.SIZE];
+                ByteBuffer buffer = ByteBuffer.wrap(b);
+                int rsz = reader.readBlob(buffer);
+                String eoc = new String(b, chunkSize - 2, 2);
                 Preconditions.checkArgument(BlobSession.CHUNK_DELIMITER.equals(eoc));
                 chunkOutChannel.write(readBuffer);
                 readBuffer.position(0);
@@ -95,7 +95,7 @@ public class ReceiverSession implements Session, SessionHandler {
     }
 
     @Override
-    public void start(RMIReader reader, RMIWriter writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+    public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
         this.reader = reader;
         this.onTeardown = onTeardown;
         scmWriter = builder.build(writer);
@@ -106,7 +106,6 @@ public class ReceiverSession implements Session, SessionHandler {
             onTeardown.run();
         }
         chunkInStream.close();
-        chunkOutStream.close();
     }
 
     private void sendErrorMessage(String key, SCMErrorParam errorParam) throws IOException {

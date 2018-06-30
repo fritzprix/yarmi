@@ -1,6 +1,6 @@
 package com.doodream.rmovjs.net.session;
 
-import com.doodream.rmovjs.serde.RMIWriter;
+import com.doodream.rmovjs.serde.Writer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,7 +9,7 @@ import java.nio.ByteBuffer;
 public interface SessionControlMessageWriter {
 
     interface Builder {
-        SessionControlMessageWriter build(RMIWriter writer);
+        SessionControlMessageWriter build(Writer writer);
     }
 
     /**

@@ -4,8 +4,8 @@ import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.serde.Converter;
-import com.doodream.rmovjs.serde.RMIReader;
-import com.doodream.rmovjs.serde.RMIWriter;
+import com.doodream.rmovjs.serde.Reader;
+import com.doodream.rmovjs.serde.Writer;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
@@ -13,11 +13,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
 
 
 public class BaseServiceProxy implements RMIServiceProxy {
@@ -32,8 +29,8 @@ public class BaseServiceProxy implements RMIServiceProxy {
     private RMIServiceInfo serviceInfo;
     private RMISocket socket;
     private Converter converter;
-    private RMIReader reader;
-    private RMIWriter writer;
+    private Reader reader;
+    private Writer writer;
 
 
     public static BaseServiceProxy create(RMIServiceInfo info, RMISocket socket)  {

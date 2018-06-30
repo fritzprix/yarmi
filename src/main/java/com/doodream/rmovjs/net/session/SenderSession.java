@@ -2,8 +2,8 @@ package com.doodream.rmovjs.net.session;
 
 import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
-import com.doodream.rmovjs.serde.RMIReader;
-import com.doodream.rmovjs.serde.RMIWriter;
+import com.doodream.rmovjs.serde.Reader;
+import com.doodream.rmovjs.serde.Writer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,7 +25,7 @@ public class SenderSession implements Session, SessionHandler {
     private Consumer<Session> onReady;
     private Runnable onTeardown;
     private ByteBuffer writeBuffer;
-    private RMIWriter writer;
+    private Writer writer;
     private SessionControlMessageWriter scmWriter;
     private int messageSeqNumber;
     private int chunkSeqNumber;
@@ -120,7 +120,7 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     @Override
-    public void start(RMIReader reader, RMIWriter writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+    public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
         this.writer = writer;
         this.scmWriter = builder.build(writer);
         this.onTeardown = onTeardown;

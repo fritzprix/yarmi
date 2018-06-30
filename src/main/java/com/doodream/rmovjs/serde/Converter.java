@@ -3,22 +3,20 @@ package com.doodream.rmovjs.serde;
 import java.io.*;
 
 /**
- *  deals with converting object into byte stream and vice-versa
+ *  Converter class defines how object is converted into byte stream (and vice-versa) comprising of
+ *  1. conversion of object to a byte array
+ *  2. appending delimit marker at the end of the byte array above
+ *  3. build @{@link Reader} / @{@link Writer} compatible with converter from {@link InputStream} / @{@link OutputStream}
  */
 public interface Converter {
 
-    void write(Object src, Writer writer) throws IOException;
+    Reader reader(InputStream inputStream);
 
-    <T> T read(Reader reader, Class<T> rawClass, Class<?> parameter) throws IOException;
-
-    RMIReader reader(InputStream inputStream) throws UnsupportedEncodingException;
-
-    RMIWriter writer(OutputStream outputStream) throws UnsupportedEncodingException;
-
-    <T> T read(Reader reader, Class<T> cls) throws IOException;
+    Writer writer(OutputStream outputStream);
 
     byte[] convert(Object src) throws UnsupportedEncodingException;
 
     <T> T invert(byte[] b, Class<T> cls) throws UnsupportedEncodingException;
 
+    <T> T invert(byte[] b, Class<T> rawClass, Class<?> parameter);
 }

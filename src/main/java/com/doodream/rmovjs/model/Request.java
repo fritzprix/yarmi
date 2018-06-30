@@ -6,8 +6,7 @@ import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.parameter.Param;
-import com.doodream.rmovjs.serde.Converter;
-import com.doodream.rmovjs.serde.RMIWriter;
+import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,7 +15,6 @@ import lombok.NoArgsConstructor;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -57,7 +55,7 @@ public class Request {
                 (request.getParams() != null);
     }
 
-    public static SessionControlMessageWriter buildSessionMessageWriter(RMIWriter writer) {
+    public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
         // TODO : return SessionControlMessageWriter
         return new SessionControlMessageWriter() {
 
