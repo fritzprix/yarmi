@@ -9,8 +9,8 @@ import com.doodream.rmovjs.serde.Writer;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class BaseServiceProxy implements RMIServiceProxy {
 
-    private static final Logger Log = LogManager.getLogger(BaseServiceProxy.class);
+    private static final Logger Log = LoggerFactory.getLogger(BaseServiceProxy.class);
 
     private volatile boolean isOpened;
     private ConcurrentHashMap<String, BlobSession> sessionRegistry;
@@ -146,7 +146,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
     }
 
     private void onError(Throwable throwable) {
-        Log.error(throwable);
+        Log.error("{}", throwable);
         try {
             close();
         } catch (IOException ignored) { }

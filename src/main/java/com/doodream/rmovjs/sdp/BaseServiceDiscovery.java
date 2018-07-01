@@ -9,8 +9,8 @@ import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import lombok.NonNull;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeoutException;
 
 public abstract class BaseServiceDiscovery implements ServiceDiscovery {
 
-    private static final Logger Log = LogManager.getLogger(BaseServiceDiscovery.class);
+    private static final Logger Log = LoggerFactory.getLogger(BaseServiceDiscovery.class);
 
     private static final long TIMEOUT_IN_SEC = 5L;
     private long tickIntervalInMilliSec;
@@ -53,9 +53,10 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
 
         HashSet<RMIServiceInfo> discoveryCache = new HashSet<>();
         listener.onDiscoveryStarted();
+
         Observable<RMIServiceInfo> serviceInfoObservable = observeTick()
                 .map(seq -> receiveServiceInfo(converter))
-                .doOnNext(Log::debug)
+                .doOnNext(svcInfo -> Log.trace("received info : {}", svcInfo))
                 .onErrorReturn(throwable -> RMIServiceInfo.builder().build())
                 .filter(discoveryCache::add)
                 .filter(info::equals)
@@ -80,7 +81,7 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
                     if(throwable instanceof TimeoutException) {
                         Log.debug("Discovery Timeout");
                     } else {
-                        Log.warn(throwable);
+                        Log.warn("{}", throwable);
                     }
                     close();
                     disposableMap.remove(service);

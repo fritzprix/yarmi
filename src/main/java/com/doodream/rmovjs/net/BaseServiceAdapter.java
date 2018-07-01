@@ -11,15 +11,15 @@ import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import lombok.NonNull;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Optional;
 
 public abstract class BaseServiceAdapter implements ServiceAdapter {
 
-    protected static final Logger Log = LogManager.getLogger(BaseServiceAdapter.class);
+    protected static final Logger Log = LoggerFactory.getLogger(BaseServiceAdapter.class);
     private CompositeDisposable compositeDisposable = new CompositeDisposable();
     private volatile boolean listen = false;
 
@@ -73,7 +73,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     }
 
     private void onError(Throwable throwable) {
-        Log.error(throwable);
+        Log.error("{}", throwable);
         close();
     }
 
@@ -84,7 +84,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
             try {
                 onClose();
             } catch (IOException e) {
-                Log.warn(e);
+                Log.warn("{}", e);
             }
         }
         compositeDisposable.dispose();

@@ -54,19 +54,19 @@ public class Response<T> {
                 .build();
     }
 
-    public static Response error(int code, String mesg) {
+    public static Response error(int code, String msg) {
         return Response.<ResponseBody>builder()
                 .code(code)
                 .isSuccessful(false)
-                .errorBody(new ResponseBody(mesg))
+                .errorBody(new ResponseBody(msg))
                 .build();
     }
 
-    public static Response error(SessionControlMessage scm, String msg, int code) {
+    public static Response error(SessionControlMessage scm, String msg, SCMErrorParam.ErrorType type) {
         SessionControlMessage<SCMErrorParam> controlMessage = SessionControlMessage.<SCMErrorParam>builder()
                 .key(scm.getKey())
                 .command(SessionCommand.ERR)
-                .param(SCMErrorParam.build(scm.getCommand(), msg, code))
+                .param(SCMErrorParam.build(scm.getCommand(), msg, type))
                 .build();
 
         return Response.builder()

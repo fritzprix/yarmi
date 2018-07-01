@@ -16,8 +16,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 @NoArgsConstructor
 @Data
 public class Endpoint {
-    private static final Logger Log = LogManager.getLogger(Endpoint.class);
+    private static final Logger Log = LoggerFactory.getLogger(Endpoint.class);
     private static final String DUPLICATE_PATH_SEPARATOR = "\\/{2,}";
     private static final Pattern TYPE_PATTERN = Pattern.compile("[^\\<\\>]+\\<([\\s\\S]+)\\>");
 

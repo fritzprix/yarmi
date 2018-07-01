@@ -4,8 +4,8 @@ import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 
 public class SenderSession implements Session, SessionHandler {
 
-    private static final Logger Log = LogManager.getLogger(SenderSession.class);
+    private static final Logger Log = LoggerFactory.getLogger(SenderSession.class);
     private static final Random RANDOM = new Random();
     private static int GLOBAL_KEY = 0;
 
@@ -112,8 +112,7 @@ public class SenderSession implements Session, SessionHandler {
                 onTeardown.run();
                 break;
             default:
-                // send error message to peer
-                sendErrorMessage(command, key,"Not Supported Operation", BlobSession.OP_UNSUPPORTED);
+                sendErrorMessage(command, key,"Not Supported Operation", SCMErrorParam.ErrorType.INVALID_OP);
         }
     }
 
@@ -136,7 +135,7 @@ public class SenderSession implements Session, SessionHandler {
     }
 
 
-    private void sendErrorMessage(SessionCommand from, String key, String msg, int err) throws IOException {
+    private void sendErrorMessage(SessionCommand from, String key, String msg, SCMErrorParam.ErrorType err) throws IOException {
         SessionControlMessage scm = SessionControlMessage.builder().param(SCMErrorParam.build(from, msg, err)).key(key).command(from).build();
         scmWriter.write(scm);
     }
