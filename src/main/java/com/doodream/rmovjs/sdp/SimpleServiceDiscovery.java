@@ -24,7 +24,6 @@ public class SimpleServiceDiscovery extends BaseServiceDiscovery {
         super(100L, TimeUnit.MILLISECONDS);
         serviceBroadcastSocket = new MulticastSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
         serviceBroadcastSocket.joinGroup(InetAddress.getByName(SimpleServiceAdvertiser.MULTICAST_GROUP_IP));
-//        serviceBroadcastSocket.setBroadcast(true);
     }
 
     @Override
