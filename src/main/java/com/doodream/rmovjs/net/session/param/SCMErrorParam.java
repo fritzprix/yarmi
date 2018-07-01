@@ -13,31 +13,34 @@ import lombok.NoArgsConstructor;
 @Data
 public class SCMErrorParam {
 
-    public static SCMErrorParam build(SessionCommand command, String msg, int code) {
-        return null;
-    }
     private static final Gson GSON = new Gson();
+
+    /**
+     *  {@link SessionCommand} which caused error
+     */
 
     private SessionCommand command;
     private String msg;
-    private int arg;
     private ErrorType type;
+
+    public static SCMErrorParam build(SessionCommand command, String msg, ErrorType type) {
+        return SCMErrorParam.builder()
+                .command(command)
+                .msg(msg)
+                .type(type)
+                .build();
+    }
 
 
     public enum ErrorType {
-        BAD_SEQUENCE(-1001) {
-            @Override
-            int[] parse(SCMErrorParam errorParam) {
-                return new int[0];
-            }
-        };
+        BAD_SEQUENCE(-1),
+        INVALID_SESSION(-2),INVALID_OP(-3);
 
         final int code;
         ErrorType(int code) {
             this.code = code;
         }
 
-        abstract int[] parse(SCMErrorParam errorParam);
 
 
     }

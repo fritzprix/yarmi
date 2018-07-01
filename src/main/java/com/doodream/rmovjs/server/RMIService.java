@@ -14,8 +14,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -34,7 +34,7 @@ import java.util.HashMap;
 public class RMIService {
 
     private static Properties properties = new Properties();
-    private static final Logger Log = LogManager.getLogger(RMIService.class);
+    private static final Logger Log = LoggerFactory.getLogger(RMIService.class);
 
     private Service service;
     private HashMap<String, RMIController> controllerMap;

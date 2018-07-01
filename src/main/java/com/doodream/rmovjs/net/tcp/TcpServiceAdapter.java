@@ -6,15 +6,15 @@ import com.doodream.rmovjs.net.BaseServiceAdapter;
 import com.doodream.rmovjs.net.RMISocket;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 import io.reactivex.Observable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.*;
 
 public class TcpServiceAdapter extends BaseServiceAdapter {
 
-    protected static final Logger Log = LogManager.getLogger(TcpServiceAdapter.class);
+    protected static final Logger Log = LoggerFactory.getLogger(TcpServiceAdapter.class);
 
     private ServerSocket serverSocket;
     private InetSocketAddress mAddress;

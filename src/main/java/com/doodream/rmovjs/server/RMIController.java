@@ -15,8 +15,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -32,7 +32,7 @@ import java.util.Map;
 @Data
 public class RMIController {
 
-    private static final Logger Log = LogManager.getLogger(RMIController.class);
+    private static final Logger Log = LoggerFactory.getLogger(RMIController.class);
     private Controller controller;
     private Map<String, Endpoint> endpointMap;
     private Object impl;

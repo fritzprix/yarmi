@@ -7,8 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -26,7 +26,7 @@ import java.util.List;
 public class Param {
 
     private static final Gson GSON = new GsonBuilder().create();
-    private static final Logger Log = LogManager.getLogger(Param.class);
+    private static final Logger Log = LoggerFactory.getLogger(Param.class);
 
     private int order;
     private ParamType type;

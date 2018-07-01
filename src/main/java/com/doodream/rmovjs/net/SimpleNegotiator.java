@@ -8,13 +8,13 @@ import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 public class SimpleNegotiator implements RMINegotiator {
-    private static final Logger Log = LogManager.getLogger(SimpleNegotiator.class);
+    private static final Logger Log = LoggerFactory.getLogger(SimpleNegotiator.class);
 
     @Override
     public RMISocket handshake(RMISocket socket, RMIServiceInfo service, Converter converter, boolean isClient) throws HandshakeFailException {

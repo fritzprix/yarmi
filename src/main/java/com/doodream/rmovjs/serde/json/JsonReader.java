@@ -2,8 +2,8 @@ package com.doodream.rmovjs.serde.json;
 
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.nio.ch.ChannelInputStream;
 
 import java.io.BufferedReader;
@@ -16,7 +16,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 
 public class JsonReader implements Reader {
-    private static final Logger Log = LogManager.getLogger(JsonReader.class);
+    private static final Logger Log = LoggerFactory.getLogger(JsonReader.class);
     private ReadableByteChannel mChannelIn;
     private Converter mConverter;
     private BufferedReader mReader;

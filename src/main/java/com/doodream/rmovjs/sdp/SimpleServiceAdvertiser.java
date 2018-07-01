@@ -5,8 +5,8 @@ import com.doodream.rmovjs.serde.Converter;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class SimpleServiceAdvertiser implements ServiceAdvertiser {
 
-    private Logger Log = LogManager.getLogger(SimpleServiceDiscovery.class);
+    private Logger Log = LoggerFactory.getLogger(SimpleServiceDiscovery.class);
     public static final int BROADCAST_PORT = 3041;
     public static final String MULTICAST_GROUP_IP = "224.0.2.118";   // AD-HOC block 1
     private CompositeDisposable compositeDisposable = new CompositeDisposable();

@@ -5,20 +5,22 @@ import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionCommand;
+import com.doodream.rmovjs.net.session.SessionControlException;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
+import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import io.reactivex.Observable;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientSocketAdapter {
 
-    private Logger Log = LogManager.getLogger(ClientSocketAdapter.class);
+    private Logger Log = LoggerFactory.getLogger(ClientSocketAdapter.class);
 
     private RMISocket client;
     private Converter converter;
@@ -56,7 +58,8 @@ public class ClientSocketAdapter {
                             // chunk scm is followed by binary stream, must be consumed properly within handleSessionControlMessage
                             handleSessionControlMessage(request);
                         } catch (IllegalStateException e) {
-                            write(Response.error(request.getScm(), e.getMessage(), BlobSession.OP_UNSUPPORTED));
+                            // dest. session doesn't exist
+                            write(Response.error(request.getScm(), e.getMessage(), SCMErrorParam.ErrorType.INVALID_SESSION));
                         }
                         continue;
                     }
@@ -85,7 +88,7 @@ public class ClientSocketAdapter {
         }
     }
 
-    private void handleSessionControlMessage(Request request) throws IllegalStateException, IOException {
+    private void handleSessionControlMessage(Request request) throws SessionControlException, IllegalStateException, IOException {
         final SessionControlMessage scm = request.getScm();
         BlobSession session = sessionRegistry.get(scm.getKey());
         if(session == null) {

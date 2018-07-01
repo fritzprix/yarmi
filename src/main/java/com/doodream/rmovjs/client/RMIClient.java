@@ -15,8 +15,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
@@ -31,7 +31,7 @@ import java.util.Map;
 @Data
 public class RMIClient implements InvocationHandler  {
 
-    private static final Logger Log = LogManager.getLogger(RMIClient.class);
+    private static final Logger Log = LoggerFactory.getLogger(RMIClient.class);
 
     private String controllerPath;
     private Map<Method, Endpoint> methodMap;
@@ -92,7 +92,7 @@ public class RMIClient implements InvocationHandler  {
             Log.debug("service proxy is created");
             return (T) proxy;
         } catch (Exception e) {
-            Log.error(e);
+            Log.error("{}", e);
             return null;
         }
     }

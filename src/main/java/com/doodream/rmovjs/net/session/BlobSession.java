@@ -5,8 +5,8 @@ import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
 import lombok.Data;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 @Data
 public class BlobSession implements SessionHandler {
 
-    private static final Logger Log = LogManager.getLogger(BlobSession.class);
+    private static final Logger Log = LoggerFactory.getLogger(BlobSession.class);
 
     public static final String CHUNK_DELIMITER = "\r\n";
     public static final int CHUNK_MAX_SIZE_IN_BYTE = 64 * 1024;
@@ -77,7 +77,7 @@ public class BlobSession implements SessionHandler {
         return session.read(b, offset, len);
     }
 
-    public void handle(SessionControlMessage scm) throws IllegalStateException, IOException {
+    public void handle(SessionControlMessage scm) throws SessionControlException, IOException {
         Log.debug("scm : {}" , scm);
         sessionHandler.handle(scm);
 
