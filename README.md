@@ -30,7 +30,7 @@ yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing
         <snapshots>
             <enabled>false</enabled>
         </snapshots>
-        <url>https://raw.github.com/fritzprix/yarmi.git/releases</url>
+        <url>https://raw.githubusercontent.com/fritzprix/yarmi/releases</url>
     </repository>
 </repositories>
 ```
