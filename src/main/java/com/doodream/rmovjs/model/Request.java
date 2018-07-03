@@ -8,15 +8,21 @@ import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.parameter.Param;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
+import io.reactivex.Observable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Request contains information for client method invocation consisted with below
@@ -29,6 +35,8 @@ import java.util.List;
 @NoArgsConstructor
 @Data
 public class Request {
+
+    private static final Logger Log = LoggerFactory.getLogger(Request.class);
 
     private transient ClientSocketAdapter client;
     private transient Response response;
@@ -78,5 +86,38 @@ public class Request {
 
     public boolean hasScm() {
         return scm != null;
+    }
+
+    public static Request fromEndpoint(Endpoint endpoint, Object ...args) {
+        if(args == null) {
+            return Request.builder()
+                    .params(Collections.EMPTY_LIST)
+                    .endpoint(endpoint.getUnique())
+                    .build();
+        } else {
+            Optional<BlobSession> optionalSession = BlobSession.findOne(args);
+            Request.RequestBuilder builder =  Request.builder()
+                    .params(convertParams(endpoint, args))
+                    .endpoint(endpoint.getUnique());
+            optionalSession.ifPresent(builder::session);
+            return builder.build();
+        }
+    }
+
+    private static List<Param> convertParams(Endpoint endpoint, Object[] objects) {
+        if(objects == null) {
+            return Collections.EMPTY_LIST;
+        }
+
+        return Observable.fromIterable(endpoint.getParams()).zipWith(Observable.fromArray(objects), (param, o) -> {
+            param.apply(o);
+            if(param.isInstanceOf(BlobSession.class)) {
+                Log.debug("Endpoint {} has session param : {}", endpoint, param);
+                if(o != null) {
+                    endpoint.session = (BlobSession) o;
+                }
+            }
+            return param;
+        }).collectInto(new ArrayList<Param>(), List::add).blockingGet();
     }
 }

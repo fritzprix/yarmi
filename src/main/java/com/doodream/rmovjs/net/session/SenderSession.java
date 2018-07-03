@@ -10,8 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.util.OptionalLong;
-import java.util.Random;
+import java.util.*;
 import java.util.function.Consumer;
 
 
@@ -20,14 +19,16 @@ public class SenderSession implements Session, SessionHandler {
     private static final Logger Log = LoggerFactory.getLogger(SenderSession.class);
     private static final Random RANDOM = new Random();
     private static int GLOBAL_KEY = 0;
+    private static final int MAX_CNWD_SIZE = 10;
 
     private String key;
     private Consumer<Session> onReady;
     private Runnable onTeardown;
     private ByteBuffer writeBuffer;
     private SessionControlMessageWriter scmWriter;
-    private int messageSeqNumber;
     private int chunkSeqNumber;
+    private Map<Integer, SCMChunkParam> chunkLruCache;
+
 
     SenderSession(Consumer<Session> onReady) {
         // create unique key for session
@@ -38,9 +39,18 @@ public class SenderSession implements Session, SessionHandler {
 
         key = Integer.toHexString(String.format("%d%d%d",GLOBAL_KEY++, System.currentTimeMillis(), lo.getAsLong()).hashCode());
         chunkSeqNumber = 0;
-        messageSeqNumber = 0;
+        chunkLruCache = SenderSession.getLruCache(MAX_CNWD_SIZE * 2);
         writeBuffer = ByteBuffer.allocate(BlobSession.CHUNK_MAX_SIZE_IN_BYTE);
         this.onReady = onReady;
+    }
+
+    private static <K,V> Map<K, V> getLruCache(int size) {
+        return new LinkedHashMap<K, V> (size * 4/3, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry eldest) {
+                return size() > size;
+            }
+        };
     }
 
     @Override
@@ -50,17 +60,27 @@ public class SenderSession implements Session, SessionHandler {
 
     private void flushOutWriteBuffer(boolean last) throws IOException {
 
-        CharBuffer charBuffer = writeBuffer.asCharBuffer();
         int len = writeBuffer.position() << 1;
-        char[] c = new char[len];
-        charBuffer.get(c);
+
+        final SCMChunkParam chunkParam = SCMChunkParam.builder()
+                .sizeInChar(len)
+                .sequence(chunkSeqNumber++)
+                .type(last? SCMChunkParam.TYPE_LAST : SCMChunkParam.TYPE_CONTINUE)
+                .cachedChunk(new char[len])
+                .build();
+
+        // copy data into chunk cache
+        writeBuffer.asCharBuffer().get(chunkParam.getCachedChunk());
+        // and put it on lru cache for retransmission
+        chunkLruCache.put(chunkSeqNumber - 1, chunkParam);
 
         SessionControlMessage chunkMessage = SessionControlMessage.builder()
                 .command(SessionCommand.CHUNK)
-                .param(SCMChunkParam.builder().sizeInChar(len).type(last? SCMChunkParam.TYPE_LAST : SCMChunkParam.TYPE_CONTINUE))
+                .param(chunkParam)
                 .key(key)
                 .build();
 
+        Log.trace("Write Chunk {}", chunkMessage);
         scmWriter.writeWithBlob(chunkMessage, writeBuffer);
         writeBuffer.position(0);
     }
@@ -73,7 +93,7 @@ public class SenderSession implements Session, SessionHandler {
             // put bytes length of 'available'
             writeBuffer.put(b, 0, available - 1);
             // write buffer is full here
-            Log.debug("Full write buffer size : {}", writeBuffer.position());
+            Log.trace("Full write buffer size : {}", writeBuffer.position());
             flushOutWriteBuffer(false);
             // put residue to buffer
             writeBuffer.put(b, available, len - available);
@@ -86,7 +106,7 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     @Override
-    public void handle(SessionControlMessage scm) throws IllegalStateException, IOException {
+    public Optional<SessionControlMessage> handle(SessionControlMessage scm) throws IllegalStateException, IOException {
         Log.debug("scm : {}" , scm);
         final SessionCommand command = scm.getCommand();
         switch (command) {
@@ -114,6 +134,7 @@ public class SenderSession implements Session, SessionHandler {
             default:
                 sendErrorMessage(command, key,"Not Supported Operation", SCMErrorParam.ErrorType.INVALID_OP);
         }
+        return Optional.empty();
     }
 
     @Override

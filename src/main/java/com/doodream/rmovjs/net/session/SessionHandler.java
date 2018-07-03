@@ -4,9 +4,10 @@ import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 
 import java.io.IOException;
+import java.util.Optional;
 
 public interface SessionHandler {
-    void handle(SessionControlMessage scm) throws SessionControlException, IOException;
+    Optional<SessionControlMessage> handle(SessionControlMessage scm) throws SessionControlException, IOException;
     void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown);
 }
 

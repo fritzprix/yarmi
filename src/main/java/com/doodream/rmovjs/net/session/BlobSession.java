@@ -49,38 +49,35 @@ public class BlobSession implements SessionHandler {
      */
     public BlobSession(Consumer<Session> onReady) {
         mime = DEFAULT_TYPE;
-        if(onReady != null) {
-            SenderSession senderSession = new SenderSession(onReady);
-            key = senderSession.getSessionKey();
-            session = senderSession;
-            sessionHandler = senderSession;
-        } else {
-            ReceiverSession receiverSession = new ReceiverSession();
-            receiverSession.setSessionKey(key);
-            session = receiverSession;
-            sessionHandler = receiverSession;
-        }
+        SenderSession senderSession = new SenderSession(onReady);
+        key = senderSession.getSessionKey();
+        session = senderSession;
+        sessionHandler = senderSession;
+        Log.debug("sender BlobSession constructed (key: {} / mime: {}", key, mime);
     }
 
     /**
      * constructor for receiver
      */
     public BlobSession() {
-        this(null);
+        mime = DEFAULT_TYPE;
+        ReceiverSession receiverSession = new ReceiverSession();
+        session = receiverSession;
+        sessionHandler = receiverSession;
     }
 
+    /**
+     * get BlobSession from arguments in RMI method invocation
+     * @param args arguments
+     * @return
+     */
     public static Optional<BlobSession> findOne(Object[] args) {
         return Observable.fromArray(args).filter(o -> o instanceof BlobSession).cast(BlobSession.class).map(Optional::ofNullable).blockingFirst(Optional.empty());
     }
 
-    public int read(byte[] b, int offset, int len) throws IOException {
-        return session.read(b, offset, len);
-    }
 
-    public void handle(SessionControlMessage scm) throws SessionControlException, IOException {
-        Log.debug("scm : {}" , scm);
-        sessionHandler.handle(scm);
-
+    public Optional<SessionControlMessage> handle(SessionControlMessage scm) throws SessionControlException, IOException {
+        return sessionHandler.handle(scm);
     }
 
     public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
@@ -91,8 +88,9 @@ public class BlobSession implements SessionHandler {
      * called by receiver
      * @throws IOException
      */
-    public void open() throws IOException {
+    public Session open() throws IOException {
         session.open();
+        return session;
     }
 
     /**
@@ -101,5 +99,10 @@ public class BlobSession implements SessionHandler {
      */
     public void close() throws IOException {
         session.close();
+    }
+
+    public void init() {
+        Log.debug("set session key : {}", key);
+        ((ReceiverSession) session).setSessionKey(key);
     }
 }

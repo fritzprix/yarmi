@@ -28,7 +28,6 @@ public class BaseServiceProxy implements RMIServiceProxy {
     private int requestNonce;
     private RMIServiceInfo serviceInfo;
     private RMISocket socket;
-    private Converter converter;
     private Reader reader;
     private Writer writer;
 
@@ -53,7 +52,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
             return;
         }
         RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
-        this.converter = (Converter) serviceInfo.getConverter().newInstance();
+        Converter converter = (Converter) serviceInfo.getConverter().newInstance();
         socket.open();
         reader = converter.reader(socket.getInputStream());
         writer = converter.writer(socket.getOutputStream());
@@ -95,16 +94,15 @@ public class BaseServiceProxy implements RMIServiceProxy {
     @Override
     public Response request(Endpoint endpoint, Object ...args) {
 
-        return Observable.just(endpoint.toRequest(args))
+        return Observable.just(Request.fromEndpoint(endpoint, args))
                 .doOnNext(request -> request.setNonce(++requestNonce))
                 .doOnNext(this::registerSession)
-                .doOnNext(request -> Log.debug("request => {}", request))
+                .doOnNext(request -> Log.trace("request => {}", request))
                 .map(request -> {
                     requestWaitQueue.put(request.getNonce(), request);
-                    // TODO : concurrent test required
-                    writer.write(request);
                     synchronized (request) {
-                        // caller block here
+                        writer.write(request);
+                        // caller block here, until the response is ready
                         request.wait();
                     }
                     return Optional.ofNullable(request.getResponse());
@@ -118,6 +116,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
     }
 
     private void handleSessionControlMessage(Response response) throws IOException {
+        Log.debug("SCM Response => {}", response);
         SessionControlMessage scm = response.getScm();
         BlobSession session = sessionRegistry.get(scm.getKey());
         if(session == null) {

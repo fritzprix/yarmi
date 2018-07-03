@@ -2,6 +2,8 @@ package com.doodream.rmovjs.serde.json;
 
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Writer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +15,7 @@ import java.nio.channels.WritableByteChannel;
 
 public class JsonWriter implements Writer {
 
+    private static final Logger Log = LoggerFactory.getLogger(JsonWriter.class);
     private static final int READ_BUFFER_SIZE = 4096;
     private Converter mConverter;
     private WritableByteChannel mChannelOut;
@@ -30,6 +33,7 @@ public class JsonWriter implements Writer {
 
     @Override
     public synchronized void writeWithBlob(Object src, InputStream data) throws IOException {
+        Log.debug("writeWithBlob {}" , src);
         ByteBuffer json = ByteBuffer.wrap(mConverter.convert(src));
         mChannelOut.write(json);
         ReadableByteChannel channelIn = Channels.newChannel(data);
@@ -47,6 +51,7 @@ public class JsonWriter implements Writer {
 
     @Override
     public synchronized void writeWithBlob(Object src, ByteBuffer data) throws IOException {
+        Log.debug("writeWithBlob {}" , src);
         ByteBuffer json = ByteBuffer.wrap(mConverter.convert(src));
         mChannelOut.write(json);
         mChannelOut.write(data);

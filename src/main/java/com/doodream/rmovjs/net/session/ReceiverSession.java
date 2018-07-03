@@ -5,14 +5,18 @@ import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.util.Optional;
 
 public class ReceiverSession implements Session, SessionHandler {
 
+    private static final Logger Log = LoggerFactory.getLogger(ReceiverSession.class);
     private String key;
     private InputStream chunkInStream;
     private WritableByteChannel chunkOutChannel;
@@ -46,7 +50,8 @@ public class ReceiverSession implements Session, SessionHandler {
         scmWriter.write(SessionControlMessage.builder()
                 .command(SessionCommand.ACK)
                 .key(key)
-                .param(null).build());
+                .param(null)
+                .build());
     }
 
     @Override
@@ -59,16 +64,17 @@ public class ReceiverSession implements Session, SessionHandler {
         onClose();
     }
 
-    public void setSessionKey(String key) {
+    void setSessionKey(String key) {
         this.key = key;
     }
 
     @Override
-    public void handle(SessionControlMessage scm) throws SessionControlException, IOException {
+    public Optional<SessionControlMessage> handle(SessionControlMessage scm) throws SessionControlException, IOException {
         final SessionCommand command = scm.getCommand();
         switch (command) {
             case CHUNK:
                 SCMChunkParam chunkParam = (SCMChunkParam) scm.getParam();
+                Log.trace("Chunk Received : {}", chunkParam);
                 final int chunkSize = chunkParam.getSizeInChar();
                 byte[] b = new byte[chunkSize * Character.SIZE - Byte.SIZE];
                 ByteBuffer buffer = ByteBuffer.wrap(b);
@@ -79,6 +85,7 @@ public class ReceiverSession implements Session, SessionHandler {
                 readBuffer.position(0);
                 break;
             case RESET:
+                Log.debug("reset from peer");
                 onClose();
                 break;
             case ERR:
@@ -87,6 +94,7 @@ public class ReceiverSession implements Session, SessionHandler {
             default:
                 sendErrorMessage(key, SCMErrorParam.buildUnsupportedOperation(command));
         }
+        return Optional.empty();
     }
 
     @Override

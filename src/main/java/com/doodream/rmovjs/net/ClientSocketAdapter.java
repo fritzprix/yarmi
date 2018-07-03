@@ -23,14 +23,12 @@ public class ClientSocketAdapter {
     private Logger Log = LoggerFactory.getLogger(ClientSocketAdapter.class);
 
     private RMISocket client;
-    private Converter converter;
     private Reader reader;
     private Writer writer;
     private ConcurrentHashMap<String, BlobSession> sessionRegistry;
 
     ClientSocketAdapter(RMISocket socket, Converter converter) throws IOException {
         client = socket;
-        this.converter = converter;
         sessionRegistry = new ConcurrentHashMap<>();
         reader = converter.reader(socket.getInputStream());
         writer = converter.writer(socket.getOutputStream());
@@ -46,7 +44,7 @@ public class ClientSocketAdapter {
         writer.write(response);
     }
 
-    public Observable<Request> listen() {
+    Observable<Request> listen() {
         return Observable.create(emitter -> {
             try {
                 Request request;
@@ -56,6 +54,7 @@ public class ClientSocketAdapter {
                         // request has session control message, route it to dedicated session
                         try {
                             // chunk scm is followed by binary stream, must be consumed properly within handleSessionControlMessage
+                            Log.debug("SCM : {}", request.getScm());
                             handleSessionControlMessage(request);
                         } catch (IllegalStateException e) {
                             // dest. session doesn't exist
@@ -64,10 +63,12 @@ public class ClientSocketAdapter {
                         continue;
                     }
                     if(session != null) {
+                        session.init();
                         if(sessionRegistry.put(session.getKey(), session) != null) {
                             Log.warn("session conflict");
                             return;
                         }
+                        Log.debug("session registered {}", session);
                         session.start(reader, writer, Response::buildSessionMessageWriter, () -> unregisterSession(session));
                         // forward request to transfer session object to application
                     }
@@ -101,7 +102,7 @@ public class ClientSocketAdapter {
         session.handle(scm);
     }
 
-    public String who() {
+    String who() {
         return client.getRemoteName();
     }
 
