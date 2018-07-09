@@ -82,4 +82,16 @@ public class JsonConverter implements Converter {
         ByteBuffer buffer = ByteBuffer.wrap(b);
         return GSON.fromJson(StandardCharsets.UTF_8.decode(buffer).toString(), getType(rawClass, parameter));
     }
+
+    public static String toJson(Object src) {
+        return GSON.toJson(src);
+    }
+
+    public static <T> T fromJson(String json, Class<T> rawClass, Class<?> parameter) {
+        return GSON.fromJson(json, getType(rawClass, parameter));
+    }
+
+    public static <T> T fromJson(String json, Class<T> rawClass) {
+        return GSON.fromJson(json, rawClass);
+    }
 }

@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.Random;
 import java.util.function.Consumer;
@@ -18,7 +19,7 @@ public class BlobSession implements SessionHandler {
 
     private static final Logger Log = LoggerFactory.getLogger(BlobSession.class);
 
-    public static final String CHUNK_DELIMITER = "\r\n";
+    public static final byte[] CHUNK_DELIMITER = "\r\n".getBytes(StandardCharsets.UTF_8);
     public static final int CHUNK_MAX_SIZE_IN_BYTE = 64 * 1024;
     public static final int CHUNK_MAX_SIZE_IN_CHAR = CHUNK_MAX_SIZE_IN_BYTE / Character.SIZE * Byte.SIZE;
 
@@ -48,18 +49,19 @@ public class BlobSession implements SessionHandler {
      * @param onReady
      */
     public BlobSession(Consumer<Session> onReady) {
+        Log.debug("sender session is created");
         mime = DEFAULT_TYPE;
         SenderSession senderSession = new SenderSession(onReady);
         key = senderSession.getSessionKey();
         session = senderSession;
         sessionHandler = senderSession;
-        Log.debug("sender BlobSession constructed (key: {} / mime: {}", key, mime);
     }
 
     /**
      * constructor for receiver
      */
     public BlobSession() {
+        Log.debug("receiver session is created");
         mime = DEFAULT_TYPE;
         ReceiverSession receiverSession = new ReceiverSession();
         session = receiverSession;
@@ -76,11 +78,12 @@ public class BlobSession implements SessionHandler {
     }
 
 
-    public Optional<SessionControlMessage> handle(SessionControlMessage scm) throws SessionControlException, IOException {
-        return sessionHandler.handle(scm);
+    public Optional<SessionControlMessage> handle(SessionControlMessage scm, String param) throws SessionControlException, IOException {
+        return sessionHandler.handle(scm, param);
     }
 
     public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+        Log.debug("Session started {} {}", reader, writer);
         sessionHandler.start(reader, writer, builder, onTeardown);
     }
 
@@ -102,7 +105,6 @@ public class BlobSession implements SessionHandler {
     }
 
     public void init() {
-        Log.debug("set session key : {}", key);
         ((ReceiverSession) session).setSessionKey(key);
     }
 }

@@ -17,9 +17,9 @@ public interface SessionControlMessageWriter {
      * @param controlMessage
      * @throws IOException
      */
-    void write(SessionControlMessage controlMessage) throws IOException;
+    void write(SessionControlMessage controlMessage, Object scmParam) throws IOException;
 
-    void writeWithBlob(SessionControlMessage controlMessage, InputStream data) throws IOException;
+    void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, InputStream data) throws IOException;
 
-    void writeWithBlob(SessionControlMessage controlMessage, ByteBuffer buffer) throws IOException;
+    void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, ByteBuffer buffer) throws IOException;
 }

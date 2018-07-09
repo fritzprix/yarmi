@@ -48,6 +48,29 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
 
     private void onHandshakeSuccess(ClientSocketAdapter adapter, Function<Request, Response> handleRequest) {
 
+//        compositeDisposable.add(adapter.listen()
+//                .groupBy(Request::isValid)
+//                .flatMap(booleanRequestGroupedObservable -> Observable.<Optional<Request>>create(emitter -> {
+//                    if(booleanRequestGroupedObservable.getKey()) {
+//                        emitter.setDisposable(booleanRequestGroupedObservable.subscribe(request -> emitter.onNext(Optional.of(request))));
+//                    } else {
+//                        // bad request handle added
+//                        emitter.setDisposable(booleanRequestGroupedObservable.subscribe(request -> {
+//                            adapter.write(Response.from(RMIError.BAD_REQUEST));
+//                            emitter.onNext(Optional.empty());
+//                        }));
+//                    }
+//                }))
+//                .filter(Optional::isPresent)
+//                .map(Optional::get)
+//                .doOnNext(request -> request.setClient(adapter))
+//                .doOnNext(request -> Log.info("Server <= {}", request))
+//                .map(handleRequest)
+//                .doOnError(this::onError)
+//                .doOnNext(adapter::write)
+//                .subscribeOn(Schedulers.io())
+//                .subscribe());
+
         compositeDisposable.add(adapter.listen()
                 .groupBy(Request::isValid)
                 .flatMap(booleanRequestGroupedObservable -> Observable.<Optional<Request>>create(emitter -> {
@@ -65,11 +88,11 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                 .map(Optional::get)
                 .doOnNext(request -> request.setClient(adapter))
                 .doOnNext(request -> Log.info("Server <= {}", request))
-                .map(handleRequest)
                 .doOnError(this::onError)
-                .doOnNext(adapter::write)
-                .subscribeOn(Schedulers.io())
-                .subscribe());
+                .subscribe(request -> {
+                    final Response response = handleRequest.apply(request);
+                    adapter.write(response);
+                }));
     }
 
     private void onError(Throwable throwable) {

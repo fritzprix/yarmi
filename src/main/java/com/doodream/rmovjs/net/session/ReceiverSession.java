@@ -4,7 +4,12 @@ import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
+import com.doodream.rmovjs.serde.json.JsonConverter;
 import com.google.common.base.Preconditions;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.internal.LinkedTreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +17,8 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Optional;
 
 public class ReceiverSession implements Session, SessionHandler {
@@ -21,14 +28,11 @@ public class ReceiverSession implements Session, SessionHandler {
     private InputStream chunkInStream;
     private WritableByteChannel chunkOutChannel;
 
-    private final ByteBuffer readBuffer;
     private Runnable onTeardown;
     private Reader reader;
     private SessionControlMessageWriter scmWriter;
 
     ReceiverSession() {
-
-        readBuffer = ByteBuffer.allocate(BlobSession.CHUNK_MAX_SIZE_IN_BYTE);
     }
 
     @Override
@@ -50,8 +54,7 @@ public class ReceiverSession implements Session, SessionHandler {
         scmWriter.write(SessionControlMessage.builder()
                 .command(SessionCommand.ACK)
                 .key(key)
-                .param(null)
-                .build());
+                .build(), null);
     }
 
     @Override
@@ -59,7 +62,7 @@ public class ReceiverSession implements Session, SessionHandler {
         scmWriter.write(SessionControlMessage.builder()
                 .command(SessionCommand.RESET)
                 .key(key)
-                .build());
+                .build(), null);
 
         onClose();
     }
@@ -69,27 +72,32 @@ public class ReceiverSession implements Session, SessionHandler {
     }
 
     @Override
-    public Optional<SessionControlMessage> handle(SessionControlMessage scm) throws SessionControlException, IOException {
+    public Optional<SessionControlMessage> handle(SessionControlMessage scm, String parameter) throws SessionControlException, IOException {
         final SessionCommand command = scm.getCommand();
         switch (command) {
             case CHUNK:
-                SCMChunkParam chunkParam = (SCMChunkParam) scm.getParam();
-                Log.trace("Chunk Received : {}", chunkParam);
+                SCMChunkParam chunkParam = JsonConverter.fromJson(parameter, SCMChunkParam.class);
+                Log.debug("chunk {}", chunkParam);
                 final int chunkSize = chunkParam.getSizeInChar();
-                byte[] b = new byte[chunkSize * Character.SIZE - Byte.SIZE];
+                byte[] b = new byte[chunkSize];
                 ByteBuffer buffer = ByteBuffer.wrap(b);
                 int rsz = reader.readBlob(buffer);
                 String eoc = new String(b, chunkSize - 2, 2);
-                Preconditions.checkArgument(BlobSession.CHUNK_DELIMITER.equals(eoc));
-                chunkOutChannel.write(readBuffer);
-                readBuffer.position(0);
+                Preconditions.checkArgument(Arrays.equals(BlobSession.CHUNK_DELIMITER, eoc.getBytes(StandardCharsets.UTF_8)));
+                Log.debug("read size : {} / buffer pos. : {}",rsz,  buffer.position());
+                buffer.flip();
+                Log.debug(StandardCharsets.UTF_8.decode(buffer).toString());
+                chunkOutChannel.write(buffer);
+                if(chunkParam.getType() == SCMChunkParam.TYPE_LAST) {
+                    chunkOutChannel.close();
+                }
                 break;
             case RESET:
                 Log.debug("reset from peer");
                 onClose();
                 break;
             case ERR:
-                SCMErrorParam errorParam = (SCMErrorParam) scm.getParam();
+                SCMErrorParam errorParam = JsonConverter.fromJson(parameter, SCMErrorParam.class);
                 throw new SessionControlException(errorParam);
             default:
                 sendErrorMessage(key, SCMErrorParam.buildUnsupportedOperation(command));
@@ -115,8 +123,7 @@ public class ReceiverSession implements Session, SessionHandler {
         scmWriter.write(SessionControlMessage.builder()
                 .key(key)
                 .command(SessionCommand.ERR)
-                .param(errorParam)
-                .build());
+                .build(), errorParam);
     }
 
 }

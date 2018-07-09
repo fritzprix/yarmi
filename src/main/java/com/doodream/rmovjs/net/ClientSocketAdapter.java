@@ -12,6 +12,7 @@ import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import io.reactivex.Observable;
+import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +46,7 @@ public class ClientSocketAdapter {
     }
 
     Observable<Request> listen() {
-        return Observable.create(emitter -> {
+        Observable<Request> requestObservable = Observable.create(emitter -> {
             try {
                 Request request;
                 while((request = reader.read(Request.class)) != null) {
@@ -73,12 +74,14 @@ public class ClientSocketAdapter {
                         // forward request to transfer session object to application
                     }
                     emitter.onNext(request);
+                    Log.debug("after next {}", request);
                 }
                 emitter.onComplete();
             } catch (IOException e) {
                 emitter.onError(e);
             }
         });
+        return requestObservable.observeOn(Schedulers.io());
     }
 
     private void unregisterSession(BlobSession session ) {
@@ -95,11 +98,11 @@ public class ClientSocketAdapter {
         if(session == null) {
             throw new IllegalStateException("no session to handle");
         }
+        session.handle(scm, request.getScmParameter());
         if(scm.getCommand() == SessionCommand.RESET) {
             session = sessionRegistry.remove(scm.getKey());
             Log.debug("session {} teardown", session);
         }
-        session.handle(scm);
     }
 
     String who() {

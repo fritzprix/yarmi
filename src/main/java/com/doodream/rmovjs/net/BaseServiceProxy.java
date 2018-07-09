@@ -6,6 +6,7 @@ import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
+import com.doodream.rmovjs.serde.json.JsonConverter;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
@@ -73,7 +74,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 emitter.onNext(response);
             }
             emitter.onComplete();
-        }).subscribeOn(Schedulers.io()).subscribe(response -> {
+        }).subscribeOn(Schedulers.io()).observeOn(Schedulers.io()).subscribe(response -> {
             Request request = requestWaitQueue.remove(response.getNonce());
             if(request == null) {
                 Log.warn("no mapped request exists : {}", response);
@@ -122,7 +123,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
         if(session == null) {
             return;
         }
-        session.handle(scm);
+        session.handle(scm, response.getScmParameter());
     }
 
     private void registerSession(Request request) {
@@ -133,6 +134,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
         if(sessionRegistry.put(session.getKey(), session) != null) {
             Log.warn("session : {} collision in registry", session.getKey());
         }
+        Log.debug("session registered {}", session);
         session.start(reader, writer, Request::buildSessionMessageWriter, () -> unregisterSession(session));
     }
 

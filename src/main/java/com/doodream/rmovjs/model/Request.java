@@ -7,6 +7,7 @@ import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.parameter.Param;
 import com.doodream.rmovjs.serde.Writer;
+import com.doodream.rmovjs.serde.json.JsonConverter;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
 import lombok.AllArgsConstructor;
@@ -53,6 +54,9 @@ public class Request {
     @SerializedName("scm")
     private SessionControlMessage scm;
 
+    @SerializedName("scm_param")
+    private String scmParameter;
+
     @SerializedName("nonce")
     private int nonce;
 
@@ -64,23 +68,32 @@ public class Request {
     }
 
     public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
-        // TODO : return SessionControlMessageWriter
         return new SessionControlMessageWriter() {
 
             @Override
-            public void write(SessionControlMessage controlMessage) throws IOException {
-                writer.write(Response.builder().scm(controlMessage).build());
+            public void write(SessionControlMessage controlMessage, Object param) throws IOException {
+                writer.write(Request.builder()
+                        .scm(controlMessage)
+                        .scmParameter(JsonConverter.toJson(param))
+                        .build());
             }
 
             @Override
-            public void writeWithBlob(SessionControlMessage controlMessage, InputStream data) throws IOException {
-                writer.writeWithBlob(Response.builder().scm(controlMessage).build(), data);
+            public void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, InputStream data) throws IOException {
+                writer.writeWithBlob(Request.builder()
+                        .scm(controlMessage)
+                        .scmParameter(JsonConverter.toJson(scmParam))
+                        .build(), data);
             }
 
             @Override
-            public void writeWithBlob(SessionControlMessage controlMessage, ByteBuffer buffer) throws IOException {
-                writer.writeWithBlob(Response.builder().scm(controlMessage).build(), buffer);
+            public void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, ByteBuffer buffer) throws IOException {
+                writer.writeWithBlob(Request.builder()
+                        .scm(controlMessage)
+                        .scmParameter(JsonConverter.toJson(scmParam))
+                        .build(), buffer);
             }
+
         };
     }
 

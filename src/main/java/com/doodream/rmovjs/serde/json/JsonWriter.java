@@ -27,17 +27,19 @@ public class JsonWriter implements Writer {
 
     @Override
     public synchronized void write(Object src) throws IOException {
+        Log.debug("write {}", src);
         ByteBuffer json = ByteBuffer.wrap(mConverter.convert(src));
         mChannelOut.write(json);
     }
 
     @Override
     public synchronized void writeWithBlob(Object src, InputStream data) throws IOException {
-        Log.debug("writeWithBlob {}" , src);
+        Log.debug("writeWithBlob /w InputStream {}" , src);
         ByteBuffer json = ByteBuffer.wrap(mConverter.convert(src));
         mChannelOut.write(json);
         ReadableByteChannel channelIn = Channels.newChannel(data);
         ByteBuffer buffer = ByteBuffer.allocate(READ_BUFFER_SIZE);
+
         try {
             while (channelIn.read(buffer) > 0) {
                 mChannelOut.write(buffer);
@@ -51,9 +53,12 @@ public class JsonWriter implements Writer {
 
     @Override
     public synchronized void writeWithBlob(Object src, ByteBuffer data) throws IOException {
-        Log.debug("writeWithBlob {}" , src);
+        Log.debug("writeWithBlob /w ByteBuffer : Size {} {}" , data.position(), src);
         ByteBuffer json = ByteBuffer.wrap(mConverter.convert(src));
+
         mChannelOut.write(json);
+        data.flip();
         mChannelOut.write(data);
+        data.limit(data.capacity());
     }
 }

@@ -4,12 +4,14 @@ import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
+import com.doodream.rmovjs.serde.json.JsonConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -60,45 +62,49 @@ public class SenderSession implements Session, SessionHandler {
 
     private void flushOutWriteBuffer(boolean last) throws IOException {
 
-        int len = writeBuffer.position() << 1;
+        writeBuffer.put(BlobSession.CHUNK_DELIMITER);
+        final int len = writeBuffer.position();
 
         final SCMChunkParam chunkParam = SCMChunkParam.builder()
                 .sizeInChar(len)
                 .sequence(chunkSeqNumber++)
                 .type(last? SCMChunkParam.TYPE_LAST : SCMChunkParam.TYPE_CONTINUE)
-                .cachedChunk(new char[len])
+                .cachedChunk(new byte[len])
                 .build();
 
         // copy data into chunk cache
-        writeBuffer.asCharBuffer().get(chunkParam.getCachedChunk());
+        ByteBuffer duplicate = writeBuffer.duplicate();
+        duplicate.flip();
+        duplicate.get(chunkParam.getCachedChunk());
         // and put it on lru cache for retransmission
         chunkLruCache.put(chunkSeqNumber - 1, chunkParam);
 
         SessionControlMessage chunkMessage = SessionControlMessage.builder()
                 .command(SessionCommand.CHUNK)
-                .param(chunkParam)
                 .key(key)
                 .build();
 
-        Log.trace("Write Chunk {}", chunkMessage);
-        scmWriter.writeWithBlob(chunkMessage, writeBuffer);
+        Log.debug("Flush Chunk size of {} {}",writeBuffer.position(), chunkMessage);
+        scmWriter.writeWithBlob(chunkMessage, chunkParam, writeBuffer);
         writeBuffer.position(0);
     }
 
     @Override
     public synchronized void write(byte[] b, int len) throws IOException {
-        int available = writeBuffer.remaining();
+        int available = writeBuffer.remaining() - BlobSession.CHUNK_DELIMITER.length;
         Log.debug("Remaining Buffer Space : {}", available);
+
         if(available < len) {
             // put bytes length of 'available'
             writeBuffer.put(b, 0, available - 1);
             // write buffer is full here
-            Log.trace("Full write buffer size : {}", writeBuffer.position());
+            Log.debug("write {} size : {}", b, writeBuffer.position());
             flushOutWriteBuffer(false);
             // put residue to buffer
             writeBuffer.put(b, available, len - available);
         } else {
-            writeBuffer.put(b, 0, len);
+            Log.debug("write {}", b);
+            writeBuffer.put(b);
             if(available == len) {
                 flushOutWriteBuffer(false);
             }
@@ -106,7 +112,7 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     @Override
-    public Optional<SessionControlMessage> handle(SessionControlMessage scm) throws IllegalStateException, IOException {
+    public Optional<SessionControlMessage> handle(SessionControlMessage scm, String param) throws IllegalStateException, IOException {
         Log.debug("scm : {}" , scm);
         final SessionCommand command = scm.getCommand();
         switch (command) {
@@ -121,7 +127,7 @@ public class SenderSession implements Session, SessionHandler {
                 onReady.accept(this);
                 break;
             case ERR:
-                handleErrorMessage(scm);
+                handleErrorMessage(param);
                 break;
             case RESET:
                 // teardown on receiver side
@@ -143,9 +149,9 @@ public class SenderSession implements Session, SessionHandler {
         this.onTeardown = onTeardown;
     }
 
-    private void handleErrorMessage(SessionControlMessage scm) {
+    private void handleErrorMessage(String errParam) {
         // TODO: handle error
-        final SCMErrorParam errorParam = (SCMErrorParam) scm.getParam();
+        final SCMErrorParam errorParam = JsonConverter.fromJson(errParam, SCMErrorParam.class);
         final SCMErrorParam.ErrorType errorCode = errorParam.getType();
         Log.error(errorParam.getMsg());
         switch (errorCode) {
@@ -157,8 +163,8 @@ public class SenderSession implements Session, SessionHandler {
 
 
     private void sendErrorMessage(SessionCommand from, String key, String msg, SCMErrorParam.ErrorType err) throws IOException {
-        SessionControlMessage scm = SessionControlMessage.builder().param(SCMErrorParam.build(from, msg, err)).key(key).command(from).build();
-        scmWriter.write(scm);
+        SessionControlMessage scm = SessionControlMessage.builder().key(key).command(from).build();
+        scmWriter.write(scm, SCMErrorParam.build(from, msg, err));
     }
 
     private void cleanUp() {
@@ -176,10 +182,10 @@ public class SenderSession implements Session, SessionHandler {
         scmWriter.write(SessionControlMessage.builder()
                 .command(SessionCommand.RESET)
                 .key(key)
-                .param(null)
-                .build());
+                .build(), null);
 
         onTeardown.run();
+        Log.debug("closed");
     }
 
     public String getSessionKey() {
