@@ -72,7 +72,7 @@ public class ReceiverSession implements Session, SessionHandler {
     }
 
     @Override
-    public Optional<SessionControlMessage> handle(SessionControlMessage scm, String parameter) throws SessionControlException, IOException {
+    public void handle(SessionControlMessage scm, String parameter) throws SessionControlException, IOException {
         final SessionCommand command = scm.getCommand();
         switch (command) {
             case CHUNK:
@@ -102,7 +102,6 @@ public class ReceiverSession implements Session, SessionHandler {
             default:
                 sendErrorMessage(key, SCMErrorParam.buildUnsupportedOperation(command));
         }
-        return Optional.empty();
     }
 
     @Override

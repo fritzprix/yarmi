@@ -91,6 +91,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
     public boolean isOpen() {
         return isOpened;
     }
+    private Boolean sessionLock = false;
 
     @Override
     public Response request(Endpoint endpoint, Object ...args) {
@@ -98,6 +99,28 @@ public class BaseServiceProxy implements RMIServiceProxy {
         return Observable.just(Request.fromEndpoint(endpoint, args))
                 .doOnNext(request -> request.setNonce(++requestNonce))
                 .doOnNext(this::registerSession)
+                .groupBy(Request::isSessionRegistered)
+                .flatMap(booleanRequestGroupedObservable -> {
+                    if(booleanRequestGroupedObservable.getKey()) {
+                        // if the request has registered session
+                        synchronized (this) {
+                            // try to lock session lock
+                            while(sessionLock) {
+                                this.wait();
+                            }
+                            sessionLock = true;
+                        }
+                    } else {
+                        // if the request has no session
+                        synchronized (this) {
+                            // just wait until session finish
+                            while(sessionLock) {
+                                this.wait();
+                            }
+                        }
+                    }
+                    return booleanRequestGroupedObservable;
+                })
                 .doOnNext(request -> Log.trace("request => {}", request))
                 .map(request -> {
                     requestWaitQueue.put(request.getNonce(), request);
@@ -134,7 +157,9 @@ public class BaseServiceProxy implements RMIServiceProxy {
         if(sessionRegistry.put(session.getKey(), session) != null) {
             Log.warn("session : {} collision in registry", session.getKey());
         }
+        // TODO : block other request until session finish
         Log.debug("session registered {}", session);
+        request.setSessionRegistered(true);
         session.start(reader, writer, Request::buildSessionMessageWriter, () -> unregisterSession(session));
     }
 
@@ -142,7 +167,12 @@ public class BaseServiceProxy implements RMIServiceProxy {
         if(sessionRegistry.remove(session.getKey()) == null) {
             Log.warn("fail to remove session : session not exists {}", session.getKey());
         } else {
+            // TODO : allow other request
             Log.debug("remove session : {}", session.getKey());
+            synchronized (this) {
+                sessionLock = false;
+                this.notifyAll();
+            }
         }
     }
 

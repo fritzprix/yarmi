@@ -4,6 +4,7 @@ import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
+import com.doodream.rmovjs.net.session.Session;
 import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
@@ -48,28 +49,6 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
 
     private void onHandshakeSuccess(ClientSocketAdapter adapter, Function<Request, Response> handleRequest) {
 
-//        compositeDisposable.add(adapter.listen()
-//                .groupBy(Request::isValid)
-//                .flatMap(booleanRequestGroupedObservable -> Observable.<Optional<Request>>create(emitter -> {
-//                    if(booleanRequestGroupedObservable.getKey()) {
-//                        emitter.setDisposable(booleanRequestGroupedObservable.subscribe(request -> emitter.onNext(Optional.of(request))));
-//                    } else {
-//                        // bad request handle added
-//                        emitter.setDisposable(booleanRequestGroupedObservable.subscribe(request -> {
-//                            adapter.write(Response.from(RMIError.BAD_REQUEST));
-//                            emitter.onNext(Optional.empty());
-//                        }));
-//                    }
-//                }))
-//                .filter(Optional::isPresent)
-//                .map(Optional::get)
-//                .doOnNext(request -> request.setClient(adapter))
-//                .doOnNext(request -> Log.info("Server <= {}", request))
-//                .map(handleRequest)
-//                .doOnError(this::onError)
-//                .doOnNext(adapter::write)
-//                .subscribeOn(Schedulers.io())
-//                .subscribe());
 
         compositeDisposable.add(adapter.listen()
                 .groupBy(Request::isValid)
@@ -84,6 +63,8 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                         }));
                     }
                 }))
+                .subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.io())
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .doOnNext(request -> request.setClient(adapter))
@@ -91,12 +72,13 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                 .doOnError(this::onError)
                 .subscribe(request -> {
                     final Response response = handleRequest.apply(request);
+                    Log.debug("Server => {}", response);
                     adapter.write(response);
                 }));
     }
 
     private void onError(Throwable throwable) {
-        Log.error("{}", throwable);
+        Log.error("Error : {}", throwable);
         close();
     }
 

@@ -81,14 +81,14 @@ public class ClientSocketAdapter {
                 emitter.onError(e);
             }
         });
-        return requestObservable.observeOn(Schedulers.io());
+        return requestObservable.subscribeOn(Schedulers.io()).observeOn(Schedulers.io());
     }
 
     private void unregisterSession(BlobSession session ) {
         if(sessionRegistry.remove(session.getKey()) == null) {
             Log.warn("fail to remove session : session not exists {}", session.getKey());
         } else {
-            Log.debug("remove session : {}", session.getKey());
+            Log.trace("remove session : {}", session.getKey());
         }
     }
 
@@ -101,7 +101,7 @@ public class ClientSocketAdapter {
         session.handle(scm, request.getScmParameter());
         if(scm.getCommand() == SessionCommand.RESET) {
             session = sessionRegistry.remove(scm.getKey());
-            Log.debug("session {} teardown", session);
+            Log.trace("session {} teardown", session);
         }
     }
 

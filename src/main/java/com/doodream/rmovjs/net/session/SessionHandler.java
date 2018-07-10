@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.Optional;
 
 public interface SessionHandler {
-    Optional<SessionControlMessage> handle(SessionControlMessage scm, String parameter) throws SessionControlException, IOException;
+    void handle(SessionControlMessage scm, String parameter) throws SessionControlException, IOException;
     void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown);
 }
 

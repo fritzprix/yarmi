@@ -78,8 +78,9 @@ public class BlobSession implements SessionHandler {
     }
 
 
-    public Optional<SessionControlMessage> handle(SessionControlMessage scm, String param) throws SessionControlException, IOException {
-        return sessionHandler.handle(scm, param);
+    @Override
+    public void handle(SessionControlMessage scm, String param) throws SessionControlException, IOException {
+        sessionHandler.handle(scm, param);
     }
 
     public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {

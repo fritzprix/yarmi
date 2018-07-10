@@ -41,6 +41,7 @@ public class Request {
 
     private transient ClientSocketAdapter client;
     private transient Response response;
+    private transient boolean sessionRegistered;
 
     @SerializedName("session")
     private BlobSession session;

@@ -112,7 +112,7 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     @Override
-    public Optional<SessionControlMessage> handle(SessionControlMessage scm, String param) throws IllegalStateException, IOException {
+    public void handle(SessionControlMessage scm, String param) throws IllegalStateException, IOException {
         Log.debug("scm : {}" , scm);
         final SessionCommand command = scm.getCommand();
         switch (command) {
@@ -140,7 +140,6 @@ public class SenderSession implements Session, SessionHandler {
             default:
                 sendErrorMessage(command, key,"Not Supported Operation", SCMErrorParam.ErrorType.INVALID_OP);
         }
-        return Optional.empty();
     }
 
     @Override
