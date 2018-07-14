@@ -105,7 +105,7 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     @Override
-    public void handle(SessionControlMessage scm, String param) throws IllegalStateException, IOException {
+    public void handle(SessionControlMessage scm) throws IllegalStateException, IOException {
         Log.debug("scm : {}" , scm);
         final SessionCommand command = scm.getCommand();
         switch (command) {
@@ -120,7 +120,8 @@ public class SenderSession implements Session, SessionHandler {
                 onReady.accept(this);
                 break;
             case ERR:
-                handleErrorMessage(param);
+                SCMErrorParam errorParam = (SCMErrorParam) scm.getParam();
+                handleErrorMessage(errorParam);
                 break;
             case RESET:
                 // teardown on receiver side
@@ -141,9 +142,8 @@ public class SenderSession implements Session, SessionHandler {
         this.onTeardown = onTeardown;
     }
 
-    private void handleErrorMessage(String errParam) {
+    private void handleErrorMessage(SCMErrorParam errorParam) {
         // TODO: handle error
-        final SCMErrorParam errorParam = JsonConverter.fromJson(errParam, SCMErrorParam.class);
         final SCMErrorParam.ErrorType errorCode = errorParam.getType();
         Log.error(errorParam.getMsg());
         switch (errorCode) {

@@ -19,45 +19,20 @@ public class JsonWriter implements Writer {
     private static final int READ_BUFFER_SIZE = 4096;
     private Converter mConverter;
     private WritableByteChannel mChannelOut;
-    private boolean lock = false;
 
     JsonWriter(Converter converter, OutputStream os) {
         mConverter = converter;
         mChannelOut = Channels.newChannel(os);
     }
 
-    private boolean tryLock() {
-        try {
-            synchronized (this) {
-                while (lock) {
-                    this.wait();
-                }
-                lock = true;
-            }
-            return true;
-        } catch (InterruptedException e) {
-            Log.error("{}", e);
-            return false;
-        }
-    }
-
-    private void unlock() {
-        synchronized (this) {
-            lock = false;
-            this.notifyAll();
-        }
-    }
-
     @Override
     public synchronized void write(Object src) throws IOException {
-        Log.debug("write {}", src);
         ByteBuffer json = ByteBuffer.wrap(mConverter.convert(src));
         mChannelOut.write(json);
     }
 
     @Override
     public synchronized void writeWithBlob(Object src, InputStream data) throws IOException {
-        Log.debug("writeWithBlob /w InputStream {}", src);
         ByteBuffer json = ByteBuffer.wrap(mConverter.convert(src));
         mChannelOut.write(json);
 
@@ -78,10 +53,8 @@ public class JsonWriter implements Writer {
     @Override
     public synchronized void writeWithBlob(Object src, ByteBuffer data) throws IOException {
         ByteBuffer json = ByteBuffer.wrap(mConverter.convert(src));
-
         mChannelOut.write(json);
         data.flip();
-        Log.debug("write size of blob : {}", mChannelOut.write(data));
         data.limit(data.capacity());
     }
 }

@@ -65,6 +65,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                 }))
                 .subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.io())
+                .doOnNext(req -> Log.debug("{}", req))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .doOnNext(request -> request.setClient(adapter))

@@ -26,7 +26,7 @@ public class ClientSocketAdapter {
     private RMISocket client;
     private Reader reader;
     private Writer writer;
-    private ConcurrentHashMap<String, BlobSession> sessionRegistry;
+    private final ConcurrentHashMap<String, BlobSession> sessionRegistry;
 
     ClientSocketAdapter(RMISocket socket, Converter converter) throws IOException {
         client = socket;
@@ -37,6 +37,7 @@ public class ClientSocketAdapter {
 
 
     public void write(Response response) throws IOException {
+        Log.debug("Response => {}", response);
         if(response.isHasSessionSwitch()) {
             BlobSession session = (BlobSession) response.getBody();
             sessionRegistry.put(session.getKey(), session);
@@ -65,7 +66,7 @@ public class ClientSocketAdapter {
                     }
                     if(session != null) {
                         session.init();
-                        if(sessionRegistry.put(session.getKey(), session) != null) {
+                        if (sessionRegistry.put(session.getKey(), session) != null) {
                             Log.warn("session conflict");
                             return;
                         }
@@ -85,24 +86,23 @@ public class ClientSocketAdapter {
     }
 
     private void unregisterSession(BlobSession session ) {
-        if(sessionRegistry.remove(session.getKey()) == null) {
+        if (sessionRegistry.remove(session.getKey()) == null) {
             Log.warn("fail to remove session : session not exists {}", session.getKey());
-        } else {
-            Log.trace("remove session : {}", session.getKey());
+            return;
         }
+        Log.trace("remove session : {}", session.getKey());
     }
 
     private void handleSessionControlMessage(Request request) throws SessionControlException, IllegalStateException, IOException {
         final SessionControlMessage scm = request.getScm();
-        BlobSession session = sessionRegistry.get(scm.getKey());
+        BlobSession session;
+        session = sessionRegistry.get(scm.getKey());
         if(session == null) {
-            throw new IllegalStateException("no session to handle");
+            Log.warn("no session to handle {}", scm.getKey());
+//            throw new IllegalStateException("no session to handle");
+            return;
         }
-        session.handle(scm, request.getScmParameter());
-        if(scm.getCommand() == SessionCommand.RESET) {
-            session = sessionRegistry.remove(scm.getKey());
-            Log.trace("session {} teardown", session);
-        }
+        session.handle(scm);
     }
 
     String who() {

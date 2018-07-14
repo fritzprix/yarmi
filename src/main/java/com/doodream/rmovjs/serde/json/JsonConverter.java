@@ -6,6 +6,8 @@ import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.misc.BASE64Decoder;
 import sun.misc.BASE64Encoder;
 
@@ -19,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 public class JsonConverter implements Converter {
+    private static final Logger Log = LoggerFactory.getLogger(JsonConverter.class);
 
     private static class ByteArrayToBase64TypeAdapter implements JsonSerializer<byte[]>, JsonDeserializer<byte[]> {
         public byte[] deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
@@ -29,6 +32,11 @@ public class JsonConverter implements Converter {
             return new JsonPrimitive(Base64.getEncoder().encodeToString(src));
         }
     }
+
+    private static final Gson BINARY_CAP_GSON = new GsonBuilder()
+            .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToBase64TypeAdapter())
+            .create();
+
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
                 @Override
@@ -46,25 +54,47 @@ public class JsonConverter implements Converter {
                     return null;
                 }
             })
-            .registerTypeAdapter(SessionControlMessage.class, new TypeAdapter<SessionControlMessage>() {
+            .registerTypeAdapter(SessionControlMessage.class, new TypeAdapter<SessionControlMessage<?>>() {
                 @Override
-                public void write(com.google.gson.stream.JsonWriter jsonWriter, SessionControlMessage controlMessage) throws IOException {
-                    jsonWriter.
+                public void write(com.google.gson.stream.JsonWriter jsonWriter, SessionControlMessage<?> sessionControlMessage) throws IOException {
+                    if(sessionControlMessage != null) {
+                        jsonWriter.beginObject();
+                        jsonWriter
+                                .name("key").value(sessionControlMessage.getKey())
+                                .name("cmd").value(sessionControlMessage.getCommand().name());
+                        if (sessionControlMessage.getParam() != null) {
+                            jsonWriter
+                                    .name("param").value(BINARY_CAP_GSON.toJson(sessionControlMessage.getParam()));
+                        }
+                        jsonWriter.endObject();
+                    } else {
+                        jsonWriter.nullValue();
+                    }
+                    jsonWriter.flush();
                 }
 
                 @Override
-                public SessionControlMessage read(com.google.gson.stream.JsonReader jsonReader) throws IOException {
-                    String line = jsonReader.nextString();
-                    JsonPrimitive msg = new JsonPrimitive(line);
-                    JsonObject msgObject = msg.getAsJsonObject();
-                    JsonElement command = msgObject.get("cmd");
-                    JsonObject cmdObject = command.getAsJsonObject();
-                    cmdObject.getAsString();
-                    // TODO : parse command
-                    return null;
+                public SessionControlMessage<?> read(com.google.gson.stream.JsonReader jsonReader) throws IOException {
+                    SessionControlMessage message = SessionControlMessage.builder().build();
+                    jsonReader.beginObject();
+                    while (jsonReader.hasNext()) {
+                        switch (jsonReader.nextName()) {
+                            case "key":
+                                message.setKey(jsonReader.nextString());
+                                break;
+                            case "cmd":
+                                message.setCommand(SessionCommand.valueOf(jsonReader.nextString()));
+                                break;
+                            case "param":
+                                Class<?> paramCls = message.getCommand().getParamClass();
+                                message.setParam(BINARY_CAP_GSON.fromJson(jsonReader.nextString(), paramCls));
+                                break;
+                        }
+                    }
+                    jsonReader.endObject();
+                    return message;
                 }
             })
-            .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToBase64TypeAdapter())
             .create();
 
     private static Type getType(Class<?> rawClass, Class<?> parameter) {

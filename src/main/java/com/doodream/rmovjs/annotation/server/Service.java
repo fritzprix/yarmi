@@ -5,6 +5,7 @@ import com.doodream.rmovjs.net.RMINegotiator;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.SimpleNegotiator;
 import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
+import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.json.JsonConverter;
 
 import java.lang.annotation.Retention;
@@ -42,5 +43,5 @@ public @interface Service {
 
     Class<? extends RMINegotiator> negotiator() default SimpleNegotiator.class;
 
-    Class<JsonConverter> converter() default JsonConverter.class;
+    Class<? extends Converter> converter() default JsonConverter.class;
 }

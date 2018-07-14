@@ -72,12 +72,11 @@ public class ReceiverSession implements Session, SessionHandler {
     }
 
     @Override
-    public void handle(SessionControlMessage scm, String parameter) throws SessionControlException, IOException {
+    public void handle(SessionControlMessage scm) throws SessionControlException, IOException {
         final SessionCommand command = scm.getCommand();
         switch (command) {
             case CHUNK:
-                SCMChunkParam chunkParam = JsonConverter.fromJson(parameter, SCMChunkParam.class);
-                Log.debug("chunk {}", chunkParam);
+                SCMChunkParam chunkParam = (SCMChunkParam) scm.getParam();
                 ByteBuffer buffer = ByteBuffer.wrap(chunkParam.getData());
                 chunkOutChannel.write(buffer);
                 if(chunkParam.getType() == SCMChunkParam.TYPE_LAST) {
@@ -89,7 +88,7 @@ public class ReceiverSession implements Session, SessionHandler {
                 onClose();
                 break;
             case ERR:
-                SCMErrorParam errorParam = JsonConverter.fromJson(parameter, SCMErrorParam.class);
+                SCMErrorParam errorParam = (SCMErrorParam) scm.getParam();
                 throw new SessionControlException(errorParam);
             default:
                 sendErrorMessage(key, SCMErrorParam.buildUnsupportedOperation(command));
