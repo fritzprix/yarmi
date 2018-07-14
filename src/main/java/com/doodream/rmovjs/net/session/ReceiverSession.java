@@ -78,15 +78,7 @@ public class ReceiverSession implements Session, SessionHandler {
             case CHUNK:
                 SCMChunkParam chunkParam = JsonConverter.fromJson(parameter, SCMChunkParam.class);
                 Log.debug("chunk {}", chunkParam);
-                final int chunkSize = chunkParam.getSizeInChar();
-                byte[] b = new byte[chunkSize];
-                ByteBuffer buffer = ByteBuffer.wrap(b);
-                int rsz = reader.readBlob(buffer);
-                String eoc = new String(b, chunkSize - 2, 2);
-                Preconditions.checkArgument(Arrays.equals(BlobSession.CHUNK_DELIMITER, eoc.getBytes(StandardCharsets.UTF_8)));
-                Log.debug("read size : {} / buffer pos. : {}",rsz,  buffer.position());
-                buffer.flip();
-                Log.debug(StandardCharsets.UTF_8.decode(buffer).toString());
+                ByteBuffer buffer = ByteBuffer.wrap(chunkParam.getData());
                 chunkOutChannel.write(buffer);
                 if(chunkParam.getType() == SCMChunkParam.TYPE_LAST) {
                     chunkOutChannel.close();

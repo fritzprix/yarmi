@@ -19,8 +19,7 @@ public class BlobSession implements SessionHandler {
 
     private static final Logger Log = LoggerFactory.getLogger(BlobSession.class);
 
-    public static final byte[] CHUNK_DELIMITER = "\r\n".getBytes(StandardCharsets.UTF_8);
-    public static final int CHUNK_MAX_SIZE_IN_BYTE = 64 * 1024;
+    public static final int CHUNK_MAX_SIZE_IN_BYTE = 4 * 1024;
     public static final int CHUNK_MAX_SIZE_IN_CHAR = CHUNK_MAX_SIZE_IN_BYTE / Character.SIZE * Byte.SIZE;
 
 

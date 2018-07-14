@@ -26,6 +26,7 @@ public class SenderSession implements Session, SessionHandler {
     private String key;
     private Consumer<Session> onReady;
     private Runnable onTeardown;
+    private byte[] bufferSource = new byte[BlobSession.CHUNK_MAX_SIZE_IN_BYTE];
     private ByteBuffer writeBuffer;
     private SessionControlMessageWriter scmWriter;
     private int chunkSeqNumber;
@@ -42,7 +43,7 @@ public class SenderSession implements Session, SessionHandler {
         key = Integer.toHexString(String.format("%d%d%d",GLOBAL_KEY++, System.currentTimeMillis(), lo.getAsLong()).hashCode());
         chunkSeqNumber = 0;
         chunkLruCache = SenderSession.getLruCache(MAX_CNWD_SIZE * 2);
-        writeBuffer = ByteBuffer.allocate(BlobSession.CHUNK_MAX_SIZE_IN_BYTE);
+        writeBuffer = ByteBuffer.wrap(bufferSource);
         this.onReady = onReady;
     }
 
@@ -61,53 +62,45 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     private void flushOutWriteBuffer(boolean last) throws IOException {
-
-        writeBuffer.put(BlobSession.CHUNK_DELIMITER);
         final int len = writeBuffer.position();
 
         final SCMChunkParam chunkParam = SCMChunkParam.builder()
-                .sizeInChar(len)
+                .sizeInBytes(len)
                 .sequence(chunkSeqNumber++)
                 .type(last? SCMChunkParam.TYPE_LAST : SCMChunkParam.TYPE_CONTINUE)
-                .cachedChunk(new byte[len])
+                .data(new byte[len])
                 .build();
 
-        // copy data into chunk cache
-        ByteBuffer duplicate = writeBuffer.duplicate();
-        duplicate.flip();
-        duplicate.get(chunkParam.getCachedChunk());
-        // and put it on lru cache for retransmission
+        writeBuffer.flip();
+        writeBuffer.get(chunkParam.getData());
+        writeBuffer.clear();
         chunkLruCache.put(chunkSeqNumber - 1, chunkParam);
+        Log.debug("size of blob : {} ", chunkParam.getData().length);
 
         SessionControlMessage chunkMessage = SessionControlMessage.builder()
                 .command(SessionCommand.CHUNK)
                 .key(key)
                 .build();
 
-        Log.debug("Flush Chunk size of {} {}",writeBuffer.position(), chunkMessage);
-        scmWriter.writeWithBlob(chunkMessage, chunkParam, writeBuffer);
-        writeBuffer.position(0);
+        scmWriter.write(chunkMessage, chunkParam);
     }
 
     @Override
     public synchronized void write(byte[] b, int len) throws IOException {
-        int available = writeBuffer.remaining() - BlobSession.CHUNK_DELIMITER.length;
-        Log.debug("Remaining Buffer Space : {}", available);
-
-        if(available < len) {
-            // put bytes length of 'available'
-            writeBuffer.put(b, 0, available - 1);
-            // write buffer is full here
-            Log.debug("write {} size : {}", b, writeBuffer.position());
+        int available;
+        int offset = 0;
+        while((available = writeBuffer.remaining()) < len) {
+            Log.debug("offset : {} / available : {}", available);
+            writeBuffer.put(b, offset, available);
             flushOutWriteBuffer(false);
-            // put residue to buffer
-            writeBuffer.put(b, available, len - available);
-        } else {
-            Log.debug("write {}", b);
-            writeBuffer.put(b);
-            if(available == len) {
-                flushOutWriteBuffer(false);
-            }
+            writeBuffer.clear();
+            offset += available;
+            len -= available;
+        }
+
+        writeBuffer.put(b, 0, len);
+        if(!writeBuffer.hasRemaining()) {
+            flushOutWriteBuffer(false);
         }
     }
 

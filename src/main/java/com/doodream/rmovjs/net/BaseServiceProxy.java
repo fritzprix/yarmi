@@ -99,28 +99,28 @@ public class BaseServiceProxy implements RMIServiceProxy {
         return Observable.just(Request.fromEndpoint(endpoint, args))
                 .doOnNext(request -> request.setNonce(++requestNonce))
                 .doOnNext(this::registerSession)
-                .groupBy(Request::isSessionRegistered)
-                .flatMap(booleanRequestGroupedObservable -> {
-                    if(booleanRequestGroupedObservable.getKey()) {
-                        // if the request has registered session
-                        synchronized (this) {
-                            // try to lock session lock
-                            while(sessionLock) {
-                                this.wait();
-                            }
-                            sessionLock = true;
-                        }
-                    } else {
-                        // if the request has no session
-                        synchronized (this) {
-                            // just wait until session finish
-                            while(sessionLock) {
-                                this.wait();
-                            }
-                        }
-                    }
-                    return booleanRequestGroupedObservable;
-                })
+//                .groupBy(Request::isSessionRegistered)
+//                .flatMap(booleanRequestGroupedObservable -> {
+//                    if(booleanRequestGroupedObservable.getKey()) {
+//                        // if the request has registered session
+//                        synchronized (this) {
+//                            // try to lock session lock
+//                            while(sessionLock) {
+//                                this.wait();
+//                            }
+//                            sessionLock = true;
+//                        }
+//                    } else {
+//                        // if the request has no session
+//                        synchronized (this) {
+//                            // just wait until session finish
+//                            while(sessionLock) {
+//                                this.wait();
+//                            }
+//                        }
+//                    }
+//                    return booleanRequestGroupedObservable;
+//                })
                 .doOnNext(request -> Log.trace("request => {}", request))
                 .map(request -> {
                     requestWaitQueue.put(request.getNonce(), request);

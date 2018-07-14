@@ -37,8 +37,6 @@ public class Response<T> {
     private int nonce;
     @SerializedName("scm")
     private SessionControlMessage scm;
-    @SerializedName("scm_param")
-    private String scmParameter;
 
     public static <T> Response<T> success(T body) {
         return Response.<T>builder()
@@ -69,13 +67,14 @@ public class Response<T> {
         SessionControlMessage controlMessage = SessionControlMessage.<SCMErrorParam>builder()
                 .key(scm.getKey())
                 .command(SessionCommand.ERR)
+                .param(SCMErrorParam.build(scm.getCommand(), msg, type))
                 .build();
+
 
         return Response.builder()
                 .code(600)
                 .isSuccessful(false)
                 .scm(controlMessage)
-                .scmParameter(JsonConverter.toJson(SCMErrorParam.build(scm.getCommand(), msg, type)))
                 .build();
     }
 
@@ -104,24 +103,24 @@ public class Response<T> {
 
             @Override
             public void write(SessionControlMessage controlMessage, Object scmParam) throws IOException {
+                controlMessage.setParam(scmParam);
                 writer.write(Response.builder()
                         .scm(controlMessage)
-                        .scmParameter(JsonConverter.toJson(scmParam))
                         .build());
 
             }
 
             @Override
             public void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, InputStream data) throws IOException {
+                controlMessage.setParam(scmParam);
                 writer.writeWithBlob(Response.builder().scm(controlMessage)
-                        .scmParameter(JsonConverter.toJson(scmParam))
                         .build(), data);
             }
 
             @Override
             public void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, ByteBuffer buffer) throws IOException {
+                controlMessage.setParam(scmParam);
                 writer.writeWithBlob(Response.builder().scm(controlMessage)
-                        .scmParameter(JsonConverter.toJson(scmParam))
                         .build(), buffer);
             }
         };

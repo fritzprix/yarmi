@@ -55,9 +55,6 @@ public class Request {
     @SerializedName("scm")
     private SessionControlMessage scm;
 
-    @SerializedName("scm_param")
-    private String scmParameter;
-
     @SerializedName("nonce")
     private int nonce;
 
@@ -73,28 +70,27 @@ public class Request {
 
             @Override
             public void write(SessionControlMessage controlMessage, Object param) throws IOException {
+                controlMessage.setParam(param);
                 writer.write(Request.builder()
                         .scm(controlMessage)
-                        .scmParameter(JsonConverter.toJson(param))
                         .build());
             }
 
             @Override
             public void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, InputStream data) throws IOException {
+                controlMessage.setParam(scmParam);
                 writer.writeWithBlob(Request.builder()
                         .scm(controlMessage)
-                        .scmParameter(JsonConverter.toJson(scmParam))
                         .build(), data);
             }
 
             @Override
             public void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, ByteBuffer buffer) throws IOException {
+                controlMessage.setParam(scmParam);
                 writer.writeWithBlob(Request.builder()
                         .scm(controlMessage)
-                        .scmParameter(JsonConverter.toJson(scmParam))
                         .build(), buffer);
             }
-
         };
     }
 

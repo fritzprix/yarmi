@@ -1,11 +1,13 @@
 package com.doodream.rmovjs.serde.json;
 
+import com.doodream.rmovjs.net.session.SessionCommand;
+import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.TypeAdapter;
+import com.google.gson.*;
+import sun.misc.BASE64Decoder;
+import sun.misc.BASE64Encoder;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,9 +16,19 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 public class JsonConverter implements Converter {
 
+    private static class ByteArrayToBase64TypeAdapter implements JsonSerializer<byte[]>, JsonDeserializer<byte[]> {
+        public byte[] deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            return Base64.getDecoder().decode(json.getAsString());
+        }
+
+        public JsonElement serialize(byte[] src, Type typeOfSrc, JsonSerializationContext context) {
+            return new JsonPrimitive(Base64.getEncoder().encodeToString(src));
+        }
+    }
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(Class.class, new TypeAdapter<Class>() {
                 @Override
@@ -34,6 +46,25 @@ public class JsonConverter implements Converter {
                     return null;
                 }
             })
+            .registerTypeAdapter(SessionControlMessage.class, new TypeAdapter<SessionControlMessage>() {
+                @Override
+                public void write(com.google.gson.stream.JsonWriter jsonWriter, SessionControlMessage controlMessage) throws IOException {
+                    jsonWriter.
+                }
+
+                @Override
+                public SessionControlMessage read(com.google.gson.stream.JsonReader jsonReader) throws IOException {
+                    String line = jsonReader.nextString();
+                    JsonPrimitive msg = new JsonPrimitive(line);
+                    JsonObject msgObject = msg.getAsJsonObject();
+                    JsonElement command = msgObject.get("cmd");
+                    JsonObject cmdObject = command.getAsJsonObject();
+                    cmdObject.getAsString();
+                    // TODO : parse command
+                    return null;
+                }
+            })
+            .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToBase64TypeAdapter())
             .create();
 
     private static Type getType(Class<?> rawClass, Class<?> parameter) {

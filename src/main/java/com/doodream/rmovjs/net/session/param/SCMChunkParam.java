@@ -14,7 +14,7 @@ public class SCMChunkParam {
     public static final int TYPE_LAST = 1;
 
     private int type;
-    private int sizeInChar;
+    private int sizeInBytes;
     private int sequence;
-    private transient byte[] cachedChunk;
+    private byte[] data;
 }
