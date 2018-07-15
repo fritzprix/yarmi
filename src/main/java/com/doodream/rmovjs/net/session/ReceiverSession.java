@@ -4,7 +4,8 @@ import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
-import com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -13,18 +14,15 @@ import java.nio.channels.WritableByteChannel;
 
 public class ReceiverSession implements Session, SessionHandler {
 
+    private static final Logger Log = LoggerFactory.getLogger(ReceiverSession.class);
     private String key;
     private InputStream chunkInStream;
     private WritableByteChannel chunkOutChannel;
 
-    private final ByteBuffer readBuffer;
     private Runnable onTeardown;
-    private Reader reader;
     private SessionControlMessageWriter scmWriter;
 
     ReceiverSession() {
-
-        readBuffer = ByteBuffer.allocate(BlobSession.CHUNK_MAX_SIZE_IN_BYTE);
     }
 
     @Override
@@ -46,7 +44,7 @@ public class ReceiverSession implements Session, SessionHandler {
         scmWriter.write(SessionControlMessage.builder()
                 .command(SessionCommand.ACK)
                 .key(key)
-                .param(null).build());
+                .build());
     }
 
     @Override
@@ -59,7 +57,7 @@ public class ReceiverSession implements Session, SessionHandler {
         onClose();
     }
 
-    public void setSessionKey(String key) {
+    void setSessionKey(String key) {
         this.key = key;
     }
 
@@ -69,16 +67,14 @@ public class ReceiverSession implements Session, SessionHandler {
         switch (command) {
             case CHUNK:
                 SCMChunkParam chunkParam = (SCMChunkParam) scm.getParam();
-                final int chunkSize = chunkParam.getSizeInChar();
-                byte[] b = new byte[chunkSize * Character.SIZE - Byte.SIZE];
-                ByteBuffer buffer = ByteBuffer.wrap(b);
-                int rsz = reader.readBlob(buffer);
-                String eoc = new String(b, chunkSize - 2, 2);
-                Preconditions.checkArgument(BlobSession.CHUNK_DELIMITER.equals(eoc));
-                chunkOutChannel.write(readBuffer);
-                readBuffer.position(0);
+                ByteBuffer buffer = ByteBuffer.wrap(chunkParam.getData());
+                chunkOutChannel.write(buffer);
+                if(chunkParam.getType() == SCMChunkParam.TYPE_LAST) {
+                    chunkOutChannel.close();
+                }
                 break;
             case RESET:
+                Log.debug("reset from peer");
                 onClose();
                 break;
             case ERR:
@@ -91,7 +87,6 @@ public class ReceiverSession implements Session, SessionHandler {
 
     @Override
     public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
-        this.reader = reader;
         this.onTeardown = onTeardown;
         scmWriter = builder.build(writer);
     }
@@ -106,8 +101,8 @@ public class ReceiverSession implements Session, SessionHandler {
     private void sendErrorMessage(String key, SCMErrorParam errorParam) throws IOException {
         scmWriter.write(SessionControlMessage.builder()
                 .key(key)
-                .command(SessionCommand.ERR)
                 .param(errorParam)
+                .command(SessionCommand.ERR)
                 .build());
     }
 

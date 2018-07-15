@@ -13,10 +13,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-
 /**
  * Created by innocentevil on 18. 5. 4.
  */
@@ -34,6 +30,7 @@ public class Response<T> {
     private ResponseBody errorBody;
     private int code;
     private int nonce;
+    private BlobSession session;
     @SerializedName("scm")
     private SessionControlMessage scm;
 
@@ -49,6 +46,7 @@ public class Response<T> {
         return Response.<BlobSession>builder()
                 .body(session)
                 .code(SUCCESS)
+                .session(session)
                 .isSuccessful(true)
                 .hasSessionSwitch(true)
                 .build();
@@ -63,11 +61,12 @@ public class Response<T> {
     }
 
     public static Response error(SessionControlMessage scm, String msg, SCMErrorParam.ErrorType type) {
-        SessionControlMessage<SCMErrorParam> controlMessage = SessionControlMessage.<SCMErrorParam>builder()
+        SessionControlMessage controlMessage = SessionControlMessage.<SCMErrorParam>builder()
                 .key(scm.getKey())
                 .command(SessionCommand.ERR)
                 .param(SCMErrorParam.build(scm.getCommand(), msg, type))
                 .build();
+
 
         return Response.builder()
                 .code(600)
@@ -97,23 +96,11 @@ public class Response<T> {
     }
 
     public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
-        // TODO : return SessionControlMessageWriter
-        return new SessionControlMessageWriter() {
+        return (controlMessage) -> {
+            writer.write(Response.builder()
+                    .scm(controlMessage)
+                    .build());
 
-            @Override
-            public void write(SessionControlMessage controlMessage) throws IOException {
-                writer.write(Response.builder().scm(controlMessage).build());
-            }
-
-            @Override
-            public void writeWithBlob(SessionControlMessage controlMessage, InputStream data) throws IOException {
-                writer.writeWithBlob(Response.builder().scm(controlMessage).build(), data);
-            }
-
-            @Override
-            public void writeWithBlob(SessionControlMessage controlMessage, ByteBuffer buffer) throws IOException {
-                writer.writeWithBlob(Response.builder().scm(controlMessage).build(), buffer);
-            }
         };
     }
 

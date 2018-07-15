@@ -40,13 +40,14 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                 .repeatUntil(() -> !listen)
                 .map(client -> negotiator.handshake(client, serviceInfo, converter, false))
                 .map(socket -> new ClientSocketAdapter(socket, converter))
-                .subscribeOn(Schedulers.io())
+                .subscribeOn(Schedulers.newThread())
                 .subscribe(adapter-> onHandshakeSuccess(adapter, handleRequest),this::onError));
 
         return getProxyConnectionHint(serviceInfo);
     }
 
     private void onHandshakeSuccess(ClientSocketAdapter adapter, Function<Request, Response> handleRequest) {
+
 
         compositeDisposable.add(adapter.listen()
                 .groupBy(Request::isValid)
@@ -61,19 +62,21 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                         }));
                     }
                 }))
+                .doOnNext(req -> Log.debug("{}", req))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .doOnNext(request -> request.setClient(adapter))
                 .doOnNext(request -> Log.info("Server <= {}", request))
-                .map(handleRequest)
-                .doOnError(this::onError)
-                .doOnNext(adapter::write)
-                .subscribeOn(Schedulers.io())
-                .subscribe());
+                .observeOn(Schedulers.io())
+                .subscribe(request -> {
+                    final Response response = handleRequest.apply(request);
+                    Log.debug("Server => {}", response);
+                    adapter.write(response);
+                },this::onError));
     }
 
     private void onError(Throwable throwable) {
-        Log.error("{}", throwable);
+        Log.error("Error : {}", throwable);
         close();
     }
 

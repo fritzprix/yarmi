@@ -18,8 +18,7 @@ public class BlobSession implements SessionHandler {
 
     private static final Logger Log = LoggerFactory.getLogger(BlobSession.class);
 
-    public static final String CHUNK_DELIMITER = "\r\n";
-    public static final int CHUNK_MAX_SIZE_IN_BYTE = 64 * 1024;
+    public static final int CHUNK_MAX_SIZE_IN_BYTE = 1 << 16;
     public static final int CHUNK_MAX_SIZE_IN_CHAR = CHUNK_MAX_SIZE_IN_BYTE / Character.SIZE * Byte.SIZE;
 
 
@@ -48,42 +47,42 @@ public class BlobSession implements SessionHandler {
      * @param onReady
      */
     public BlobSession(Consumer<Session> onReady) {
+        Log.debug("sender session is created");
         mime = DEFAULT_TYPE;
-        if(onReady != null) {
-            SenderSession senderSession = new SenderSession(onReady);
-            key = senderSession.getSessionKey();
-            session = senderSession;
-            sessionHandler = senderSession;
-        } else {
-            ReceiverSession receiverSession = new ReceiverSession();
-            receiverSession.setSessionKey(key);
-            session = receiverSession;
-            sessionHandler = receiverSession;
-        }
+        SenderSession senderSession = new SenderSession(onReady);
+        key = senderSession.getSessionKey();
+        session = senderSession;
+        sessionHandler = senderSession;
     }
 
     /**
      * constructor for receiver
      */
     public BlobSession() {
-        this(null);
+        Log.debug("receiver session is created");
+        mime = DEFAULT_TYPE;
+        ReceiverSession receiverSession = new ReceiverSession();
+        session = receiverSession;
+        sessionHandler = receiverSession;
     }
 
+    /**
+     * get BlobSession from arguments in RMI method invocation
+     * @param args arguments
+     * @return
+     */
     public static Optional<BlobSession> findOne(Object[] args) {
         return Observable.fromArray(args).filter(o -> o instanceof BlobSession).cast(BlobSession.class).map(Optional::ofNullable).blockingFirst(Optional.empty());
     }
 
-    public int read(byte[] b, int offset, int len) throws IOException {
-        return session.read(b, offset, len);
-    }
 
+    @Override
     public void handle(SessionControlMessage scm) throws SessionControlException, IOException {
-        Log.debug("scm : {}" , scm);
         sessionHandler.handle(scm);
-
     }
 
     public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+        Log.debug("Session started {} {}", reader, writer);
         sessionHandler.start(reader, writer, builder, onTeardown);
     }
 
@@ -91,8 +90,9 @@ public class BlobSession implements SessionHandler {
      * called by receiver
      * @throws IOException
      */
-    public void open() throws IOException {
+    public Session open() throws IOException {
         session.open();
+        return session;
     }
 
     /**
@@ -101,5 +101,9 @@ public class BlobSession implements SessionHandler {
      */
     public void close() throws IOException {
         session.close();
+    }
+
+    public void init() {
+        ((ReceiverSession) session).setSessionKey(key);
     }
 }

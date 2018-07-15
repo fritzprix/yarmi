@@ -1,6 +1,8 @@
 package com.doodream.rmovjs.serde;
 
-import java.io.*;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 
 /**
  *  Converter class defines how object is converted into byte stream (and vice-versa) comprising of

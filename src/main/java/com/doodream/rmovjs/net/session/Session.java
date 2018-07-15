@@ -4,8 +4,23 @@ import java.io.IOException;
 
 public interface Session {
 
-    int read(byte[] b, int offset, int len) throws IOException;
-    void write(byte[] b, int len) throws IOException;
+    /**
+     *
+     * @param data
+     * @param offset
+     * @param len
+     * @return
+     * @throws IOException
+     */
+    int read(byte[] data, int offset, int len) throws IOException;
+
+    /**
+     *
+     * @param data
+     * @param len
+     * @throws IOException
+     */
+    void write(byte[] data, int len) throws IOException;
 
     /**
      * called by receiver

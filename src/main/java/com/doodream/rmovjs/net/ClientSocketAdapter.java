@@ -4,7 +4,6 @@ package com.doodream.rmovjs.net;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.session.BlobSession;
-import com.doodream.rmovjs.net.session.SessionCommand;
 import com.doodream.rmovjs.net.session.SessionControlException;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
@@ -12,6 +11,7 @@ import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import io.reactivex.Observable;
+import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,14 +23,12 @@ public class ClientSocketAdapter {
     private Logger Log = LoggerFactory.getLogger(ClientSocketAdapter.class);
 
     private RMISocket client;
-    private Converter converter;
     private Reader reader;
     private Writer writer;
-    private ConcurrentHashMap<String, BlobSession> sessionRegistry;
+    private final ConcurrentHashMap<String, BlobSession> sessionRegistry;
 
     ClientSocketAdapter(RMISocket socket, Converter converter) throws IOException {
         client = socket;
-        this.converter = converter;
         sessionRegistry = new ConcurrentHashMap<>();
         reader = converter.reader(socket.getInputStream());
         writer = converter.writer(socket.getOutputStream());
@@ -39,15 +37,16 @@ public class ClientSocketAdapter {
 
     public void write(Response response) throws IOException {
         if(response.isHasSessionSwitch()) {
-            BlobSession session = (BlobSession) response.getBody();
+            BlobSession session = response.getSession();
+            response.setSession(session);
             sessionRegistry.put(session.getKey(), session);
             session.start(reader, writer, Response::buildSessionMessageWriter, () -> unregisterSession(session));
         }
         writer.write(response);
     }
 
-    public Observable<Request> listen() {
-        return Observable.create(emitter -> {
+    Observable<Request> listen() {
+        Observable<Request> requestObservable = Observable.create(emitter -> {
             try {
                 Request request;
                 while((request = reader.read(Request.class)) != null) {
@@ -64,10 +63,12 @@ public class ClientSocketAdapter {
                         continue;
                     }
                     if(session != null) {
-                        if(sessionRegistry.put(session.getKey(), session) != null) {
+                        session.init();
+                        if (sessionRegistry.put(session.getKey(), session) != null) {
                             Log.warn("session conflict");
                             return;
                         }
+                        Log.debug("session registered {}", session);
                         session.start(reader, writer, Response::buildSessionMessageWriter, () -> unregisterSession(session));
                         // forward request to transfer session object to application
                     }
@@ -78,30 +79,29 @@ public class ClientSocketAdapter {
                 emitter.onError(e);
             }
         });
+        return requestObservable.subscribeOn(Schedulers.io());
     }
 
     private void unregisterSession(BlobSession session ) {
-        if(sessionRegistry.remove(session.getKey()) == null) {
+        if (sessionRegistry.remove(session.getKey()) == null) {
             Log.warn("fail to remove session : session not exists {}", session.getKey());
-        } else {
-            Log.debug("remove session : {}", session.getKey());
+            return;
         }
+        Log.trace("remove session : {}", session.getKey());
     }
 
     private void handleSessionControlMessage(Request request) throws SessionControlException, IllegalStateException, IOException {
         final SessionControlMessage scm = request.getScm();
-        BlobSession session = sessionRegistry.get(scm.getKey());
+        BlobSession session;
+        session = sessionRegistry.get(scm.getKey());
         if(session == null) {
+            Log.warn("no session to handle {}", scm.getKey());
             throw new IllegalStateException("no session to handle");
-        }
-        if(scm.getCommand() == SessionCommand.RESET) {
-            session = sessionRegistry.remove(scm.getKey());
-            Log.debug("session {} teardown", session);
         }
         session.handle(scm);
     }
 
-    public String who() {
+    String who() {
         return client.getRemoteName();
     }
 

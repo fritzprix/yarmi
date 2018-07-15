@@ -11,11 +11,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Data
 public class SessionControlMessage<T> {
+
+
+
     @SerializedName("cmd")
     private SessionCommand command = SessionCommand.RESET;
-    @SerializedName("param")
-    private T param = null;
     @SerializedName("key")
     private String key = null;
+    @SerializedName("param")
+    private T param;
 
 }

@@ -22,7 +22,8 @@ import org.slf4j.LoggerFactory;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -113,36 +114,4 @@ public class Endpoint {
                 || (cls == Delete.class);
     }
 
-    private static List<Param> convertParams(Endpoint endpoint, Object[] objects) {
-        if(objects == null) {
-            return Collections.EMPTY_LIST;
-        }
-
-        return Observable.fromIterable(endpoint.params).zipWith(Observable.fromArray(objects), (param, o) -> {
-            param.apply(o);
-            if(param.isInstanceOf(BlobSession.class)) {
-                Log.debug("Endpoint {} has session param : {}", endpoint, param);
-                if(o != null) {
-                    endpoint.session = (BlobSession) o;
-                }
-            }
-            return param;
-        }).collectInto(new ArrayList<Param>(), List::add).blockingGet();
-    }
-
-    public Request toRequest(Object ...args) {
-        if(args == null) {
-            return Request.builder()
-                    .params(Collections.EMPTY_LIST)
-                    .endpoint(getUnique())
-                    .build();
-        } else {
-            Optional<BlobSession> optionalSession = BlobSession.findOne(args);
-            Request.RequestBuilder builder =  Request.builder()
-                    .params(convertParams(this, args))
-                    .endpoint(getUnique());
-            optionalSession.ifPresent(builder::session);
-            return builder.build();
-        }
-    }
 }

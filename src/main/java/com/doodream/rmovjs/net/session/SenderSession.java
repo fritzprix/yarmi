@@ -9,7 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Random;
 import java.util.function.Consumer;
@@ -20,14 +21,17 @@ public class SenderSession implements Session, SessionHandler {
     private static final Logger Log = LoggerFactory.getLogger(SenderSession.class);
     private static final Random RANDOM = new Random();
     private static int GLOBAL_KEY = 0;
+    private static final int MAX_CNWD_SIZE = 10;
 
     private String key;
     private Consumer<Session> onReady;
     private Runnable onTeardown;
+    private byte[] bufferSource = new byte[BlobSession.CHUNK_MAX_SIZE_IN_BYTE];
     private ByteBuffer writeBuffer;
     private SessionControlMessageWriter scmWriter;
-    private int messageSeqNumber;
     private int chunkSeqNumber;
+    private Map<Integer, SCMChunkParam> chunkLruCache;
+
 
     SenderSession(Consumer<Session> onReady) {
         // create unique key for session
@@ -38,9 +42,18 @@ public class SenderSession implements Session, SessionHandler {
 
         key = Integer.toHexString(String.format("%d%d%d",GLOBAL_KEY++, System.currentTimeMillis(), lo.getAsLong()).hashCode());
         chunkSeqNumber = 0;
-        messageSeqNumber = 0;
-        writeBuffer = ByteBuffer.allocate(BlobSession.CHUNK_MAX_SIZE_IN_BYTE);
+        chunkLruCache = SenderSession.getLruCache(MAX_CNWD_SIZE * 2);
+        writeBuffer = ByteBuffer.wrap(bufferSource);
         this.onReady = onReady;
+    }
+
+    private static <K,V> Map<K, V> getLruCache(int size) {
+        return new LinkedHashMap<K, V> (size * 4/3, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry eldest) {
+                return size() > size;
+            }
+        };
     }
 
     @Override
@@ -49,39 +62,46 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     private void flushOutWriteBuffer(boolean last) throws IOException {
+        final int len = writeBuffer.position();
 
-        CharBuffer charBuffer = writeBuffer.asCharBuffer();
-        int len = writeBuffer.position() << 1;
-        char[] c = new char[len];
-        charBuffer.get(c);
+        final SCMChunkParam chunkParam = SCMChunkParam.builder()
+                .sizeInBytes(len)
+                .sequence(chunkSeqNumber++)
+                .type(last? SCMChunkParam.TYPE_LAST : SCMChunkParam.TYPE_CONTINUE)
+                .data(new byte[len])
+                .build();
+
+        writeBuffer.flip();
+        writeBuffer.get(chunkParam.getData());
+        writeBuffer.clear();
+        chunkLruCache.put(chunkSeqNumber - 1, chunkParam);
 
         SessionControlMessage chunkMessage = SessionControlMessage.builder()
                 .command(SessionCommand.CHUNK)
-                .param(SCMChunkParam.builder().sizeInChar(len).type(last? SCMChunkParam.TYPE_LAST : SCMChunkParam.TYPE_CONTINUE))
                 .key(key)
+                .param(chunkParam)
                 .build();
 
-        scmWriter.writeWithBlob(chunkMessage, writeBuffer);
-        writeBuffer.position(0);
+        scmWriter.write(chunkMessage);
     }
 
     @Override
     public synchronized void write(byte[] b, int len) throws IOException {
-        int available = writeBuffer.remaining();
-        Log.debug("Remaining Buffer Space : {}", available);
-        if(available < len) {
-            // put bytes length of 'available'
-            writeBuffer.put(b, 0, available - 1);
-            // write buffer is full here
-            Log.debug("Full write buffer size : {}", writeBuffer.position());
+        int available;
+        int offset = 0;
+        while((available = writeBuffer.remaining()) < len) {
+            Log.trace("length : {} / offset : {} / available : {}", len, offset, available);
+            writeBuffer.put(b, offset, available);
             flushOutWriteBuffer(false);
-            // put residue to buffer
-            writeBuffer.put(b, available, len - available);
-        } else {
-            writeBuffer.put(b, 0, len);
-            if(available == len) {
-                flushOutWriteBuffer(false);
-            }
+            writeBuffer.clear();
+            offset += available;
+            len -= available;
+        }
+
+        Log.trace("residue length : {} / offset : {} / available : {}", len, offset, available);
+        writeBuffer.put(b, offset, len);
+        if(!writeBuffer.hasRemaining()) {
+            flushOutWriteBuffer(false);
         }
     }
 
@@ -101,7 +121,8 @@ public class SenderSession implements Session, SessionHandler {
                 onReady.accept(this);
                 break;
             case ERR:
-                handleErrorMessage(scm);
+                SCMErrorParam errorParam = (SCMErrorParam) scm.getParam();
+                handleErrorMessage(errorParam);
                 break;
             case RESET:
                 // teardown on receiver side
@@ -122,9 +143,8 @@ public class SenderSession implements Session, SessionHandler {
         this.onTeardown = onTeardown;
     }
 
-    private void handleErrorMessage(SessionControlMessage scm) {
+    private void handleErrorMessage(SCMErrorParam errorParam) {
         // TODO: handle error
-        final SCMErrorParam errorParam = (SCMErrorParam) scm.getParam();
         final SCMErrorParam.ErrorType errorCode = errorParam.getType();
         Log.error(errorParam.getMsg());
         switch (errorCode) {
@@ -136,7 +156,9 @@ public class SenderSession implements Session, SessionHandler {
 
 
     private void sendErrorMessage(SessionCommand from, String key, String msg, SCMErrorParam.ErrorType err) throws IOException {
-        SessionControlMessage scm = SessionControlMessage.builder().param(SCMErrorParam.build(from, msg, err)).key(key).command(from).build();
+        SessionControlMessage scm = SessionControlMessage.builder().key(key)
+                .param(SCMErrorParam.build(from, msg, err))
+                .command(from).build();
         scmWriter.write(scm);
     }
 
@@ -155,10 +177,10 @@ public class SenderSession implements Session, SessionHandler {
         scmWriter.write(SessionControlMessage.builder()
                 .command(SessionCommand.RESET)
                 .key(key)
-                .param(null)
                 .build());
 
         onTeardown.run();
+        Log.debug("closed");
     }
 
     public String getSessionKey() {

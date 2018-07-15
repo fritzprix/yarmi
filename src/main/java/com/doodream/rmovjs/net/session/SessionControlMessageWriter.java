@@ -3,8 +3,6 @@ package com.doodream.rmovjs.net.session;
 import com.doodream.rmovjs.serde.Writer;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
 
 public interface SessionControlMessageWriter {
 
@@ -18,8 +16,4 @@ public interface SessionControlMessageWriter {
      * @throws IOException
      */
     void write(SessionControlMessage controlMessage) throws IOException;
-
-    void writeWithBlob(SessionControlMessage controlMessage, InputStream data) throws IOException;
-
-    void writeWithBlob(SessionControlMessage controlMessage, ByteBuffer buffer) throws IOException;
 }
