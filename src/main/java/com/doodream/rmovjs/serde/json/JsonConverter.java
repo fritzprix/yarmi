@@ -8,8 +8,6 @@ import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.misc.BASE64Decoder;
-import sun.misc.BASE64Encoder;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,11 +23,12 @@ public class JsonConverter implements Converter {
 
     private static class ByteArrayToBase64TypeAdapter implements JsonSerializer<byte[]>, JsonDeserializer<byte[]> {
         public byte[] deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            return Base64.getDecoder().decode(json.getAsString());
+            byte[] data = Base64.getDecoder().decode(json.getAsString());
+            return data;
         }
 
         public JsonElement serialize(byte[] src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(Base64.getEncoder().encodeToString(src));
+            return new JsonPrimitive(Base64.getEncoder().withoutPadding().encodeToString(src));
         }
     }
 
@@ -64,7 +63,8 @@ public class JsonConverter implements Converter {
                                 .name("cmd").value(sessionControlMessage.getCommand().name());
                         if (sessionControlMessage.getParam() != null) {
                             jsonWriter
-                                    .name("param").value(BINARY_CAP_GSON.toJson(sessionControlMessage.getParam()));
+                                    .name("param");
+                            BINARY_CAP_GSON.toJson(sessionControlMessage.getParam(), sessionControlMessage.getCommand().getParamClass(), jsonWriter);
                         }
                         jsonWriter.endObject();
                     } else {
@@ -87,7 +87,7 @@ public class JsonConverter implements Converter {
                                 break;
                             case "param":
                                 Class<?> paramCls = message.getCommand().getParamClass();
-                                message.setParam(BINARY_CAP_GSON.fromJson(jsonReader.nextString(), paramCls));
+                                message.setParam(BINARY_CAP_GSON.fromJson(jsonReader, paramCls));
                                 break;
                         }
                     }

@@ -4,7 +4,6 @@ package com.doodream.rmovjs.net;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.session.BlobSession;
-import com.doodream.rmovjs.net.session.SessionCommand;
 import com.doodream.rmovjs.net.session.SessionControlException;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
@@ -37,9 +36,9 @@ public class ClientSocketAdapter {
 
 
     public void write(Response response) throws IOException {
-        Log.debug("Response => {}", response);
         if(response.isHasSessionSwitch()) {
-            BlobSession session = (BlobSession) response.getBody();
+            BlobSession session = response.getSession();
+            response.setSession(session);
             sessionRegistry.put(session.getKey(), session);
             session.start(reader, writer, Response::buildSessionMessageWriter, () -> unregisterSession(session));
         }
@@ -56,7 +55,6 @@ public class ClientSocketAdapter {
                         // request has session control message, route it to dedicated session
                         try {
                             // chunk scm is followed by binary stream, must be consumed properly within handleSessionControlMessage
-                            Log.debug("SCM : {}", request.getScm());
                             handleSessionControlMessage(request);
                         } catch (IllegalStateException e) {
                             // dest. session doesn't exist
@@ -75,14 +73,13 @@ public class ClientSocketAdapter {
                         // forward request to transfer session object to application
                     }
                     emitter.onNext(request);
-                    Log.debug("after next {}", request);
                 }
                 emitter.onComplete();
             } catch (IOException e) {
                 emitter.onError(e);
             }
         });
-        return requestObservable.subscribeOn(Schedulers.io()).observeOn(Schedulers.io());
+        return requestObservable.subscribeOn(Schedulers.io());
     }
 
     private void unregisterSession(BlobSession session ) {
@@ -99,8 +96,7 @@ public class ClientSocketAdapter {
         session = sessionRegistry.get(scm.getKey());
         if(session == null) {
             Log.warn("no session to handle {}", scm.getKey());
-//            throw new IllegalStateException("no session to handle");
-            return;
+            throw new IllegalStateException("no session to handle");
         }
         session.handle(scm);
     }

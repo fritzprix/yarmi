@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.Random;
 import java.util.function.Consumer;
@@ -19,7 +18,7 @@ public class BlobSession implements SessionHandler {
 
     private static final Logger Log = LoggerFactory.getLogger(BlobSession.class);
 
-    public static final int CHUNK_MAX_SIZE_IN_BYTE = 4 * 1024;
+    public static final int CHUNK_MAX_SIZE_IN_BYTE = 1 << 16;
     public static final int CHUNK_MAX_SIZE_IN_CHAR = CHUNK_MAX_SIZE_IN_BYTE / Character.SIZE * Byte.SIZE;
 
 

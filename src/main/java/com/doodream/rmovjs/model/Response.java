@@ -6,17 +6,12 @@ import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Writer;
-import com.doodream.rmovjs.serde.json.JsonConverter;
 import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -35,6 +30,7 @@ public class Response<T> {
     private ResponseBody errorBody;
     private int code;
     private int nonce;
+    private BlobSession session;
     @SerializedName("scm")
     private SessionControlMessage scm;
 
@@ -50,6 +46,7 @@ public class Response<T> {
         return Response.<BlobSession>builder()
                 .body(session)
                 .code(SUCCESS)
+                .session(session)
                 .isSuccessful(true)
                 .hasSessionSwitch(true)
                 .build();
@@ -99,30 +96,11 @@ public class Response<T> {
     }
 
     public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
-        return new SessionControlMessageWriter() {
+        return (controlMessage) -> {
+            writer.write(Response.builder()
+                    .scm(controlMessage)
+                    .build());
 
-            @Override
-            public void write(SessionControlMessage controlMessage, Object scmParam) throws IOException {
-                controlMessage.setParam(scmParam);
-                writer.write(Response.builder()
-                        .scm(controlMessage)
-                        .build());
-
-            }
-
-            @Override
-            public void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, InputStream data) throws IOException {
-                controlMessage.setParam(scmParam);
-                writer.writeWithBlob(Response.builder().scm(controlMessage)
-                        .build(), data);
-            }
-
-            @Override
-            public void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, ByteBuffer buffer) throws IOException {
-                controlMessage.setParam(scmParam);
-                writer.writeWithBlob(Response.builder().scm(controlMessage)
-                        .build(), buffer);
-            }
         };
     }
 

@@ -4,15 +4,15 @@ import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
-import com.doodream.rmovjs.serde.json.JsonConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.OptionalLong;
+import java.util.Random;
 import java.util.function.Consumer;
 
 
@@ -75,14 +75,14 @@ public class SenderSession implements Session, SessionHandler {
         writeBuffer.get(chunkParam.getData());
         writeBuffer.clear();
         chunkLruCache.put(chunkSeqNumber - 1, chunkParam);
-        Log.debug("size of blob : {} ", chunkParam.getData().length);
 
         SessionControlMessage chunkMessage = SessionControlMessage.builder()
                 .command(SessionCommand.CHUNK)
                 .key(key)
+                .param(chunkParam)
                 .build();
 
-        scmWriter.write(chunkMessage, chunkParam);
+        scmWriter.write(chunkMessage);
     }
 
     @Override
@@ -90,7 +90,7 @@ public class SenderSession implements Session, SessionHandler {
         int available;
         int offset = 0;
         while((available = writeBuffer.remaining()) < len) {
-            Log.debug("offset : {} / available : {}", available);
+            Log.trace("length : {} / offset : {} / available : {}", len, offset, available);
             writeBuffer.put(b, offset, available);
             flushOutWriteBuffer(false);
             writeBuffer.clear();
@@ -98,7 +98,8 @@ public class SenderSession implements Session, SessionHandler {
             len -= available;
         }
 
-        writeBuffer.put(b, 0, len);
+        Log.trace("residue length : {} / offset : {} / available : {}", len, offset, available);
+        writeBuffer.put(b, offset, len);
         if(!writeBuffer.hasRemaining()) {
             flushOutWriteBuffer(false);
         }
@@ -155,8 +156,10 @@ public class SenderSession implements Session, SessionHandler {
 
 
     private void sendErrorMessage(SessionCommand from, String key, String msg, SCMErrorParam.ErrorType err) throws IOException {
-        SessionControlMessage scm = SessionControlMessage.builder().key(key).command(from).build();
-        scmWriter.write(scm, SCMErrorParam.build(from, msg, err));
+        SessionControlMessage scm = SessionControlMessage.builder().key(key)
+                .param(SCMErrorParam.build(from, msg, err))
+                .command(from).build();
+        scmWriter.write(scm);
     }
 
     private void cleanUp() {
@@ -174,7 +177,7 @@ public class SenderSession implements Session, SessionHandler {
         scmWriter.write(SessionControlMessage.builder()
                 .command(SessionCommand.RESET)
                 .key(key)
-                .build(), null);
+                .build());
 
         onTeardown.run();
         Log.debug("closed");

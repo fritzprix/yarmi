@@ -1,7 +1,6 @@
 package com.doodream.rmovjs.serde;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 /**
  * considering concurrent RMI call scenario, reader operation (like read) should be atomic

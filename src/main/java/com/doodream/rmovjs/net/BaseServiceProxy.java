@@ -6,8 +6,8 @@ import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
-import com.doodream.rmovjs.serde.json.JsonConverter;
 import io.reactivex.Observable;
+import io.reactivex.Scheduler;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 
 
 public class BaseServiceProxy implements RMIServiceProxy {
@@ -31,6 +32,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
     private RMISocket socket;
     private Reader reader;
     private Writer writer;
+    private Scheduler mListener = Schedulers.from(Executors.newWorkStealingPool(10));
 
 
     public static BaseServiceProxy create(RMIServiceInfo info, RMISocket socket)  {
@@ -74,7 +76,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 emitter.onNext(response);
             }
             emitter.onComplete();
-        }).subscribeOn(Schedulers.io()).observeOn(Schedulers.io()).subscribe(response -> {
+        }).subscribeOn(mListener).subscribe(response -> {
             Request request = requestWaitQueue.remove(response.getNonce());
             if(request == null) {
                 Log.warn("no mapped request exists : {}", response);
@@ -84,43 +86,25 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 request.setResponse(response);
                 request.notifyAll(); // wakeup waiting thread
             }
-        }));
+        }, this::onError));
     }
 
     @Override
     public boolean isOpen() {
         return isOpened;
     }
-    private Boolean sessionLock = false;
 
     @Override
     public Response request(Endpoint endpoint, Object ...args) {
 
         return Observable.just(Request.fromEndpoint(endpoint, args))
                 .doOnNext(request -> request.setNonce(++requestNonce))
-                .doOnNext(this::registerSession)
-//                .groupBy(Request::isSessionRegistered)
-//                .flatMap(booleanRequestGroupedObservable -> {
-//                    if(booleanRequestGroupedObservable.getKey()) {
-//                        // if the request has registered session
-//                        synchronized (this) {
-//                            // try to lock session lock
-//                            while(sessionLock) {
-//                                this.wait();
-//                            }
-//                            sessionLock = true;
-//                        }
-//                    } else {
-//                        // if the request has no session
-//                        synchronized (this) {
-//                            // just wait until session finish
-//                            while(sessionLock) {
-//                                this.wait();
-//                            }
-//                        }
-//                    }
-//                    return booleanRequestGroupedObservable;
-//                })
+                .doOnNext(request -> {
+                    final BlobSession session = request.getSession();
+                    if(session != null) {
+                        registerSession(session);
+                    }
+                })
                 .doOnNext(request -> Log.debug("Request => {}", request))
                 .map(request -> {
                     requestWaitQueue.put(request.getNonce(), request);
@@ -129,38 +113,45 @@ public class BaseServiceProxy implements RMIServiceProxy {
                         // caller block here, until the response is ready
                         request.wait();
                     }
-                    Log.debug("Get Response for {}", request);
                     return Optional.ofNullable(request.getResponse());
                 })
                 .filter(Optional::isPresent)
                 .map(Optional::get)
+                .doOnNext(response -> {
+                    if(response.isHasSessionSwitch()) {
+                        final BlobSession session = response.getSession();
+                        if(session != null) {
+                            response.setBody(session);
+                            session.init();
+                            if (sessionRegistry.put(session.getKey(), session) != null) {
+                                Log.warn("session conflict for {}", session.getKey());
+                                return;
+                            }
+                            session.start(reader, writer, Request::buildSessionMessageWriter, () -> unregisterSession(session));
+                        }
+                    }
+                })
                 .defaultIfEmpty(RMIError.UNHANDLED.getResponse())
                 .doOnError(this::onError)
-                .subscribeOn(Schedulers.io())
                 .blockingSingle();
     }
 
     private void handleSessionControlMessage(Response response) throws IOException {
-        Log.debug("SCM Response => {}", response);
         SessionControlMessage scm = response.getScm();
         BlobSession session;
         session = sessionRegistry.get(scm.getKey());
         if (session == null) {
+            Log.debug("Session not available for {}", scm);
             return;
         }
         session.handle(scm);
     }
 
-    private void registerSession(Request request) {
-        BlobSession session = request.getSession();
-        if(session == null) {
-            return;
-        }
+    private void registerSession(BlobSession session) {
         if (sessionRegistry.put(session.getKey(), session) != null) {
             Log.warn("session : {} collision in registry", session.getKey());
         }
         Log.debug("session registered {}", session);
-        request.setSessionRegistered(true);
         session.start(reader, writer, Request::buildSessionMessageWriter, () -> unregisterSession(session));
     }
 
@@ -171,10 +162,6 @@ public class BaseServiceProxy implements RMIServiceProxy {
         }
         // TODO : allow other request
         Log.debug("remove session : {}", session.getKey());
-//        synchronized (this) {
-//            sessionLock = false;
-//            this.notifyAll();
-//        }
     }
 
     private void onError(Throwable throwable) {

@@ -4,12 +4,6 @@ import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
-import com.doodream.rmovjs.serde.json.JsonConverter;
-import com.google.common.base.Preconditions;
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.internal.LinkedTreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,9 +11,6 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Optional;
 
 public class ReceiverSession implements Session, SessionHandler {
 
@@ -29,7 +20,6 @@ public class ReceiverSession implements Session, SessionHandler {
     private WritableByteChannel chunkOutChannel;
 
     private Runnable onTeardown;
-    private Reader reader;
     private SessionControlMessageWriter scmWriter;
 
     ReceiverSession() {
@@ -54,7 +44,7 @@ public class ReceiverSession implements Session, SessionHandler {
         scmWriter.write(SessionControlMessage.builder()
                 .command(SessionCommand.ACK)
                 .key(key)
-                .build(), null);
+                .build());
     }
 
     @Override
@@ -62,7 +52,7 @@ public class ReceiverSession implements Session, SessionHandler {
         scmWriter.write(SessionControlMessage.builder()
                 .command(SessionCommand.RESET)
                 .key(key)
-                .build(), null);
+                .build());
 
         onClose();
     }
@@ -97,7 +87,6 @@ public class ReceiverSession implements Session, SessionHandler {
 
     @Override
     public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
-        this.reader = reader;
         this.onTeardown = onTeardown;
         scmWriter = builder.build(writer);
     }
@@ -112,8 +101,9 @@ public class ReceiverSession implements Session, SessionHandler {
     private void sendErrorMessage(String key, SCMErrorParam errorParam) throws IOException {
         scmWriter.write(SessionControlMessage.builder()
                 .key(key)
+                .param(errorParam)
                 .command(SessionCommand.ERR)
-                .build(), errorParam);
+                .build());
     }
 
 }

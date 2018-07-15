@@ -4,7 +4,6 @@ import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.net.session.Session;
 import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
@@ -41,7 +40,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                 .repeatUntil(() -> !listen)
                 .map(client -> negotiator.handshake(client, serviceInfo, converter, false))
                 .map(socket -> new ClientSocketAdapter(socket, converter))
-                .subscribeOn(Schedulers.io())
+                .subscribeOn(Schedulers.newThread())
                 .subscribe(adapter-> onHandshakeSuccess(adapter, handleRequest),this::onError));
 
         return getProxyConnectionHint(serviceInfo);
@@ -63,19 +62,17 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                         }));
                     }
                 }))
-                .subscribeOn(Schedulers.io())
-                .observeOn(Schedulers.io())
                 .doOnNext(req -> Log.debug("{}", req))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .doOnNext(request -> request.setClient(adapter))
                 .doOnNext(request -> Log.info("Server <= {}", request))
-                .doOnError(this::onError)
+                .observeOn(Schedulers.io())
                 .subscribe(request -> {
                     final Response response = handleRequest.apply(request);
                     Log.debug("Server => {}", response);
                     adapter.write(response);
-                }));
+                },this::onError));
     }
 
     private void onError(Throwable throwable) {

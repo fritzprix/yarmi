@@ -7,7 +7,6 @@ import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.parameter.Param;
 import com.doodream.rmovjs.serde.Writer;
-import com.doodream.rmovjs.serde.json.JsonConverter;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
 import lombok.AllArgsConstructor;
@@ -17,9 +16,6 @@ import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,7 +37,6 @@ public class Request {
 
     private transient ClientSocketAdapter client;
     private transient Response response;
-    private transient boolean sessionRegistered;
 
     @SerializedName("session")
     private BlobSession session;
@@ -66,31 +61,10 @@ public class Request {
     }
 
     public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
-        return new SessionControlMessageWriter() {
-
-            @Override
-            public void write(SessionControlMessage controlMessage, Object param) throws IOException {
-                controlMessage.setParam(param);
-                writer.write(Request.builder()
-                        .scm(controlMessage)
-                        .build());
-            }
-
-            @Override
-            public void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, InputStream data) throws IOException {
-                controlMessage.setParam(scmParam);
-                writer.writeWithBlob(Request.builder()
-                        .scm(controlMessage)
-                        .build(), data);
-            }
-
-            @Override
-            public void writeWithBlob(SessionControlMessage controlMessage, Object scmParam, ByteBuffer buffer) throws IOException {
-                controlMessage.setParam(scmParam);
-                writer.writeWithBlob(Request.builder()
-                        .scm(controlMessage)
-                        .build(), buffer);
-            }
+        return (controlMessage) -> {
+            writer.write(Request.builder()
+                    .scm(controlMessage)
+                    .build());
         };
     }
 

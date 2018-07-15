@@ -4,7 +4,6 @@ import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 
 import java.io.IOException;
-import java.util.Optional;
 
 public interface SessionHandler {
     void handle(SessionControlMessage scm) throws SessionControlException, IOException;
