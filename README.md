@@ -5,15 +5,17 @@ yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/5c9f40d574c64e629af11f284c447bea)](https://www.codacy.com/app/innocentevil0914/yarmi?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fritzprix/yarmi&amp;utm_campaign=Badge_Grade)
 
 ### Features
-1. Zero-cost migration to (from) RESTful application 
-> Provides conceptual similarity to popular RESTful application framework (like service / controller mapping). 
-> and that means not only the migration from / to RESTful implementation is easy
-> but also implementing proxy for any RESTful service in heterogeneous network scenario (like typical IoT application) is also well supported  
-2. No Java RMI package dependency
-> yarmi uses JSON as its ser-deserializer, so any language specific dependency is not required.
-> and also intended to be cross-platform to support constrained system (such as Raspberrypi) in which the Java runtime is not available or restricted (NOT SUPPORTED YET)
+1. Support large blob as method parameter or response     
+> yarmi supports blob exchange between client and server by default with BlobSession which exposes familiar read / write APIs    
+2. Provide service discovery out-of-the-box
+>  yarmi contains simple service discovery feature and also support another type of service discovery (e.g. DNS-SD) as module   
 3. Support various transport  
 > yarmi also provides abstraction over transport layer so it can over any kinds of transport like tcp / ip or bluetooth rfcomm.
+4. Zero-cost migration to (from) RESTful application  
+> Provides conceptual similarity to popular RESTful application framework (like service / controller mapping). 
+> and that means not only the migration from / to RESTful implementation is easy
+> but also implementing proxy for any RESTful service in heterogeneous network scenario (like typical IoT application) is also well supported    
+
 
 ### How-To
 
@@ -58,6 +60,9 @@ public interface UserIDPController {
 
     @Post("/new")
     Response<User> createUser(@Body(name = "user") User user);
+    
+    @Post("/new/thumbnail")
+    Response<Long> postThumbnail(@Body(name = "th_nail") BlobSession blob, Long userId);
 
 } 
 ```     
@@ -87,6 +92,25 @@ public class UserIDControllerImpl implements UserIDPController {
         userTable.put((long) id, user);
         user.id = (long) id;
         return Response.success(user, User.class);
+    }
+    
+    @Override
+    public Response<Long> postThumbnail(BlobSession blob, Long userId) {
+        // example save blob as file
+        byte[] rb = new byte[1024];
+        int rsz;
+        try {
+            Session session = blob.open();
+            FileOutputStream fos = new FileOutputStream("thumbnail_" + userId);
+            while((rsz = session.read(rb,0, rb.length)) > 0) {
+                fos.write(rb, 0, rsz);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            fos.close();
+        }
+        return Response.success(userId);    
     }
 }  
 ``` 
@@ -160,6 +184,24 @@ public static class SimpleClient {
                                 response = userCtr.getUser(user.getId());
                                 assert response.isSuccessful();
                                 response.getBody();
+                                
+                                // example : upload file as thumbnail images
+                                FileInputStream fis = new FileInputStream("./thumbnail.jpg");
+                                byte[] buffer = new byte[2048];
+                                BlobSession session = new BlobSession(ses -> {
+                                    int rsz;
+                                    try {
+                                        while((rsz = fis.read(buffer)) > 0) {
+                                            ses.write(buffer, rsz);
+                                        }
+                                        ses.close();
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                });
+                                Response<Long> thumbResponse = controller.postThumbnail(session, 1L);
+                                assert thumbResponse.isSuccessful();
+                                
                             } catch (IllegalAccessException | InstantiationException | IOException e) {
                                 e.printStackTrace();
                             }    
