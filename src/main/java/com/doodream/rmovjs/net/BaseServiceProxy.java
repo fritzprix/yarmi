@@ -203,6 +203,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
         return Observable.fromIterable(serviceInfo.getControllerInfos())
                 .map(ControllerInfo::getStubCls)
                 .map(controller::equals)
-                .blockingFirst(false);
+                .reduce((isThere1, isThere2) -> isThere1 || isThere2)
+                .blockingGet(false);
     }
 }

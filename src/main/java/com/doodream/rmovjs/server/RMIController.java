@@ -38,6 +38,13 @@ public class RMIController {
     private Object impl;
     private Class itfcCls;
 
+    /**
+     * create {@link RMIController} by analyzing fields of {@link RMIService}
+     * @param field field of {@link RMIController}
+     * @return created {@link RMIController}
+     * @throws IllegalAccessException if no arg constructor is not aacessible
+     * @throws InstantiationException fail to instantiate implementation class of controller
+     */
     static public RMIController create(Field field) throws IllegalAccessException, InstantiationException {
         Controller controller = field.getAnnotation(Controller.class);
         Class cls = field.getType();
@@ -61,18 +68,39 @@ public class RMIController {
                 .blockingFirst();
     }
 
+    /**
+     * collect methods({@link Endpoint}) into map for lookup
+     * @param map map to collect endpoint into
+     * @param endpoint endpoint to be collected into the map
+     */
     private static void collectMethod(HashMap<String, Endpoint> map, Endpoint endpoint) {
         map.put(endpoint.getUnique(), endpoint);
     }
 
+    /**
+     * check the controller is valid or not
+     * @param field field
+     * @return return true if the controller valid, otherwise return false
+     */
     public static boolean isValidController(Field field) {
         return field.getAnnotation(Controller.class) != null;
     }
 
-    public List<String> getEndpoints() {
+    /**
+     * return list of hash which uniquely mapped to any endpoints within controller
+     * @return {@link List} of endpoints
+     */
+    List<String> getEndpoints() {
         return new ArrayList<>(endpointMap.keySet());
     }
 
+    /**
+     * handle client request and return response
+     * @param request valid {@link Request} from client
+     * @return {@link Response} for the request
+     * @throws InvocationTargetException exception occurred within the method call
+     * @throws IllegalAccessException 
+     */
     Response handleRequest(Request request) throws InvocationTargetException, IllegalAccessException {
 
         Endpoint endpoint = endpointMap.get(request.getEndpoint());

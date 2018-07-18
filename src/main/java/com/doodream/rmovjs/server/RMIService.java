@@ -25,8 +25,11 @@ import java.util.HashMap;
 
 /**
  * Created by innocentevil on 18. 5. 4.
+ * generic request router for containing controller which handles request and returns response
+ * , providing validity check for both request / response. it routes request message from client to the
+ * targeting controller only for valid request and vice versa.
+ *
  */
-
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -45,6 +48,15 @@ public class RMIService {
 
     protected static final String TAG = RMIService.class.getCanonicalName();
 
+    /**
+     *
+     * @param cls service definition class
+     * @param advertiser advertiser to be used service discovery
+     * @return {@link RMIService} created from the service definition class
+     * @throws IllegalAccessException constructor for components class is not accessible (e.g. no default constructor)
+     * @throws InstantiationException fail to instantiate components object (e.g. component is abstract class)
+     * @throws InvocationTargetException exception caused at constructor of components
+     */
     public static <T> RMIService create(Class<T> cls, ServiceAdvertiser advertiser) throws IllegalAccessException, InstantiationException, InvocationTargetException {
         Service service = cls.getAnnotation(Service.class);
         String[] params = service.params();
@@ -54,7 +66,7 @@ public class RMIService {
                 .filter(ctor -> ctor.getParameterCount() == params.length)
                 .blockingFirst();
 
-        ServiceAdapter adapter = (ServiceAdapter) constructor.newInstance(params);
+        ServiceAdapter adapter = (ServiceAdapter) constructor.newInstance(((Object[]) params));
         RMIServiceInfo serviceInfo = RMIServiceInfo.builder()
                 .name(service.name())
                 .adapter(service.adapter())
@@ -92,19 +104,38 @@ public class RMIService {
                 .build();
     }
 
+    /**
+     * add controller into map which provides lookup for controller from endpoint hash
+     * @param map map used to collect controller
+     * @param controller controller to be collected
+     */
     private static void buildControllerMap(HashMap<String, RMIController> map, RMIController controller) {
         Observable.fromIterable(controller.getEndpoints())
                 .doOnNext(s -> map.put(s, controller))
                 .subscribe();
     }
 
-
-    public void listen(boolean block) throws Exception {
+    /**
+     * start to listen for client connection while advertising its service
+     * @param block if true, this call will block indefinite time, otherwise return immediately
+     * @throws IOException server 측 네트워크 endpoint 생성의 실패 혹은 I/O 오류
+     * @throws IllegalAccessError the error thrown when {@link ServiceAdapter} fails to instantiate dependency object (e.g. negotiator,
+     * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
+     */
+    public void listen(boolean block) throws IOException, IllegalAccessException, InstantiationException {
         serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, converter, this::routeRequest));
         advertiser.startAdvertiser(serviceInfo, converter, block);
     }
 
-    private Response routeRequest(Request request) throws InvocationTargetException, IllegalAccessException, InvalidResponseException, IOException {
+    /**
+     * route {@link Request} to target controller
+     * @param request @{@link Request} from the client
+     * @return {@link Response} for the given {@link Request}
+     * @throws IllegalAccessException if this {@code Method} object is enforcing Java language access control and the underlying method is inaccessible.
+     * @throws InvalidResponseException {@link Response} from controller is not valid, refer {@link Response::validate}
+     * @throws IOException I/O error in sending response to client
+     */
+    private Response routeRequest(Request request) throws IllegalAccessException, InvalidResponseException, IOException {
         if(!Request.isValid(request)) {
             return end(Response.from(RMIError.BAD_REQUEST), request);
         }
@@ -114,17 +145,28 @@ public class RMIService {
         RMIController controller = controllerMap.get(request.getEndpoint());
 
         if(controller != null) {
-            response = controller.handleRequest(request);
-        } else {
-            response = Response.from(RMIError.NOT_FOUND);
+            try {
+                response = controller.handleRequest(request);
+                if (response == null) {
+                    response = Response.from(RMIError.NOT_IMPLEMENTED);
+                }
+                return end(response, request);
+            } catch (InvocationTargetException e) {
+                return end(Response.from(RMIError.INTERNAL_SERVER_ERROR), request);
+            }
         }
 
-        if(response == null) {
-            response = Response.from(RMIError.NOT_IMPLEMENTED);
-        }
-        return end(response, request);
+        return end(Response.from(RMIError.NOT_FOUND), request);
     }
 
+    /**
+     *
+     * @param res {@link Response} from controller
+     * @param req {@link Request} from client
+     * @return validated response which contains request information
+     * @throws InvalidResponseException the {@link Response} is not valid type, meaning controller logic has some problem
+     * @throws IOException problem in closing session for the {@link Request}
+     */
     private Response end(Response res, Request req) throws InvalidResponseException, IOException {
         res.setNonce(req.getNonce());
         final BlobSession session = req.getSession();
@@ -143,7 +185,11 @@ public class RMIService {
         return res;
     }
 
-    public void stop() throws Exception {
+    /**
+     * stop service and release system resources
+     * @throws IOException problem occurred in closing advertising channel
+     */
+    public void stop() throws IOException {
         advertiser.stopAdvertiser();
         adapter.close();
     }

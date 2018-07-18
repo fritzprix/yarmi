@@ -19,12 +19,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.annotation.Inherited;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
+/**
+ *  {@link RMIClient} build method invocation proxy from {@link RMIServiceProxy} which is discovered from SDP
+ *
+ */
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -40,9 +46,19 @@ public class RMIClient implements InvocationHandler  {
     private Converter converter;
 
 
-
-    public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) {
+    /**
+     *
+     * @param serviceProxy
+     * @param svc
+     * @param ctrl
+     * @param <T>
+     * @return
+     */
+    public static <T> Optional<T> create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) {
         Service service = (Service) svc.getAnnotation(Service.class);
+        if(!serviceProxy.provide(ctrl)) {
+            return Optional.empty();
+        }
 
         try {
             Preconditions.checkNotNull(service);
@@ -51,10 +67,11 @@ public class RMIClient implements InvocationHandler  {
                     .map(field -> field.getAnnotation(Controller.class))
                     .blockingFirst(null);
 
-            final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
-
             Preconditions.checkNotNull(controller, "no matched controller");
             Preconditions.checkArgument(ctrl.isInterface());
+
+
+            final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
             Preconditions.checkNotNull(serviceInfo, "Invalid Service Class %s", svc);
 
             final Converter converter = (Converter) serviceInfo.getConverter().newInstance();
@@ -84,23 +101,39 @@ public class RMIClient implements InvocationHandler  {
                     .converter(converter)
                     .build();
 
-            Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ctrl}, rmiClient);
+            Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ctrl }, rmiClient);
 
-            // rmiClient has weakreference to proxy, and proxy has reference to rmiClient
+            // rmiClient has weakReference to proxy, and proxy has reference to rmiClient
             // so the proxy is no longer used (or referenced), it can be freed by garbage collector
             // and then, the rmiClient can be freed because only referencer which was proxy has been already freed
             Log.debug("service proxy is created");
-            return (T) proxy;
+            return Optional.of((T) proxy);
         } catch (Exception e) {
             Log.error("{}", e);
-            return null;
+            return Optional.empty();
         }
     }
 
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+    }
+
+    /**
+     *
+     * @param into
+     * @param methodEndpointMap
+     */
     private static void collectMethodMap(Map<Method, Endpoint> into, Map<Method, Endpoint> methodEndpointMap) {
         into.putAll(methodEndpointMap);
     }
 
+    /**
+     *
+     * @param method
+     * @param endpoint
+     * @return
+     */
     private static Map<Method, Endpoint> zipIntoMethodMap(Method method, Endpoint endpoint) {
         Map<Method, Endpoint> methodEndpointMap = new HashMap<>();
         methodEndpointMap.put(method, endpoint);
