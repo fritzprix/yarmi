@@ -1,5 +1,7 @@
 package com.doodream.rmovjs.parameter;
 
+import com.doodream.rmovjs.serde.Converter;
+import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.reactivex.Observable;
@@ -10,6 +12,7 @@ import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.lang.model.element.TypeElement;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -23,7 +26,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-public class Param {
+public class Param<T> {
 
     private static final Gson GSON = new GsonBuilder().create();
     private static final Logger Log = LoggerFactory.getLogger(Param.class);
@@ -32,10 +35,10 @@ public class Param {
     private ParamType type;
     private boolean required;
     private String name;
-    private String value;
+    private T value;
     private Class cls;
 
-    public static Param create(Class paramCls, Annotation[] annotations) {
+    public static Param create(Class cls, Annotation[] annotations) {
         List<Annotation> filteredAnnotations = Observable.fromArray(annotations)
                 .filter(ParamType::isSupportedAnnotation)
                 .toList()
@@ -46,7 +49,7 @@ public class Param {
 
         return Param.builder()
                 .type(type)
-                .cls(paramCls)
+                .cls(cls)
                 .name(type.getName(annotation))
                 .required(type.isRequired(annotation))
                 .build();
@@ -56,12 +59,12 @@ public class Param {
         return p1.order - p2.order;
     }
 
-    public void apply(Object value) {
-        this.value = GSON.toJson(value);
+    public void apply(T value) {
+        this.value = value;
     }
 
-    public static Object instantiate(Param param, Type type) {
-        return GSON.fromJson(param.value, type);
+    public T resolve(Converter converter, Type type) {
+        return converter.resolve(value, type);
     }
 
     public boolean isInstanceOf(Class<?> itfc) {

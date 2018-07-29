@@ -46,11 +46,11 @@ public class RMIServiceInfo {
     private String proxyFactoryHint;
 
 
-    public static <T> RMIServiceInfo from(Class<T> svc) {
+    public static RMIServiceInfo from(Class<?> svc) {
         Service service = svc.getAnnotation(Service.class);
         RMIServiceInfoBuilder builder = RMIServiceInfo.builder();
 
-        builder.version(Properties.VERSION)
+        builder.version(Properties.getVersionString())
                 .adapter(service.adapter())
                 .negotiator(service.negotiator())
                 .converter(service.converter())

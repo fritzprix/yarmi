@@ -3,8 +3,12 @@ package com.doodream.rmovjs.net;
 import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.Response;
+import jdk.nashorn.internal.runtime.options.Option;
 
 import java.io.IOException;
+import java.util.Optional;
+
+import static java.util.Optional.empty;
 
 public interface RMIServiceProxy {
         RMIServiceProxy NULL_PROXY = new RMIServiceProxy() {
@@ -27,8 +31,8 @@ public interface RMIServiceProxy {
             }
 
             @Override
-            public long ping() {
-                return -1L;
+            public Optional<Long> ping() {
+                return Optional.empty();
             }
 
             @Override
@@ -48,6 +52,6 @@ public interface RMIServiceProxy {
         boolean isOpen();
         Response request(Endpoint endpoint, Object ...args) throws IOException;
         void close() throws IOException;
-        long ping();
+        Optional<Long> ping();
         boolean provide(Class controller);
 }

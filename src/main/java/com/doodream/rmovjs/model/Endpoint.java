@@ -9,7 +9,9 @@ import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.parameter.Param;
+import com.doodream.rmovjs.util.Types;
 import com.google.common.base.Preconditions;
+import com.google.gson.reflect.TypeToken;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import lombok.AllArgsConstructor;
@@ -21,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +48,7 @@ public class Endpoint {
     private List<Param> params;
     private String unique;
     transient Method jMethod;
+    transient Type unwrappedRetType;
     transient BlobSession session;
 
     public static Endpoint create(Controller controller, Method method) {
@@ -96,11 +100,18 @@ public class Endpoint {
                 .toList().blockingGet();
 
         final String methodLookupKey = String.format("%x%x%x", rmiMethod.name().hashCode(), controller.path().hashCode(), paramUnique.hashCode()).toUpperCase();
+        Type retType;
+        try {
+            retType = Types.unwrapType(method.getGenericReturnType().getTypeName())[0];
+        } catch (ClassNotFoundException | IllegalArgumentException e) {
+            retType = method.getGenericReturnType();
+        }
 
         return Endpoint.builder()
                 .method(rmiMethod)
                 .params(params)
                 .jMethod(method)
+                .unwrappedRetType(retType)
                 .unique(methodLookupKey)
                 .path(path)
                 .build();
@@ -113,5 +124,4 @@ public class Endpoint {
                 || (cls == Put.class)
                 || (cls == Delete.class);
     }
-
 }

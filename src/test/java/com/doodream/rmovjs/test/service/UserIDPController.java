@@ -6,7 +6,6 @@ import com.doodream.rmovjs.annotation.parameter.Body;
 import com.doodream.rmovjs.annotation.parameter.Path;
 import com.doodream.rmovjs.annotation.parameter.Query;
 import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.net.session.BlobSession;
 
 import java.util.List;
 

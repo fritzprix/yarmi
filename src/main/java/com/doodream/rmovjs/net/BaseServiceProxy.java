@@ -1,11 +1,16 @@
 package com.doodream.rmovjs.net;
 
+import com.doodream.rmovjs.Properties;
+import com.doodream.rmovjs.annotation.server.Controller;
+import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
+import com.doodream.rmovjs.server.BasicService;
+import com.doodream.rmovjs.server.svc.HealthCheckController;
 import io.reactivex.Observable;
 import io.reactivex.Scheduler;
 import io.reactivex.disposables.CompositeDisposable;
@@ -14,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -23,12 +29,33 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
     private static final Logger Log = LoggerFactory.getLogger(BaseServiceProxy.class);
 
+    // endpoint for health check
+    private static final Endpoint HEALTH_CHECK_ENDPOINT;
+    static {
+        Controller controller = BasicService.getHealthCheckController();
+        if(controller == null) {
+            HEALTH_CHECK_ENDPOINT = Endpoint.builder().build();
+        } else {
+            Method healthCheck = Observable.fromArray(HealthCheckController.class.getDeclaredMethods())
+                    .filter(RMIMethod::isValidMethod)
+                    .blockingFirst();
+
+            HEALTH_CHECK_ENDPOINT = Endpoint.create(controller, healthCheck);
+            final String healthCheckPath = Properties.getHealthCheckPath();
+            if(!healthCheckPath.isEmpty()) {
+                HEALTH_CHECK_ENDPOINT.setPath(Properties.getHealthCheckPath());
+            }
+            Log.debug("healthCheck {}", HEALTH_CHECK_ENDPOINT);
+        }
+    }
+
     private volatile boolean isOpened;
     private final ConcurrentHashMap<String, BlobSession> sessionRegistry;
     private ConcurrentHashMap<Integer, Request> requestWaitQueue;
     private CompositeDisposable compositeDisposable;
     private int requestNonce;
     private RMIServiceInfo serviceInfo;
+    private Converter converter;
     private RMISocket socket;
     private Reader reader;
     private Writer writer;
@@ -43,6 +70,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
         sessionRegistry = new ConcurrentHashMap<>();
         requestWaitQueue = new ConcurrentHashMap<>();
         compositeDisposable = new CompositeDisposable();
+
         requestNonce = 0;
         serviceInfo = info;
         isOpened = false;
@@ -55,7 +83,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
             return;
         }
         RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
-        Converter converter = (Converter) serviceInfo.getConverter().newInstance();
+        converter = (Converter) serviceInfo.getConverter().newInstance();
         socket.open();
         reader = converter.reader(socket.getInputStream());
         writer = converter.writer(socket.getOutputStream());
@@ -113,11 +141,12 @@ public class BaseServiceProxy implements RMIServiceProxy {
                         // caller block here, until the response is ready
                         request.wait();
                     }
-                    return Optional.ofNullable(request.getResponse());
+                    return Optional.of(request.getResponse());
                 })
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .doOnNext(response -> {
+                    Log.debug("Response {}", response);
                     if(response.isHasSessionSwitch()) {
                         final BlobSession session = response.getSession();
                         if(session != null) {
@@ -133,6 +162,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 })
                 .defaultIfEmpty(RMIError.UNHANDLED.getResponse())
                 .doOnError(this::onError)
+                .doOnNext(response -> response.resolve(converter, endpoint.getUnwrappedRetType()))
                 .blockingSingle();
     }
 
@@ -160,7 +190,6 @@ public class BaseServiceProxy implements RMIServiceProxy {
             Log.warn("fail to remove session : session not exists {}", session.getKey());
             return;
         }
-        // TODO : allow other request
         Log.debug("remove session : {}", session.getKey());
     }
 
@@ -194,8 +223,13 @@ public class BaseServiceProxy implements RMIServiceProxy {
     }
 
     @Override
-    public long ping() {
-        return 0;
+    public Optional<Long> ping() {
+        final Response<Long> response = request(HEALTH_CHECK_ENDPOINT);
+        if(response.isSuccessful() && (response.getCode() == Response.SUCCESS)) {
+            Log.debug("body {} /w cls {}", response.getBody(), response.getBody().getClass());
+            return Optional.of(response.getBody());
+        }
+        return Optional.empty();
     }
 
     @Override
@@ -203,6 +237,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
         return Observable.fromIterable(serviceInfo.getControllerInfos())
                 .map(ControllerInfo::getStubCls)
                 .map(controller::equals)
-                .blockingFirst(false);
+                .reduce((isThere1, isThere2) -> isThere1 || isThere2)
+                .blockingGet(false);
     }
 }
