@@ -54,7 +54,7 @@ public class RMIService {
      * @param advertiser advertiser to be used service discovery
      * @return {@link RMIService} created from the service definition class
      * @throws IllegalAccessException constructor for components class is not accessible (e.g. no default constructor)
-     * @throws InstantiationException fail to instantiate components object (e.g. component is abstract class)
+     * @throws InstantiationException fail to resolve components object (e.g. component is abstract class)
      * @throws InvocationTargetException exception caused at constructor of components
      */
     public static <T> RMIService create(Class<T> cls, ServiceAdvertiser advertiser) throws IllegalAccessException, InstantiationException, InvocationTargetException {
@@ -73,27 +73,37 @@ public class RMIService {
                 .negotiator(service.negotiator())
                 .converter(service.converter())
                 .params(Arrays.asList(service.params()))
-                .version(Properties.VERSION)
+                .version(Properties.getVersionString())
                 .build();
 
         final Converter converter = (Converter) serviceInfo.getConverter().newInstance();
         Preconditions.checkNotNull(converter, "converter is not declared");
         RMIServiceBuilder builder = RMIService.builder();
 
-        Observable<RMIController> controllerObservable = Observable.fromArray(cls.getDeclaredFields())
+
+        // register controller for BasicService
+        Observable<RMIController> basicControllerObservable = Observable.fromArray(BasicService.class.getDeclaredFields())
                 .filter(RMIController::isValidController)
                 .map(RMIController::create)
                 .cache();
 
-        controllerObservable.collectInto(new HashMap<>(), RMIService::buildControllerMap)
-                .doOnSuccess(builder::controllerMap)
-                .subscribe();
+        Observable<RMIController> controllerObservable = Observable.fromArray(cls.getDeclaredFields())
+                .filter(RMIController::isValidController)
+                .map(RMIController::create)
+                .cache();
 
         controllerObservable
                 .map(ControllerInfo::build)
                 .toList()
                 .doOnSuccess(serviceInfo::setControllerInfos)
                 .subscribe();
+
+        controllerObservable = controllerObservable.mergeWith(basicControllerObservable);
+
+        controllerObservable.collectInto(new HashMap<>(), RMIService::buildControllerMap)
+                .doOnSuccess(builder::controllerMap)
+                .subscribe();
+
 
         return builder
                 .adapter(adapter)
@@ -119,7 +129,7 @@ public class RMIService {
      * start to listen for client connection while advertising its service
      * @param block if true, this call will block indefinite time, otherwise return immediately
      * @throws IOException server 측 네트워크 endpoint 생성의 실패 혹은 I/O 오류
-     * @throws IllegalAccessError the error thrown when {@link ServiceAdapter} fails to instantiate dependency object (e.g. negotiator,
+     * @throws IllegalAccessError the error thrown when {@link ServiceAdapter} fails to resolve dependency object (e.g. negotiator,
      * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
      */
     public void listen(boolean block) throws IOException, IllegalAccessException, InstantiationException {
@@ -146,7 +156,7 @@ public class RMIService {
 
         if(controller != null) {
             try {
-                response = controller.handleRequest(request);
+                response = controller.handleRequest(request, converter);
                 if (response == null) {
                     response = Response.from(RMIError.NOT_IMPLEMENTED);
                 }

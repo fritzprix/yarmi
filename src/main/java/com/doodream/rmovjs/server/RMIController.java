@@ -9,6 +9,7 @@ import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.parameter.Param;
+import com.doodream.rmovjs.serde.Converter;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import lombok.AllArgsConstructor;
@@ -43,7 +44,7 @@ public class RMIController {
      * @param field field of {@link RMIController}
      * @return created {@link RMIController}
      * @throws IllegalAccessException if no arg constructor is not aacessible
-     * @throws InstantiationException fail to instantiate implementation class of controller
+     * @throws InstantiationException fail to resolve implementation class of controller
      */
     static public RMIController create(Field field) throws IllegalAccessException, InstantiationException {
         Controller controller = field.getAnnotation(Controller.class);
@@ -101,7 +102,7 @@ public class RMIController {
      * @throws InvocationTargetException exception occurred within the method call
      * @throws IllegalAccessException 
      */
-    Response handleRequest(Request request) throws InvocationTargetException, IllegalAccessException {
+    Response handleRequest(Request request, Converter converter) throws InvocationTargetException, IllegalAccessException {
 
         Endpoint endpoint = endpointMap.get(request.getEndpoint());
 
@@ -113,7 +114,7 @@ public class RMIController {
 
         List<Object> params = Observable.fromIterable(request.getParams())
                 .sorted(Param::sort)
-                .zipWith(typeObservable, Param::instantiate)
+                .zipWith(typeObservable, (param, type) -> param.resolve(converter, type))
                 .map(o -> {
                     if(o instanceof BlobSession) {
                         return request.getSession();

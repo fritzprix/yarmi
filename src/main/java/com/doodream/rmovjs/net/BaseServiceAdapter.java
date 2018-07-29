@@ -29,8 +29,8 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
             throw new IllegalStateException("service already listening");
         }
         final RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
-        Preconditions.checkNotNull(negotiator, "fail to instantiate %s", serviceInfo.getNegotiator());
-        Preconditions.checkNotNull(converter, "fail to instantiate %s", serviceInfo.getConverter());
+        Preconditions.checkNotNull(negotiator, "fail to resolve %s", serviceInfo.getNegotiator());
+        Preconditions.checkNotNull(converter, "fail to resolve %s", serviceInfo.getConverter());
         onStart();
 
         listen = true;

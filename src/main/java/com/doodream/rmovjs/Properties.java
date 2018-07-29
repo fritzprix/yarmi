@@ -5,18 +5,25 @@ import lombok.Data;
 @Data
 public class Properties {
 
-    public static String VERSION = "TEST_VERSION";
-    public static String ARTIFACT_ID = "TEST_NAME";
+    private static final java.util.Properties PROPERTIES;
     static {
-        java.util.Properties props = new java.util.Properties();
+        PROPERTIES = new java.util.Properties();
         try {
-            props.load(Properties.class.getClassLoader().getResourceAsStream("project.properties"));
-            Properties.VERSION = props.getProperty("version");
-            Properties.ARTIFACT_ID = props.getProperty("artifactId");
-
+            PROPERTIES.load(Properties.class.getClassLoader().getResourceAsStream("project.properties"));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    public static String getHealthCheckPath() {
+        return PROPERTIES.getProperty("healthCheckPath","");
+    }
+
+    public static String getArtifactId() {
+        return PROPERTIES.getProperty("artifactId", "yarmi-core");
+    }
+
+    public static String getVersionString() {
+        return PROPERTIES.getProperty("version", "0.0.1");
+    }
 }

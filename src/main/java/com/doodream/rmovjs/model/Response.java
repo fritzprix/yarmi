@@ -5,13 +5,19 @@ import com.doodream.rmovjs.net.session.SessionCommand;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
+import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Writer;
+import com.doodream.rmovjs.serde.json.JsonConverter;
 import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.reflect.Type;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -21,6 +27,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class Response<T> {
+    private static Logger Log = LoggerFactory.getLogger(Response.class);
     public static final int SUCCESS = 200;
 
     private String endpoint;
@@ -52,6 +59,14 @@ public class Response<T> {
                 .build();
     }
 
+    public T getBody() {
+        return body;
+    }
+
+    public void setBody(T body) {
+        this.body = body;
+    }
+
     public static Response error(int code, String msg) {
         return Response.<ResponseBody>builder()
                 .code(code)
@@ -76,10 +91,11 @@ public class Response<T> {
     }
 
     public static Response success(String msg) {
+        ResponseBody body = new ResponseBody(msg);
         return Response.builder()
                 .code(SUCCESS)
                 .isSuccessful(true)
-                .body(new ResponseBody(msg))
+                .body(JsonConverter.toJson(body))
                 .build();
     }
 
@@ -104,8 +120,23 @@ public class Response<T> {
         };
     }
 
+    /**
+     * check whether this response contains scm ({@link SessionControlMessage}) or not
+     * @return true if scm is not null, otherwise false
+     */
     public boolean hasScm() {
         return scm != null;
     }
 
+    /**
+     * response is generic container and conveys no type information in itself, which means any deserializer
+     * would be not able to handle deserialization of the body field, which is generic, properly.
+     * this method is called when response is received from the server by {@link com.doodream.rmovjs.net.BaseServiceProxy}
+     *
+     * @param converter converter implementation
+     * @param type {@link Type} for body content
+     */
+    public void resolve(Converter converter, Type type) {
+        setBody(converter.resolve(getBody(), type));
+    }
 }

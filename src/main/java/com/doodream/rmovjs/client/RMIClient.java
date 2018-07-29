@@ -8,6 +8,7 @@ import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.serde.Converter;
+import com.doodream.rmovjs.server.svc.HealthCheckController;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;

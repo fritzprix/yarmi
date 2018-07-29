@@ -50,7 +50,7 @@ public class RMIServiceInfo {
         Service service = svc.getAnnotation(Service.class);
         RMIServiceInfoBuilder builder = RMIServiceInfo.builder();
 
-        builder.version(Properties.VERSION)
+        builder.version(Properties.getVersionString())
                 .adapter(service.adapter())
                 .negotiator(service.negotiator())
                 .converter(service.converter())

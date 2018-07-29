@@ -13,7 +13,7 @@ import java.io.IOException;
  *  {@link ServiceAdapter} provides abstraction layer for network dependency including listed below
  *  1. creating server side endpoint to communicate with client (e.g. {@link java.net.ServerSocket} in case of TCP connection)
  *  2. accepting connection request from the client & managing {@link ClientSocketAdapter} which provides abstraction to the client connection from server side
- *  3. providing {@link ServiceProxyFactory} able to instantiate {@link RMIServiceProxy}, which is network peer corresponding to {@link ServiceAdapter}
+ *  3. providing {@link ServiceProxyFactory} able to resolve {@link RMIServiceProxy}, which is network peer corresponding to {@link ServiceAdapter}
  *  4. handling negotiation protocol between the server and the client
  *
  *  {@link ServiceAdapter}는 서비스의 네트워크 의존성에 대한 추상화 계층을 제공하며 세부적으로 아래와 같은 기능을 포함한다.
@@ -32,7 +32,7 @@ public interface ServiceAdapter {
      * @param requestHandler {@link Request}의 수신 및 {@link Response}의 응답을 처리하기 위한 handler로 {@link com.doodream.rmovjs.server.RMIService}
      * @return proxyFactoryHint as string
      * @throws IOException server 측 네트워크 endpoint 생성의 실패 혹은 I/O 오류
-     * @throws IllegalAccessError the error thrown when {@link ServiceAdapter} fails to instantiate dependency object (e.g. negotiator,
+     * @throws IllegalAccessError the error thrown when {@link ServiceAdapter} fails to resolve dependency object (e.g. negotiator,
      * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
      */
     String listen(RMIServiceInfo serviceInfo, Converter converter, Function<Request, Response> requestHandler) throws IOException, IllegalAccessException, InstantiationException;

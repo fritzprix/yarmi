@@ -6,6 +6,7 @@ import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.*;
+import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +53,24 @@ public class JsonConverter implements Converter {
                     }
                     return null;
                 }
+            }).registerTypeAdapter(Class.class, new TypeAdapter<Class<Object>>() {
+
+                @Override
+                public void write(com.google.gson.stream.JsonWriter jsonWriter, Class<Object> objectClass) throws IOException {
+                    jsonWriter.value(objectClass.getName());
+
+                }
+
+                @Override
+                public Class<Object> read(com.google.gson.stream.JsonReader jsonReader) throws IOException {
+                    try {
+                        return (Class<Object>) Class.forName(jsonReader.nextString());
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                    return null;
+                }
+
             })
             .registerTypeAdapter(SessionControlMessage.class, new TypeAdapter<SessionControlMessage<?>>() {
                 @Override
@@ -97,11 +116,11 @@ public class JsonConverter implements Converter {
             })
             .create();
 
-    private static Type getType(Class<?> rawClass, Class<?> parameter) {
+    private static Type getType(Class<?> rawClass, Class<?> ...parameter) {
         return new ParameterizedType() {
             @Override
             public Type[] getActualTypeArguments() {
-                return new Type[] {parameter};
+                return parameter;
             }
 
             @Override
@@ -139,20 +158,18 @@ public class JsonConverter implements Converter {
     }
 
     @Override
-    public <T> T invert(byte[] b, Class<T> rawClass, Class<?> parameter) {
+    public <T> T invert(byte[] b, Class<T> rawClass, Class<?> ...parameter) {
         ByteBuffer buffer = ByteBuffer.wrap(b);
         return GSON.fromJson(StandardCharsets.UTF_8.decode(buffer).toString(), getType(rawClass, parameter));
+    }
+
+    @Override
+    public <T> T resolve(Object unresolved, Type type) {
+        return GSON.fromJson(GSON.toJson(unresolved), type);
     }
 
     public static String toJson(Object src) {
         return GSON.toJson(src);
     }
 
-    public static <T> T fromJson(String json, Class<T> rawClass, Class<?> parameter) {
-        return GSON.fromJson(json, getType(rawClass, parameter));
-    }
-
-    public static <T> T fromJson(String json, Class<T> rawClass) {
-        return GSON.fromJson(json, rawClass);
-    }
 }
