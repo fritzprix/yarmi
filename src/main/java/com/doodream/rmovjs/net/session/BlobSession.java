@@ -47,7 +47,6 @@ public class BlobSession implements SessionHandler {
      * @param onReady
      */
     public BlobSession(Consumer<Session> onReady) {
-        Log.debug("sender session is created");
         mime = DEFAULT_TYPE;
         SenderSession senderSession = new SenderSession(onReady);
         key = senderSession.getSessionKey();
@@ -59,7 +58,6 @@ public class BlobSession implements SessionHandler {
      * constructor for receiver
      */
     public BlobSession() {
-        Log.debug("receiver session is created");
         mime = DEFAULT_TYPE;
         ReceiverSession receiverSession = new ReceiverSession();
         session = receiverSession;
@@ -82,7 +80,6 @@ public class BlobSession implements SessionHandler {
     }
 
     public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
-        Log.debug("Session started {} {}", reader, writer);
         sessionHandler.start(reader, writer, builder, onTeardown);
     }
 

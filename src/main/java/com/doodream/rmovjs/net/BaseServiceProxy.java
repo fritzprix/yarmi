@@ -88,7 +88,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
         reader = converter.reader(socket.getInputStream());
         writer = converter.writer(socket.getOutputStream());
         socket = negotiator.handshake(socket, serviceInfo, converter, true);
-        Log.info("open proxy for {} : success", serviceInfo.getName());
+        Log.trace("open proxy for {} : success", serviceInfo.getName());
         isOpened = true;
 
         compositeDisposable.add(Observable.<Response>create(emitter -> {
@@ -133,7 +133,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                         registerSession(session);
                     }
                 })
-                .doOnNext(request -> Log.debug("Request => {}", request))
+                .doOnNext(request -> Log.trace("Request => {}", request))
                 .map(request -> {
                     requestWaitQueue.put(request.getNonce(), request);
                     synchronized (request) {
@@ -145,12 +145,15 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 })
                 .filter(Optional::isPresent)
                 .map(Optional::get)
+                .defaultIfEmpty(RMIError.UNHANDLED.getResponse())
+                .doOnError(this::onError)
+                .doOnNext(response -> response.resolve(converter, endpoint.getUnwrappedRetType()))
                 .doOnNext(response -> {
-                    Log.debug("Response {}", response);
-                    if(response.isHasSessionSwitch()) {
-                        final BlobSession session = response.getSession();
+                    Log.trace("Response <= {}", response);
+                    if(response.isHasSessionSwitch() &&
+                    response.isSuccessful()) {
+                        final BlobSession session = (BlobSession) response.getBody();
                         if(session != null) {
-                            response.setBody(session);
                             session.init();
                             if (sessionRegistry.put(session.getKey(), session) != null) {
                                 Log.warn("session conflict for {}", session.getKey());
@@ -160,9 +163,6 @@ public class BaseServiceProxy implements RMIServiceProxy {
                         }
                     }
                 })
-                .defaultIfEmpty(RMIError.UNHANDLED.getResponse())
-                .doOnError(this::onError)
-                .doOnNext(response -> response.resolve(converter, endpoint.getUnwrappedRetType()))
                 .blockingSingle();
     }
 
@@ -171,7 +171,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
         BlobSession session;
         session = sessionRegistry.get(scm.getKey());
         if (session == null) {
-            Log.debug("Session not available for {}", scm);
+            Log.warn("Session not available for {}", scm);
             return;
         }
         session.handle(scm);
@@ -181,7 +181,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
         if (sessionRegistry.put(session.getKey(), session) != null) {
             Log.warn("session : {} collision in registry", session.getKey());
         }
-        Log.debug("session registered {}", session);
+        Log.trace("session registered {}", session);
         session.start(reader, writer, Request::buildSessionMessageWriter, () -> unregisterSession(session));
     }
 
@@ -190,7 +190,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
             Log.warn("fail to remove session : session not exists {}", session.getKey());
             return;
         }
-        Log.debug("remove session : {}", session.getKey());
+        Log.trace("remove session : {}", session.getKey());
     }
 
     private void onError(Throwable throwable) {

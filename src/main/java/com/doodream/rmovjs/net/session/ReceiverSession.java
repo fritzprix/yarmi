@@ -63,6 +63,7 @@ public class ReceiverSession implements Session, SessionHandler {
 
     @Override
     public void handle(SessionControlMessage scm) throws SessionControlException, IOException {
+        Log.debug("scm <= {} @ {}", scm.getCommand() ,scm.getKey());
         final SessionCommand command = scm.getCommand();
         switch (command) {
             case CHUNK:

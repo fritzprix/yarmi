@@ -62,15 +62,14 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                         }));
                     }
                 }))
-                .doOnNext(req -> Log.debug("{}", req))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .doOnNext(request -> request.setClient(adapter))
-                .doOnNext(request -> Log.info("Server <= {}", request))
+                .doOnNext(request -> Log.trace("Request <= {}", request))
                 .observeOn(Schedulers.io())
                 .subscribe(request -> {
                     final Response response = handleRequest.apply(request);
-                    Log.debug("Server => {}", response);
+                    Log.trace("Response => {}", response);
                     adapter.write(response);
                 },this::onError));
     }
