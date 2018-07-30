@@ -90,7 +90,6 @@ public class SenderSession implements Session, SessionHandler {
         int available;
         int offset = 0;
         while((available = writeBuffer.remaining()) < len) {
-            Log.trace("length : {} / offset : {} / available : {}", len, offset, available);
             writeBuffer.put(b, offset, available);
             flushOutWriteBuffer(false);
             writeBuffer.clear();
@@ -98,7 +97,6 @@ public class SenderSession implements Session, SessionHandler {
             len -= available;
         }
 
-        Log.trace("residue length : {} / offset : {} / available : {}", len, offset, available);
         writeBuffer.put(b, offset, len);
         if(!writeBuffer.hasRemaining()) {
             flushOutWriteBuffer(false);
@@ -107,8 +105,8 @@ public class SenderSession implements Session, SessionHandler {
 
     @Override
     public void handle(SessionControlMessage scm) throws IllegalStateException, IOException {
-        Log.debug("scm : {}" , scm);
         final SessionCommand command = scm.getCommand();
+        Log.debug("scm <= {} @ {}" , command, scm.getKey());
         switch (command) {
             case ACK:
                 // ready-to-receive from receiver
