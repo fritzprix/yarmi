@@ -37,7 +37,6 @@ public class Response<T> {
     private ResponseBody errorBody;
     private int code;
     private int nonce;
-    private BlobSession session;
     @SerializedName("scm")
     private SessionControlMessage scm;
 
@@ -53,7 +52,6 @@ public class Response<T> {
         return Response.<BlobSession>builder()
                 .body(session)
                 .code(SUCCESS)
-                .session(session)
                 .isSuccessful(true)
                 .hasSessionSwitch(true)
                 .build();

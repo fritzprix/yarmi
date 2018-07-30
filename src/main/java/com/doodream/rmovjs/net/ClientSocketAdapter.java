@@ -37,8 +37,7 @@ public class ClientSocketAdapter {
 
     public void write(Response response) throws IOException {
         if(response.isHasSessionSwitch()) {
-            BlobSession session = response.getSession();
-            response.setSession(session);
+            BlobSession session = (BlobSession) response.getBody();
             sessionRegistry.put(session.getKey(), session);
             session.start(reader, writer, Response::buildSessionMessageWriter, () -> unregisterSession(session));
         }
