@@ -20,9 +20,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class BaseServiceProxy implements RMIServiceProxy {
@@ -48,7 +51,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
             Log.debug("healthCheck {}", HEALTH_CHECK_ENDPOINT);
         }
     }
-
+    private AtomicInteger semaphore;
     private volatile boolean isOpened;
     private final ConcurrentHashMap<String, BlobSession> sessionRegistry;
     private ConcurrentHashMap<Integer, Request> requestWaitQueue;
@@ -62,7 +65,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
     private Scheduler mListener = Schedulers.from(Executors.newWorkStealingPool(10));
 
 
-    public static BaseServiceProxy create(RMIServiceInfo info, RMISocket socket)  {
+    public static BaseServiceProxy create(RMIServiceInfo info, RMISocket socket) {
         return new BaseServiceProxy(info, socket);
     }
 
@@ -71,6 +74,8 @@ public class BaseServiceProxy implements RMIServiceProxy {
         requestWaitQueue = new ConcurrentHashMap<>();
         compositeDisposable = new CompositeDisposable();
 
+        semaphore = new AtomicInteger();
+        semaphore.getAndSet(0);
         requestNonce = 0;
         serviceInfo = info;
         isOpened = false;
@@ -79,9 +84,10 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
     @Override
     public synchronized void open() throws IOException, IllegalAccessException, InstantiationException {
-        if(isOpened) {
+        if(semaphore.getAndAdd(1) != 0) {
             return;
         }
+        Log.debug("Initialized");
         RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
         converter = (Converter) serviceInfo.getConverter().newInstance();
         socket.open();
@@ -201,14 +207,12 @@ public class BaseServiceProxy implements RMIServiceProxy {
     }
 
     public void close() throws IOException {
-        if(!isOpened) {
+        if(semaphore.getAndDecrement() != 0) {
             return;
         }
-        if(socket.isClosed()) {
-            return;
+        if(!socket.isClosed()) {
+            socket.close();
         }
-        socket.close();
-        isOpened = false;
         if(!compositeDisposable.isDisposed()) {
             compositeDisposable.dispose();
         }
@@ -219,6 +223,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 request.notifyAll();
             }
         });
+        isOpened = false;
         Log.debug("proxy for {} closed", serviceInfo.getName());
     }
 
@@ -230,6 +235,11 @@ public class BaseServiceProxy implements RMIServiceProxy {
             return Optional.of(response.getBody());
         }
         return Optional.empty();
+    }
+
+    @Override
+    public String who() {
+        return Base64.getEncoder().encodeToString(socket.getRemoteName().concat(serviceInfo.toString()).getBytes());
     }
 
     @Override
