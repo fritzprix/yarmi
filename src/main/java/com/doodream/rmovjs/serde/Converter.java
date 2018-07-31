@@ -3,6 +3,7 @@ package com.doodream.rmovjs.serde;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Type;
 
 /**
  *  Converter class defines how object is converted into byte stream (and vice-versa) comprising of
@@ -20,5 +21,7 @@ public interface Converter {
 
     <T> T invert(byte[] b, Class<T> cls) throws UnsupportedEncodingException;
 
-    <T> T invert(byte[] b, Class<T> rawClass, Class<?> parameter);
+    <T> T invert(byte[] b, Class<T> rawClass, Class<?> ...parameters);
+
+    <T> T resolve(Object unresolved, Type type);
 }

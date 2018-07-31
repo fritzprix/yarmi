@@ -29,8 +29,8 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
             throw new IllegalStateException("service already listening");
         }
         final RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
-        Preconditions.checkNotNull(negotiator, "fail to instantiate %s", serviceInfo.getNegotiator());
-        Preconditions.checkNotNull(converter, "fail to instantiate %s", serviceInfo.getConverter());
+        Preconditions.checkNotNull(negotiator, "fail to resolve %s", serviceInfo.getNegotiator());
+        Preconditions.checkNotNull(converter, "fail to resolve %s", serviceInfo.getConverter());
         onStart();
 
         listen = true;
@@ -62,15 +62,14 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                         }));
                     }
                 }))
-                .doOnNext(req -> Log.debug("{}", req))
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .doOnNext(request -> request.setClient(adapter))
-                .doOnNext(request -> Log.info("Server <= {}", request))
+                .doOnNext(request -> Log.trace("Request <= {}", request))
                 .observeOn(Schedulers.io())
                 .subscribe(request -> {
                     final Response response = handleRequest.apply(request);
-                    Log.debug("Server => {}", response);
+                    Log.trace("Response => {}", response);
                     adapter.write(response);
                 },this::onError));
     }
