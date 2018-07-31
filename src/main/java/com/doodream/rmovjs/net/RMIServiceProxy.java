@@ -36,6 +36,11 @@ public interface RMIServiceProxy {
             }
 
             @Override
+            public String who() {
+                return Integer.toHexString(hashCode());
+            }
+
+            @Override
             public boolean provide(Class controller) {
                 return false;
             }
@@ -53,5 +58,6 @@ public interface RMIServiceProxy {
         Response request(Endpoint endpoint, Object ...args) throws IOException;
         void close() throws IOException;
         Optional<Long> ping();
+        String who();
         boolean provide(Class controller);
 }
