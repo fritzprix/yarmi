@@ -20,6 +20,12 @@
         <value>0.0.5-20180802.073752-1</value>
         <updated>20180802073752</updated>
       </snapshotVersion>
+      <snapshotVersion>
+        <classifier>jar-with-dependencies</classifier>
+        <extension>jar</extension>
+        <value>0.0.5-20180802.073752-1</value>
+        <updated>20180802073752</updated>
+      </snapshotVersion>
     </snapshotVersions>
   </versioning>
 </metadata>
