@@ -17,12 +17,12 @@ import io.reactivex.Observable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.List;
 import java.util.Map;
 
 public class BsonConverter implements Converter {
@@ -47,7 +47,7 @@ public class BsonConverter implements Converter {
         try {
             return new Reader() {
 
-                private BsonParser parser = bsonFactory.createParser(inputStream);
+                private BsonParser parser = bsonFactory.createParser(new BufferedInputStream(inputStream));
 
                 @Override
                 public synchronized <T> T read(Class<T> cls) throws IOException {

@@ -6,6 +6,7 @@ import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.SimpleNegotiator;
 import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
 import com.doodream.rmovjs.serde.Converter;
+import com.doodream.rmovjs.serde.bson.BsonConverter;
 import com.doodream.rmovjs.serde.json.JsonConverter;
 
 import java.lang.annotation.Retention;
@@ -34,8 +35,8 @@ public @interface Service {
     Class<? extends ServiceAdapter> adapter() default TcpServiceAdapter.class;
 
     /**
-     * parameters for constrcutor of network adapter class, will be passed as argument whenever the adapter class
-     * needs to be instanciated.
+     * parameters for constructor of network adapter class, will be passed as argument whenever the adapter class
+     * needs to be instantiated.
      * the order of parameters will be kept in the process of ser-der.
      * @return parameters to adapter constructor
      */
@@ -43,5 +44,5 @@ public @interface Service {
 
     Class<? extends RMINegotiator> negotiator() default SimpleNegotiator.class;
 
-    Class<? extends Converter> converter() default JsonConverter.class;
+    Class<? extends Converter> converter() default BsonConverter.class;
 }

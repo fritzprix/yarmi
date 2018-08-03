@@ -110,12 +110,9 @@ public class Response<T> {
     }
 
     public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
-        return (controlMessage) -> {
-            writer.write(Response.builder()
-                    .scm(controlMessage)
-                    .build());
-
-        };
+        return (controlMessage) -> writer.write(Response.builder()
+                .scm(controlMessage)
+                .build());
     }
 
     /**

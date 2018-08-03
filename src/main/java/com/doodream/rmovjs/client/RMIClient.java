@@ -19,6 +19,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -42,6 +43,11 @@ public class RMIClient implements InvocationHandler  {
     }
 
 
+    /**
+     * close method invocation proxy created by {@link #create(RMIServiceProxy, Class, Class)} or {@link #createService(RMIServiceProxy, Class)} method
+     * @param proxy returned proxy instance from {@link #create(RMIServiceProxy, Class, Class)} or {@link #createService(RMIServiceProxy, Class)}
+     * @throws IOException fail to close network connection for service proxy
+     */
     public static void destroy(Object proxy) throws IOException {
         Class proxyClass = proxy.getClass();
         if(Proxy.isProxyClass(proxyClass)) {
@@ -60,6 +66,18 @@ public class RMIClient implements InvocationHandler  {
     }
 
 
+    /**
+     * create service proxy instance which contains controller interface as its member fields.
+     * @param serviceProxy active service proxy which is obtained from the service discovery
+     * @param svc Service definition class
+     * @param <T> Type of service class
+     * @return proxy instance for service, getter or direct field referencing can be used to access controller
+     * @throws IllegalAccessException there is no public constructor for service class
+     * @throws InstantiationException if this {@code Class} represents an abstract class,
+     *      *          an interface, an array class, a primitive type, or void;
+     *      *          or if the class has no nullary constructor;
+     *      *          or if the instantiation fails for some other reason.
+     */
     public static <T> T createService(RMIServiceProxy serviceProxy, Class<T> svc) throws IllegalAccessException, InstantiationException {
         Object svcProxy = svc.newInstance();
 
@@ -67,6 +85,7 @@ public class RMIClient implements InvocationHandler  {
                 .filter(field -> field.getAnnotation(Controller.class) != null)
                 .blockingSubscribe(field -> {
                     Object controller = create(serviceProxy, svc, field.getType());
+                    field.setAccessible(true);
                     field.set(svcProxy, controller);
                 });
 
@@ -74,12 +93,12 @@ public class RMIClient implements InvocationHandler  {
     }
 
     /**
-     *
-     * @param serviceProxy
-     * @param svc
-     * @param ctrl
-     * @param <T>
-     * @return
+     * create call proxy instance corresponding to given controller class
+     * @param serviceProxy active service proxy which is obtained from the service discovery
+     * @param svc Service definition class
+     * @param ctrl controller definition as interface
+     * @param <T> type of controller class
+     * @return call proxy instance for controller
      */
     @Nullable
     public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) {
@@ -94,45 +113,42 @@ public class RMIClient implements InvocationHandler  {
                 .map(field -> field.getAnnotation(Controller.class))
                 .blockingFirst(null);
 
+        final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
+        List<Method> validMethods = Observable.fromArray(ctrl.getMethods())
+                .filter(RMIMethod::isValidMethod).toList().blockingGet();
+
+
         Preconditions.checkNotNull(controller, "no matched controller");
         Preconditions.checkArgument(ctrl.isInterface());
-
-
-        final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
         Preconditions.checkNotNull(serviceInfo, "Invalid Service Class %s", svc);
-
+        Preconditions.checkArgument(validMethods.size() > 0);
 
         try {
-
-
             if (!serviceProxy.isOpen()) {
+                // RMIServiceProxy is opened only once
                 serviceProxy.open();
             }
 
             RMIClient rmiClient = new RMIClient(serviceProxy);
 
-
-            Observable<Method> methodObservable = Observable.fromArray(ctrl.getMethods())
-                    .filter(RMIMethod::isValidMethod);
-
-            Observable<Endpoint> endpointObservable = methodObservable
+            Observable<Endpoint> endpointObservable = Observable.fromIterable(validMethods)
                     .map(method -> Endpoint.create(controller, method));
 
-            Single<HashMap<Method, Endpoint>> hashMapSingle = methodObservable
+            Single<HashMap<Method, Endpoint>> hashMapSingle = Observable.fromIterable(validMethods)
                     .zipWith(endpointObservable, RMIClient::zipIntoMethodMap)
                     .collectInto(new HashMap<>(), RMIClient::collectMethodMap);
 
             rmiClient.setMethodEndpointMap(hashMapSingle.blockingGet());
 
-            // TODO: 18. 7. 31 consider give all the available controller interface to the call proxy
+            // 18. 7. 31 consider give all the available controller interface to the call proxy
             // main concern is...
             // what happen if there are two methods declared in different interfaces which is identical in parameter & return type, etc.
-            // TODO: 18. 7. 31 method collision is not properly handled at the moment, simple poc is performed to test
+            // method collision is not properly handled at the moment, simple poc is performed to test
             // https://gist.github.com/fritzprix/ca0ecc08fc3125cde529dd11185be0b9
 
-            return (T) Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ctrl }, rmiClient);
+            return (T) Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ ctrl }, rmiClient);
         } catch (Exception e) {
-            Log.error("{}", e);
+            Log.error(e.getLocalizedMessage());
             return null;
         }
     }
@@ -144,11 +160,11 @@ public class RMIClient implements InvocationHandler  {
     }
 
     /**
-     *
-     * @param into
-     * @param methodEndpointMap
+     * collect maps between {@link Method} and @{@link Endpoint} into single map
+     * @param into map collecting fragmented (or partial) map of {@link Method} and {@link Endpoint}
+     * @param methodEndpointMap fragmented (or partial) map of {@link Method} and {@link Endpoint}
      */
-    static void collectMethodMap(Map<Method, Endpoint> into, Map<Method, Endpoint> methodEndpointMap) {
+    private static void collectMethodMap(Map<Method, Endpoint> into, Map<Method, Endpoint> methodEndpointMap) {
         into.putAll(methodEndpointMap);
     }
 
@@ -158,15 +174,20 @@ public class RMIClient implements InvocationHandler  {
      * @param endpoint
      * @return
      */
-    static Map<Method, Endpoint> zipIntoMethodMap(Method method, Endpoint endpoint) {
+    private static Map<Method, Endpoint> zipIntoMethodMap(Method method, Endpoint endpoint) {
         Map<Method, Endpoint> methodEndpointMap = new HashMap<>();
         methodEndpointMap.put(method, endpoint);
         return methodEndpointMap;
     }
 
+    /**
+     * close service proxy used by this call proxy
+     * @throws IOException
+     */
     private void close() throws IOException {
         serviceProxy.close();
     }
+
 
 
     @Override
