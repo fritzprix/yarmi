@@ -2,6 +2,7 @@ package com.doodream.rmovjs.net.session;
 
 import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
+import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import org.slf4j.Logger;
@@ -26,6 +27,7 @@ public class SenderSession implements Session, SessionHandler {
     private String key;
     private Consumer<Session> onReady;
     private Runnable onTeardown;
+    private Converter converter;
     private byte[] bufferSource = new byte[BlobSession.CHUNK_MAX_SIZE_IN_BYTE];
     private ByteBuffer writeBuffer;
     private SessionControlMessageWriter scmWriter;
@@ -104,9 +106,9 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     @Override
-    public void handle(SessionControlMessage scm) throws IllegalStateException, IOException {
+    public void handle(SessionControlMessage scm) throws IllegalStateException, IOException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         final SessionCommand command = scm.getCommand();
-        Log.debug("scm <= {} @ {}" , command, scm.getKey());
+        Object param = converter.resolve(scm.getParam(), command.getParamClass());
         switch (command) {
             case ACK:
                 // ready-to-receive from receiver
@@ -119,7 +121,7 @@ public class SenderSession implements Session, SessionHandler {
                 onReady.accept(this);
                 break;
             case ERR:
-                SCMErrorParam errorParam = (SCMErrorParam) scm.getParam();
+                SCMErrorParam errorParam = (SCMErrorParam) param;
                 handleErrorMessage(errorParam);
                 break;
             case RESET:
@@ -136,9 +138,10 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     @Override
-    public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+    public void start(Reader reader, Writer writer, Converter converter, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
         this.scmWriter = builder.build(writer);
         this.onTeardown = onTeardown;
+        this.converter = converter;
     }
 
     private void handleErrorMessage(SCMErrorParam errorParam) {

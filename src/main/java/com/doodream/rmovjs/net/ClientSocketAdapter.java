@@ -25,6 +25,7 @@ public class ClientSocketAdapter {
     private RMISocket client;
     private Reader reader;
     private Writer writer;
+    private Converter converter;
     private final ConcurrentHashMap<String, BlobSession> sessionRegistry;
 
     ClientSocketAdapter(RMISocket socket, Converter converter) throws IOException {
@@ -32,14 +33,15 @@ public class ClientSocketAdapter {
         sessionRegistry = new ConcurrentHashMap<>();
         reader = converter.reader(socket.getInputStream());
         writer = converter.writer(socket.getOutputStream());
+        this.converter = converter;
     }
 
 
-    public void write(Response response) throws IOException {
+    public void write(Response response) throws Exception {
         if(response.isHasSessionSwitch()) {
             BlobSession session = (BlobSession) response.getBody();
             sessionRegistry.put(session.getKey(), session);
-            session.start(reader, writer, Response::buildSessionMessageWriter, () -> unregisterSession(session));
+            session.start(reader, writer, converter, Response::buildSessionMessageWriter, () -> unregisterSession(session));
         }
         writer.write(response);
     }
@@ -68,14 +70,15 @@ public class ClientSocketAdapter {
                             return;
                         }
                         Log.debug("session registered {}", session);
-                        session.start(reader, writer, Response::buildSessionMessageWriter, () -> unregisterSession(session));
+                        session.start(reader, writer, converter, Response::buildSessionMessageWriter, () -> unregisterSession(session));
                         // forward request to transfer session object to application
                     }
                     emitter.onNext(request);
                 }
                 emitter.onComplete();
             } catch (IOException e) {
-                emitter.onError(e);
+//                emitter.onError(e);
+                client.close();
             }
         });
         return requestObservable.subscribeOn(Schedulers.io());
@@ -89,7 +92,7 @@ public class ClientSocketAdapter {
         Log.trace("remove session : {}", session.getKey());
     }
 
-    private void handleSessionControlMessage(Request request) throws SessionControlException, IllegalStateException, IOException {
+    private void handleSessionControlMessage(Request request) throws SessionControlException, IllegalStateException, IOException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         final SessionControlMessage scm = request.getScm();
         BlobSession session;
         session = sessionRegistry.get(scm.getKey());

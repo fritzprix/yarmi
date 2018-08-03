@@ -3,12 +3,9 @@ package com.doodream.rmovjs.net;
 import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.Response;
-import jdk.nashorn.internal.runtime.options.Option;
 
 import java.io.IOException;
 import java.util.Optional;
-
-import static java.util.Optional.empty;
 
 public interface RMIServiceProxy {
         RMIServiceProxy NULL_PROXY = new RMIServiceProxy() {

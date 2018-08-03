@@ -6,21 +6,16 @@ import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.*;
-import com.google.gson.reflect.TypeToken;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 public class JsonConverter implements Converter {
-    private static final Logger Log = LoggerFactory.getLogger(JsonConverter.class);
 
     private static class ByteArrayToBase64TypeAdapter implements JsonSerializer<byte[]>, JsonDeserializer<byte[]> {
         public byte[] deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
@@ -53,26 +48,7 @@ public class JsonConverter implements Converter {
                     }
                     return null;
                 }
-            }).registerTypeAdapter(Class.class, new TypeAdapter<Class<Object>>() {
-
-                @Override
-                public void write(com.google.gson.stream.JsonWriter jsonWriter, Class<Object> objectClass) throws IOException {
-                    jsonWriter.value(objectClass.getName());
-
-                }
-
-                @Override
-                public Class<Object> read(com.google.gson.stream.JsonReader jsonReader) throws IOException {
-                    try {
-                        return (Class<Object>) Class.forName(jsonReader.nextString());
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                }
-
-            })
-            .registerTypeAdapter(SessionControlMessage.class, new TypeAdapter<SessionControlMessage<?>>() {
+            }).registerTypeAdapter(SessionControlMessage.class, new TypeAdapter<SessionControlMessage<?>>() {
                 @Override
                 public void write(com.google.gson.stream.JsonWriter jsonWriter, SessionControlMessage<?> sessionControlMessage) throws IOException {
                     if(sessionControlMessage != null) {
@@ -116,24 +92,6 @@ public class JsonConverter implements Converter {
             })
             .create();
 
-    private static Type getType(Class<?> rawClass, Class<?> ...parameter) {
-        return new ParameterizedType() {
-            @Override
-            public Type[] getActualTypeArguments() {
-                return parameter;
-            }
-
-            @Override
-            public Type getRawType() {
-                return rawClass;
-            }
-
-            @Override
-            public Type getOwnerType() {
-                return null;
-            }
-        };
-    }
 
 
     @Override
@@ -158,13 +116,10 @@ public class JsonConverter implements Converter {
     }
 
     @Override
-    public <T> T invert(byte[] b, Class<T> rawClass, Class<?> ...parameter) {
-        ByteBuffer buffer = ByteBuffer.wrap(b);
-        return GSON.fromJson(StandardCharsets.UTF_8.decode(buffer).toString(), getType(rawClass, parameter));
-    }
-
-    @Override
     public <T> T resolve(Object unresolved, Type type) {
+        if(unresolved == null) {
+            return null;
+        }
         return GSON.fromJson(GSON.toJson(unresolved), type);
     }
 

@@ -9,7 +9,7 @@ public enum RMIError {
     FORBIDDEN(403, Response.error(403, "ServiceInfo is not matched")),
     BAD_REQUEST(400, Response.error(400, "Bad Request")),
     UNHANDLED(400, Response.error(400, "Request Not Handled")),
-    INTERNAL_SERVER_ERROR(500, Response.error(500,"Internal Server Error"));
+    INTERNAL_SERVER_ERROR(500, Response.error(500,"Internal Server Error")), TIMEOUT(500, Response.error(500,"Timeout"));
 
     private final int code;
     private final Response response;

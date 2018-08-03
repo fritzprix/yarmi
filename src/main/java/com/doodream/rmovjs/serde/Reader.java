@@ -8,5 +8,4 @@ import java.io.IOException;
  */
 public interface Reader {
     <T> T read(Class<T> cls) throws IOException;
-    <T> T read(Class<T> rawClass, Class<?> parameter) throws IOException;
 }

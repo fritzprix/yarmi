@@ -6,7 +6,6 @@ import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.parameter.Param;
-import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
@@ -84,7 +83,9 @@ public class Request {
             Request.RequestBuilder builder =  Request.builder()
                     .params(convertParams(endpoint, args))
                     .endpoint(endpoint.getUnique());
+
             optionalSession.ifPresent(builder::session);
+
             return builder.build();
         }
     }
@@ -97,7 +98,6 @@ public class Request {
         return Observable.fromIterable(endpoint.getParams()).zipWith(Observable.fromArray(objects), (param, o) -> {
             param.apply(o);
             if(param.isInstanceOf(BlobSession.class)) {
-                Log.debug("Endpoint {} has session param : {}", endpoint, param);
                 if(o != null) {
                     endpoint.session = (BlobSession) o;
                 }
