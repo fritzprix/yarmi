@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +33,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
     // endpoint for health check
     private static final Endpoint HEALTH_CHECK_ENDPOINT;
+//    private static long REQUEST_TIMEOUT = 10000L;
     static {
         Controller controller = BasicService.getHealthCheckController();
         if(controller == null) {
@@ -90,10 +90,13 @@ public class BaseServiceProxy implements RMIServiceProxy {
         Log.debug("Initialized");
         RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
         converter = (Converter) serviceInfo.getConverter().newInstance();
+        // TODO: 18. 8. 1
+
         socket.open();
         reader = converter.reader(socket.getInputStream());
         writer = converter.writer(socket.getOutputStream());
         socket = negotiator.handshake(socket, serviceInfo, converter, true);
+
         Log.trace("open proxy for {} : success", serviceInfo.getName());
         isOpened = true;
 
@@ -142,10 +145,16 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 .doOnNext(request -> Log.trace("Request => {}", request))
                 .map(request -> {
                     requestWaitQueue.put(request.getNonce(), request);
-                    synchronized (request) {
-                        writer.write(request);
-                        // caller block here, until the response is ready
-                        request.wait();
+                    try {
+                        synchronized (request) {
+                            writer.write(request);
+                            // caller block here, until the response is ready
+//                            request.wait(REQUEST_TIMEOUT);
+                            request.wait();
+                        }
+                    } catch (InterruptedException e) {
+                        // TODO: 18. 8. 1 handle timeout
+                        return Optional.of(RMIError.TIMEOUT.getResponse());
                     }
                     return Optional.of(request.getResponse());
                 })
@@ -165,14 +174,14 @@ public class BaseServiceProxy implements RMIServiceProxy {
                                 Log.warn("session conflict for {}", session.getKey());
                                 return;
                             }
-                            session.start(reader, writer, Request::buildSessionMessageWriter, () -> unregisterSession(session));
+                            session.start(reader, writer, converter, Request::buildSessionMessageWriter, () -> unregisterSession(session));
                         }
                     }
                 })
                 .blockingSingle();
     }
 
-    private void handleSessionControlMessage(Response response) throws IOException {
+    private void handleSessionControlMessage(Response response) throws IOException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         SessionControlMessage scm = response.getScm();
         BlobSession session;
         session = sessionRegistry.get(scm.getKey());
@@ -188,7 +197,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
             Log.warn("session : {} collision in registry", session.getKey());
         }
         Log.trace("session registered {}", session);
-        session.start(reader, writer, Request::buildSessionMessageWriter, () -> unregisterSession(session));
+        session.start(reader, writer, converter, Request::buildSessionMessageWriter, () -> unregisterSession(session));
     }
 
     private void unregisterSession(BlobSession session ) {
@@ -229,10 +238,10 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
     @Override
     public Optional<Long> ping() {
+        long sTime = System.currentTimeMillis();
         final Response<Long> response = request(HEALTH_CHECK_ENDPOINT);
         if(response.isSuccessful() && (response.getCode() == Response.SUCCESS)) {
-            Log.debug("body {} /w cls {}", response.getBody(), response.getBody().getClass());
-            return Optional.of(response.getBody());
+            return Optional.of(System.currentTimeMillis() - sTime);
         }
         return Optional.empty();
     }

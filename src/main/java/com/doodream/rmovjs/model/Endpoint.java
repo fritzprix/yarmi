@@ -11,7 +11,6 @@ import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.parameter.Param;
 import com.doodream.rmovjs.util.Types;
 import com.google.common.base.Preconditions;
-import com.google.gson.reflect.TypeToken;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import lombok.AllArgsConstructor;
@@ -23,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Locale;
@@ -63,7 +61,7 @@ public class Endpoint {
         final String parentPath = controller.path();
 
         RMIMethod rmiMethod = RMIMethod.fromAnnotation(methodAnnotation);
-        Observable<Class> typeObservable = Observable.fromArray(method.getParameterTypes());
+        Observable<Type> typeObservable = Observable.fromArray(method.getGenericParameterTypes());
 
         Observable<Annotation[]> annotationsObservable = Observable.fromArray(method.getParameterAnnotations());
 

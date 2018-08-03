@@ -37,20 +37,24 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
                 .doOnNext(this::broadcast)
                 .doOnError(Throwable::printStackTrace)
                 .subscribeOn(Schedulers.io())
-                .subscribe());
+                .subscribe(packet -> {}, this::onError));
 
         Observable<DatagramPacket> packetObservable = tickObservable
                 .map(aLong -> info)
                 .map(i -> buildMulticastPacket(i, converter))
-                .doOnNext(this::broadcast)
-                .doOnError(Throwable::printStackTrace);
+                .doOnNext(this::broadcast);
+
         Log.info("advertising service : {} {} @ {}", info.getName(), info.getVersion(), MULTICAST_GROUP_IP);
 
         if(!block) {
-            compositeDisposable.add(packetObservable.subscribeOn(Schedulers.io()).subscribe());
+            compositeDisposable.add(packetObservable.subscribeOn(Schedulers.io()).subscribe(packet->{}, this::onError));
             return;
         }
         packetObservable.blockingSubscribe();
+    }
+
+    private void onError(Throwable throwable) {
+        Log.error(throwable.getLocalizedMessage());
     }
 
     private DatagramPacket buildLocalPacket(RMIServiceInfo i, Converter converter) throws UnsupportedEncodingException, UnknownHostException {

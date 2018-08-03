@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.net.session;
 
+import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
@@ -75,12 +76,12 @@ public class BlobSession implements SessionHandler {
 
 
     @Override
-    public void handle(SessionControlMessage scm) throws SessionControlException, IOException {
+    public void handle(SessionControlMessage scm) throws SessionControlException, IOException, IllegalAccessException, ClassNotFoundException, InstantiationException {
         sessionHandler.handle(scm);
     }
 
-    public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
-        sessionHandler.start(reader, writer, builder, onTeardown);
+    public void start(Reader reader, Writer writer, Converter converter, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+        sessionHandler.start(reader, writer, converter, builder, onTeardown);
     }
 
     /**

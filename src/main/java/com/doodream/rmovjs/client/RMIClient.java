@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -51,7 +50,7 @@ public class RMIClient implements InvocationHandler  {
         } else {
             Service service = proxy.getClass().getAnnotation(Service.class);
             if(service == null) {
-                throw new RuntimeException("Invalid Proxy");
+                throw new IllegalArgumentException("Invalid Proxy");
             }
             Observable.fromArray(proxyClass.getDeclaredFields())
                     .filter(field -> field.getAnnotation(Controller.class) != null)
@@ -85,24 +84,25 @@ public class RMIClient implements InvocationHandler  {
     @Nullable
     public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) {
         Service service = (Service) svc.getAnnotation(Service.class);
+        Preconditions.checkNotNull(service);
         if(!serviceProxy.provide(ctrl)) {
             return null;
         }
 
+        Controller controller = Observable.fromArray(svc.getDeclaredFields())
+                .filter(field -> field.getType().equals(ctrl))
+                .map(field -> field.getAnnotation(Controller.class))
+                .blockingFirst(null);
+
+        Preconditions.checkNotNull(controller, "no matched controller");
+        Preconditions.checkArgument(ctrl.isInterface());
+
+
+        final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
+        Preconditions.checkNotNull(serviceInfo, "Invalid Service Class %s", svc);
+
 
         try {
-            Preconditions.checkNotNull(service);
-            Controller controller = Observable.fromArray(svc.getDeclaredFields())
-                    .filter(field -> field.getType().equals(ctrl))
-                    .map(field -> field.getAnnotation(Controller.class))
-                    .blockingFirst(null);
-
-            Preconditions.checkNotNull(controller, "no matched controller");
-            Preconditions.checkArgument(ctrl.isInterface());
-
-
-            final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
-            Preconditions.checkNotNull(serviceInfo, "Invalid Service Class %s", svc);
 
 
             if (!serviceProxy.isOpen()) {
@@ -130,10 +130,7 @@ public class RMIClient implements InvocationHandler  {
             // TODO: 18. 7. 31 method collision is not properly handled at the moment, simple poc is performed to test
             // https://gist.github.com/fritzprix/ca0ecc08fc3125cde529dd11185be0b9
 
-            Object proxy = Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ctrl }, rmiClient);
-
-            Log.debug("service proxy is created");
-            return (T) proxy;
+            return (T) Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ctrl }, rmiClient);
         } catch (Exception e) {
             Log.error("{}", e);
             return null;
@@ -151,7 +148,7 @@ public class RMIClient implements InvocationHandler  {
      * @param into
      * @param methodEndpointMap
      */
-    private static void collectMethodMap(Map<Method, Endpoint> into, Map<Method, Endpoint> methodEndpointMap) {
+    static void collectMethodMap(Map<Method, Endpoint> into, Map<Method, Endpoint> methodEndpointMap) {
         into.putAll(methodEndpointMap);
     }
 
@@ -161,7 +158,7 @@ public class RMIClient implements InvocationHandler  {
      * @param endpoint
      * @return
      */
-    private static Map<Method, Endpoint> zipIntoMethodMap(Method method, Endpoint endpoint) {
+    static Map<Method, Endpoint> zipIntoMethodMap(Method method, Endpoint endpoint) {
         Map<Method, Endpoint> methodEndpointMap = new HashMap<>();
         methodEndpointMap.put(method, endpoint);
         return methodEndpointMap;

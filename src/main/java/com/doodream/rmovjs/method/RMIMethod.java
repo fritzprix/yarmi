@@ -57,6 +57,7 @@ public enum RMIMethod {
         //  but still inheritance of annotation is not supported (as I know)
         // TODO : fix if Java provides annotation inheritance feature
 
+
         switch (this) {
             case GET:
                 Get get = method.getAnnotation(Get.class);

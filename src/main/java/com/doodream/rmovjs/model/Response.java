@@ -134,7 +134,7 @@ public class Response<T> {
      * @param converter converter implementation
      * @param type {@link Type} for body content
      */
-    public void resolve(Converter converter, Type type) {
+    public void resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         setBody(converter.resolve(getBody(), type));
     }
 }

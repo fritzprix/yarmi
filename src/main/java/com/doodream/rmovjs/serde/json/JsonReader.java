@@ -29,13 +29,13 @@ public class JsonReader implements Reader {
         return mConverter.invert(StandardCharsets.UTF_8.encode(line).array(), cls);
     }
 
-    @Override
-    public synchronized  <T> T read(Class<T> rawClass, Class<?> parameter) throws IOException {
-        String line = mBufferedReader.readLine();
-        if(line == null) {
-            return null;
-        }
-        line = line.trim();
-        return mConverter.invert(StandardCharsets.UTF_8.encode(line).array(), rawClass, parameter);
-    }
+//    @Override
+//    public synchronized  <T> T read(Class<T> rawClass, Class<?> parameter) throws IOException {
+//        String line = mBufferedReader.readLine();
+//        if(line == null) {
+//            return null;
+//        }
+//        line = line.trim();
+//        return mConverter.invert(StandardCharsets.UTF_8.encode(line).array(), rawClass, parameter);
+//    }
 }
