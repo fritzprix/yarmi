@@ -119,6 +119,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
                 Observable.fromArray(proxyClass.getDeclaredFields())
                         .filter(field -> field.getAnnotation(Controller.class) != null)
                         .map(field -> field.get(proxy))
+                        .map(Proxy::getInvocationHandler)
                         .cast(RMIClient.class)
                         .blockingSubscribe(emitter::onNext);
             }

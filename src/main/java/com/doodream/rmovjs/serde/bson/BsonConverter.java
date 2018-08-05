@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import de.undercouch.bson4jackson.BsonFactory;
 import de.undercouch.bson4jackson.BsonGenerator;
 import de.undercouch.bson4jackson.BsonParser;
@@ -51,7 +52,10 @@ public class BsonConverter implements Converter {
 
                 @Override
                 public synchronized <T> T read(Class<T> cls) throws IOException {
-                    return parser.readValueAs(cls);
+                    try {
+                        return parser.readValueAs(cls);
+                    } catch (MismatchedInputException ignore) { }
+                    return null;
                 }
             };
         } catch (IOException e) {
