@@ -5,6 +5,7 @@ import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.model.Endpoint;
+import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.RMIServiceProxy;
@@ -41,9 +42,11 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
     private AtomicInteger ongoingRequestCount;
     private long timeout;
     private Long measuredPing;
+    private volatile boolean markToClose;
 
     private RMIClient(RMIServiceProxy serviceProxy, long timeout,long pingUpdatePeriod, TimeUnit timeUnit) {
         this.serviceProxy = serviceProxy;
+        markToClose = false;
         measuredPing = Long.MAX_VALUE;
         this.timeout = timeout;
         ongoingRequestCount = new AtomicInteger(0);
@@ -52,13 +55,23 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         }
     }
 
+    /**
+     * return QoS value measured updated last
+     * @param proxy proxy object
+     * @return QoS value (defined latency in millisecond from request to response)
+     */
     public static long getMeasuredQoS(Object proxy) {
-        return forEachCliet(proxy)
+        return forEachClient(proxy)
                 .blockingFirst().getMeasuredPing();
     }
 
+    /**
+     * check whether there are on-going requests for given RMI call proxy
+     * @param proxy RMI proxy which is create by {@link #create(RMIServiceProxy, Class, Class)} or {@link #create(RMIServiceProxy, Class, Class, long, long, TimeUnit)}
+     * @return true if there is no on-going request, otherwise false
+     */
     public static boolean isClosable(Object proxy) {
-        return forEachCliet(proxy)
+        return forEachClient(proxy)
                 .blockingFirst().isClosable();
     }
 
@@ -71,23 +84,28 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         return ongoingRequestCount.get() == 0;
     }
 
+    /**
+     * get {@link RMIClient} for given RMI call proxy
+     * @param proxy
+     * @return
+     */
     static RMIClient access(Object proxy) {
-        return forEachCliet(proxy)
+        return forEachClient(proxy)
                 .blockingFirst();
     }
 
     /**
-     *
-     * @param proxy
-     * @param force
+     * destroy RMI call proxy and release resources
+     * @param proxy RMI call proxy returned by {@link #create(RMIServiceProxy, Class, Class, long, long, TimeUnit)} or {@link #create(RMIServiceProxy, Class, Class)}
+     * @param force if true, close regardless its on-going request, otherwise, wait until the all the on-going requests is complete
      */
     public static void destroy(Object proxy, boolean force) {
-        forEachCliet(proxy)
+        forEachClient(proxy)
                 .subscribeOn(Schedulers.io())
                 .blockingSubscribe(client -> client.close(force));
     }
 
-    private static Observable<RMIClient> forEachCliet(Object proxy) {
+    private static Observable<RMIClient> forEachClient(Object proxy) {
         return Observable.create(emitter -> {
             Class proxyClass = proxy.getClass();
             if(Proxy.isProxyClass(proxyClass)) {
@@ -254,6 +272,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
      * @throws IOException proxy is already closed,
      */
     private void close(boolean force) throws IOException {
+        markToClose = true;
         if(!force) {
             try {
                 while (!isClosable()) {
@@ -268,6 +287,10 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        if(markToClose) {
+            // prevent new request from being made
+            throw new RMIException(RMIError.CLOSED.getResponse());
+        }
         Endpoint endpoint = methodMap.get(method);
         if(endpoint == null) {
             return null;
@@ -290,7 +313,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         return measuredPing;
     }
 
-    public String who() {
+    String who() {
         return serviceProxy.who();
     }
 }

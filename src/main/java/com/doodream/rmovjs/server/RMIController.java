@@ -10,6 +10,7 @@ import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.parameter.Param;
 import com.doodream.rmovjs.serde.Converter;
+import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
 import lombok.AllArgsConstructor;
@@ -22,10 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @AllArgsConstructor
 @Builder
@@ -36,8 +34,8 @@ public class RMIController {
     private static final Logger Log = LoggerFactory.getLogger(RMIController.class);
     private Controller controller;
     private Map<String, Endpoint> endpointMap;
+    private Class stub;
     private Object impl;
-    private Class itfcCls;
 
     /**
      * create {@link RMIController} by analyzing fields of {@link RMIService}
@@ -47,27 +45,49 @@ public class RMIController {
      * @throws InstantiationException fail to resolve implementation class of controller
      */
     static public RMIController create(Field field) throws IllegalAccessException, InstantiationException {
-        Controller controller = field.getAnnotation(Controller.class);
-        Class cls = field.getType();
-        assert controller != null;
-        Class module = controller.module();
-        Object impl = module.newInstance();
+        return create(field, new Object[0]);
+    }
 
-        Observable<Endpoint> endpointsObservable = Observable.fromArray(cls.getMethods())
+    /**
+     *
+     * @param field
+     * @param controllerImpls
+     * @return
+     * @throws IllegalAccessException
+     * @throws InstantiationException
+     */
+    public static RMIController create(Field field, Object[] controllerImpls) throws IllegalAccessException, InstantiationException {
+
+        Controller controller = field.getAnnotation(Controller.class);
+
+        Preconditions.checkNotNull(controller, "controller should be annotated with @Controller");
+        Class cls = field.getType();
+        Class module = controller.module();
+
+
+        Object impl = Observable.fromArray(controllerImpls)
+                .filter(o -> isImplementOf(o, field.getGenericType()))
+                .defaultIfEmpty(module.newInstance())
+                .blockingFirst();
+
+        Preconditions.checkNotNull(impl, "implementation should not null");
+
+        Observable<Endpoint> endpointObservable = Observable.fromArray(cls.getDeclaredMethods())
                 .filter(RMIMethod::isValidMethod)
                 .map(method -> Endpoint.create(controller, method));
 
-        Single<HashMap<String, Endpoint>> endpointLookupSingle = endpointsObservable
+        Single<HashMap<String, Endpoint>> endpointLookupSingle = endpointObservable
                 .collectInto(new HashMap<>(), RMIController::collectMethod);
 
         return Observable.just(RMIController.builder())
                 .map(controllerBuilder -> controllerBuilder.impl(impl))
                 .map(controllerBuilder -> controllerBuilder.controller(controller))
-                .map(controllerBuilder -> controllerBuilder.itfcCls(cls))
+                .map(controllerBuilder -> controllerBuilder.stub(cls))
                 .zipWith(endpointLookupSingle.toObservable(), RMIControllerBuilder::endpointMap)
                 .map(RMIControllerBuilder::build)
                 .blockingFirst();
     }
+
 
     /**
      * collect methods({@link Endpoint}) into map for lookup
@@ -84,7 +104,13 @@ public class RMIController {
      * @return return true if the controller valid, otherwise return false
      */
     public static boolean isValidController(Field field) {
-        return field.getAnnotation(Controller.class) != null;
+        Controller controller = field.getAnnotation(Controller.class);
+        return controller != null;
+    }
+
+
+    private static boolean isImplementOf(Object o, Type itfcType) {
+        return Arrays.asList(o.getClass().getGenericInterfaces()).contains(itfcType);
     }
 
     /**
@@ -122,7 +148,6 @@ public class RMIController {
                     return o;
                 })
                 .toList().blockingGet();
-
 
         return (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());
     }

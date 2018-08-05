@@ -97,7 +97,6 @@ public class BaseServiceProxy implements RMIServiceProxy {
         Log.debug("Initialized");
         RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
         converter = (Converter) serviceInfo.getConverter().newInstance();
-        // TODO: 18. 8. 1
 
         socket.open();
         reader = converter.reader(socket.getInputStream());
@@ -174,7 +173,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                     }
                 })
                 .map(response -> {
-                    if(response.isHasSessionSwitch() && response.isSuccessful()) {
+                    if(response.isHasSessionSwitch()) {
                         return handleBlobResponse(response);
                     } else {
                         return response;
@@ -187,20 +186,14 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
     private Response handleBlobResponse(Response response) {
         if(response.getBody() != null) {
-            try {
-                response.resolve(converter, BlobSession.class);
-                final BlobSession session = (BlobSession) response.getBody();
-                if(sessionRegistry.put(session.getKey(), session) != null) {
-                    Log.warn("session conflict for {}", session.getKey());
-                } else {
-                    session.start(reader, writer, converter, Request::buildSessionMessageWriter, () -> unregisterSession(session));
-                }
-                return response;
-            } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
-                Response errResp = RMIError.BAD_RESPONSE.getResponse();
-                errResp.setBody(e.getMessage());
-                return errResp;
+            final BlobSession session = (BlobSession) response.getBody();
+            session.init();
+            if(sessionRegistry.put(session.getKey(), session) != null) {
+                Log.warn("session conflict for {}", session.getKey());
+            } else {
+                session.start(reader, writer, converter, Request::buildSessionMessageWriter, () -> unregisterSession(session));
             }
+            return response;
         }
         return RMIError.BAD_RESPONSE.getResponse();
     }

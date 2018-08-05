@@ -99,12 +99,15 @@ public class BsonConverter implements Converter {
 
 
     @Override
-    public <T> T resolve(Object unresolved, Type type) throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+    public <T> T resolve(Object unresolved, Type type) throws ClassNotFoundException {
         if(unresolved == null) {
             return null;
         }
         Class cls = Class.forName(type.getTypeName());
         Class unresolvedCls = unresolved.getClass();
+//        if(!type.getTypeName().contains("SCM")) {
+//            Log.debug("cls of unresolved : {} / given type : {}", unresolvedCls, cls);
+//        }
         if(cls.equals(unresolvedCls)) {
             return (T) unresolved;
         }

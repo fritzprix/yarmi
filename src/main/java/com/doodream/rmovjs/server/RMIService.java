@@ -50,6 +50,73 @@ public class RMIService {
 
     /**
      *
+     * @param cls
+     * @param advertiser
+     * @param controllerImpls
+     * @param <T>
+     * @return
+     */
+    public static <T> RMIService create(Class<T> cls, ServiceAdvertiser advertiser, Object ...controllerImpls) throws IllegalAccessException, InvocationTargetException, InstantiationException {
+
+        Service service = cls.getAnnotation(Service.class);
+        final String[] params = service.params();
+
+        Constructor constructor = Observable.fromArray(service.adapter().getConstructors())
+                .filter(ctor -> ctor.getParameterCount() == params.length)
+                .blockingFirst();
+
+        Preconditions.checkNotNull(constructor);
+
+        ServiceAdapter adapter = (ServiceAdapter) constructor.newInstance(params);
+
+        RMIServiceInfo serviceInfo = RMIServiceInfo.builder()
+                .name(service.name())
+                .adapter(service.adapter())
+                .negotiator(service.negotiator())
+                .converter(service.converter())
+                .params(Arrays.asList(params))
+                .version(Properties.getVersionString())
+                .build();
+
+        final Converter converter = service.converter().newInstance();
+        Preconditions.checkNotNull(converter, "converter is not declared");
+        RMIServiceBuilder builder = RMIService.builder();
+
+        Observable<RMIController> basicControllerObservable = Observable.fromArray(BasicService.class.getDeclaredFields())
+                .filter(RMIController::isValidController)
+                .map(RMIController::create)
+                .cache();
+
+        Observable<RMIController> controllerObservable = Observable.fromArray(cls.getDeclaredFields())
+                .filter(RMIController::isValidController)
+                .map(field -> RMIController.create(field, controllerImpls))
+                .cache();
+
+        controllerObservable
+                .map(ControllerInfo::build)
+                .toList()
+                .doOnSuccess(serviceInfo::setControllerInfos)
+                .subscribe();
+
+        controllerObservable = controllerObservable.mergeWith(basicControllerObservable);
+
+        controllerObservable.collectInto(new HashMap<>(), RMIService::buildControllerMap)
+                .doOnSuccess(builder::controllerMap)
+                .subscribe();
+
+
+        return builder
+                .adapter(adapter)
+                .service(service)
+                .advertiser(advertiser)
+                .converter(converter)
+                .serviceInfo(serviceInfo)
+                .build();
+
+    }
+
+    /**
+     *
      * @param cls service definition class
      * @param advertiser advertiser to be used service discovery
      * @return {@link RMIService} created from the service definition class
@@ -76,7 +143,7 @@ public class RMIService {
                 .version(Properties.getVersionString())
                 .build();
 
-        final Converter converter = (Converter) serviceInfo.getConverter().newInstance();
+        final Converter converter = service.converter().newInstance();
         Preconditions.checkNotNull(converter, "converter is not declared");
         RMIServiceBuilder builder = RMIService.builder();
 
@@ -162,6 +229,7 @@ public class RMIService {
                 }
                 return end(response, request);
             } catch (InvocationTargetException e) {
+                Log.error("InvocationError : {}", e);
                 return end(Response.from(RMIError.INTERNAL_SERVER_ERROR), request);
             }
         }

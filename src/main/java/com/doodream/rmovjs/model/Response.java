@@ -43,15 +43,7 @@ public class Response<T> {
         return Response.<T>builder()
                 .body(body)
                 .code(SUCCESS)
-                .isSuccessful(true)
-                .build();
-    }
-
-    private static Response<BlobSession> success(BlobSession session) {
-        return Response.<BlobSession>builder()
-                .body(session)
-                .code(SUCCESS)
-                .hasSessionSwitch(true)
+                .hasSessionSwitch(body instanceof BlobSession)
                 .isSuccessful(true)
                 .build();
     }
