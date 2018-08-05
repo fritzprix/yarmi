@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.client;
 
+import com.doodream.rmovjs.annotation.RMIException;
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.method.RMIMethod;
@@ -10,6 +11,8 @@ import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.reactivex.schedulers.Schedulers;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,50 +24,112 @@ import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  *  {@link RMIClient} build method invocation proxy from {@link RMIServiceProxy} which is discovered from SDP
  *
  */
-public class RMIClient implements InvocationHandler  {
+public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
 
     private static final Logger Log = LoggerFactory.getLogger(RMIClient.class);
 
     private Map<Method, Endpoint> methodMap;
     private RMIServiceProxy serviceProxy;
+    private AtomicInteger ongoingRequestCount;
+    private long timeout;
+    private Long measuredPing;
 
-    private RMIClient(RMIServiceProxy serviceProxy) {
+    private RMIClient(RMIServiceProxy serviceProxy, long timeout,long pingUpdatePeriod, TimeUnit timeUnit) {
         this.serviceProxy = serviceProxy;
+        measuredPing = Long.MAX_VALUE;
+        this.timeout = timeout;
+        ongoingRequestCount = new AtomicInteger(0);
+        if(pingUpdatePeriod > 0L) {
+            serviceProxy.startPeriodicQosUpdate(timeout, pingUpdatePeriod, timeUnit);
+        }
     }
+
+    public static long getMeasuredQoS(Object proxy) {
+        return forEachCliet(proxy)
+                .blockingFirst().getMeasuredPing();
+    }
+
+    public static boolean isClosable(Object proxy) {
+        return forEachCliet(proxy)
+                .blockingFirst().isClosable();
+    }
+
 
     private void setMethodEndpointMap(Map<Method, Endpoint> map) {
         this.methodMap = map;
+    }
+
+    private boolean isClosable() {
+        return ongoingRequestCount.get() == 0;
+    }
+
+    static RMIClient access(Object proxy) {
+        return forEachCliet(proxy)
+                .blockingFirst();
+    }
+
+    /**
+     *
+     * @param proxy
+     * @param force
+     */
+    public static void destroy(Object proxy, boolean force) {
+        forEachCliet(proxy)
+                .subscribeOn(Schedulers.io())
+                .blockingSubscribe(client -> client.close(force));
+    }
+
+    private static Observable<RMIClient> forEachCliet(Object proxy) {
+        return Observable.create(emitter -> {
+            Class proxyClass = proxy.getClass();
+            if(Proxy.isProxyClass(proxyClass)) {
+                RMIClient client = (RMIClient) Proxy.getInvocationHandler(proxy);
+                emitter.onNext(client);
+            } else {
+                Service service = proxy.getClass().getAnnotation(Service.class);
+                if(service == null) {
+                    throw new IllegalArgumentException("Invalid Proxy");
+                }
+                Observable.fromArray(proxyClass.getDeclaredFields())
+                        .filter(field -> field.getAnnotation(Controller.class) != null)
+                        .map(field -> field.get(proxy))
+                        .cast(RMIClient.class)
+                        .blockingSubscribe(emitter::onNext);
+            }
+            emitter.onComplete();
+        });
     }
 
 
     /**
      * close method invocation proxy created by {@link #create(RMIServiceProxy, Class, Class)} or {@link #createService(RMIServiceProxy, Class)} method
      * @param proxy returned proxy instance from {@link #create(RMIServiceProxy, Class, Class)} or {@link #createService(RMIServiceProxy, Class)}
-     * @throws IOException fail to close network connection for service proxy
      */
-    public static void destroy(Object proxy) throws IOException {
-        Class proxyClass = proxy.getClass();
-        if(Proxy.isProxyClass(proxyClass)) {
-            RMIClient client = (RMIClient) Proxy.getInvocationHandler(proxy);
-            client.close();
-        } else {
-            Service service = proxy.getClass().getAnnotation(Service.class);
-            if(service == null) {
-                throw new IllegalArgumentException("Invalid Proxy");
-            }
-            Observable.fromArray(proxyClass.getDeclaredFields())
-                    .filter(field -> field.getAnnotation(Controller.class) != null)
-                    .map(field -> field.get(proxy))
-                    .blockingSubscribe(RMIClient::destroy);
-        }
+    public static void destroy(Object proxy) {
+        destroy(proxy, false);
     }
 
+    /**
+     *
+     * @param serviceProxy
+     * @param svc
+     * @param <T>
+     * @return
+     * @throws IllegalAccessError
+     * @throws InstantiationException
+     * @throws IllegalAccessException
+     */
+    public static <T> T createService(RMIServiceProxy serviceProxy, Class<T> svc) throws IllegalAccessError, InstantiationException, IllegalAccessException {
+        return createService(serviceProxy, svc, 0L, 0L, TimeUnit.MILLISECONDS);
+    }
 
     /**
      * create service proxy instance which contains controller interface as its member fields.
@@ -78,13 +143,12 @@ public class RMIClient implements InvocationHandler  {
      *      *          or if the class has no nullary constructor;
      *      *          or if the instantiation fails for some other reason.
      */
-    public static <T> T createService(RMIServiceProxy serviceProxy, Class<T> svc) throws IllegalAccessException, InstantiationException {
+    public static <T> T createService(RMIServiceProxy serviceProxy, Class<T> svc, long timeout, long pingInterval, TimeUnit timeUnit) throws IllegalAccessException, InstantiationException {
         Object svcProxy = svc.newInstance();
-
         Observable.fromArray(svc.getDeclaredFields())
                 .filter(field -> field.getAnnotation(Controller.class) != null)
                 .blockingSubscribe(field -> {
-                    Object controller = create(serviceProxy, svc, field.getType());
+                    Object controller = create(serviceProxy, svc, field.getType(), pingInterval, timeout, timeUnit);
                     field.setAccessible(true);
                     field.set(svcProxy, controller);
                 });
@@ -92,17 +156,8 @@ public class RMIClient implements InvocationHandler  {
         return (T) svcProxy;
     }
 
-    /**
-     * create call proxy instance corresponding to given controller class
-     * @param serviceProxy active service proxy which is obtained from the service discovery
-     * @param svc Service definition class
-     * @param ctrl controller definition as interface
-     * @param <T> type of controller class
-     * @return call proxy instance for controller
-     */
-    @Nullable
-    public static <T> T create(RMIServiceProxy serviceProxy, Class svc, Class<T> ctrl) {
-        Service service = (Service) svc.getAnnotation(Service.class);
+    public static <T> T create(RMIServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl, long pingTimeout, long pingInterval, TimeUnit timeUnit) {
+        Service service = svc.getAnnotation(Service.class);
         Preconditions.checkNotNull(service);
         if(!serviceProxy.provide(ctrl)) {
             return null;
@@ -129,7 +184,7 @@ public class RMIClient implements InvocationHandler  {
                 serviceProxy.open();
             }
 
-            RMIClient rmiClient = new RMIClient(serviceProxy);
+            RMIClient rmiClient = new RMIClient(serviceProxy, pingTimeout, pingInterval, timeUnit);
 
             Observable<Endpoint> endpointObservable = Observable.fromIterable(validMethods)
                     .map(method -> Endpoint.create(controller, method));
@@ -153,10 +208,23 @@ public class RMIClient implements InvocationHandler  {
         }
     }
 
+    /**
+     * create call proxy instance corresponding to given controller class
+     * @param serviceProxy active service proxy which is obtained from the service discovery
+     * @param svc Service definition class
+     * @param ctrl controller definition as interface
+     * @param <T> type of controller class
+     * @return call proxy instance for controller
+     */
+    @Nullable
+    public static <T> T create(RMIServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl) {
+        return create(serviceProxy, svc, ctrl, 0L, 0L, TimeUnit.MILLISECONDS);
+    }
+
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
-        serviceProxy.close();
+        close(true);
     }
 
     /**
@@ -164,7 +232,7 @@ public class RMIClient implements InvocationHandler  {
      * @param into map collecting fragmented (or partial) map of {@link Method} and {@link Endpoint}
      * @param methodEndpointMap fragmented (or partial) map of {@link Method} and {@link Endpoint}
      */
-    private static void collectMethodMap(Map<Method, Endpoint> into, Map<Method, Endpoint> methodEndpointMap) {
+    static void collectMethodMap(Map<Method, Endpoint> into, Map<Method, Endpoint> methodEndpointMap) {
         into.putAll(methodEndpointMap);
     }
 
@@ -174,7 +242,7 @@ public class RMIClient implements InvocationHandler  {
      * @param endpoint
      * @return
      */
-    private static Map<Method, Endpoint> zipIntoMethodMap(Method method, Endpoint endpoint) {
+    static Map<Method, Endpoint> zipIntoMethodMap(Method method, Endpoint endpoint) {
         Map<Method, Endpoint> methodEndpointMap = new HashMap<>();
         methodEndpointMap.put(method, endpoint);
         return methodEndpointMap;
@@ -182,13 +250,21 @@ public class RMIClient implements InvocationHandler  {
 
     /**
      * close service proxy used by this call proxy
-     * @throws IOException
+     * @param force if false, wait until on-going request complete, otherwise, close immediately
+     * @throws IOException proxy is already closed,
      */
-    private void close() throws IOException {
+    private void close(boolean force) throws IOException {
+        if(!force) {
+            try {
+                while (!isClosable()) {
+                    // wait until proxy is closable
+                    Thread.sleep(10L);
+                }
+            } catch (InterruptedException ignored) { }
+        }
+
         serviceProxy.close();
     }
-
-
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
@@ -196,11 +272,25 @@ public class RMIClient implements InvocationHandler  {
         if(endpoint == null) {
             return null;
         }
-        try {
-            return serviceProxy.request(endpoint, args);
-        } catch (IOException e) {
-            serviceProxy.close();
-            return Response.error(-1, e.getLocalizedMessage());
+        ongoingRequestCount.getAndIncrement();
+        Response response = serviceProxy.request(endpoint, timeout, args);
+        ongoingRequestCount.decrementAndGet();
+        if(response.isSuccessful()) {
+            return response;
         }
+        throw new RMIException(response);
+    }
+
+    @Override
+    public int compareTo(@NotNull RMIClient o) {
+        return Math.toIntExact(getMeasuredPing() - o.getMeasuredPing());
+    }
+
+    private long getMeasuredPing() {
+        return measuredPing;
+    }
+
+    public String who() {
+        return serviceProxy.who();
     }
 }

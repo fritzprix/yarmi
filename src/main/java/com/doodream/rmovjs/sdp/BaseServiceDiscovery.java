@@ -26,14 +26,14 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     private long tickIntervalInMilliSec;
     private HashMap<Class, Disposable> disposableMap;
 
-    public BaseServiceDiscovery(long interval, TimeUnit unit) {
+    BaseServiceDiscovery(long interval, TimeUnit unit) {
         tickIntervalInMilliSec = unit.toMillis(interval);
         disposableMap = new HashMap<>();
     }
 
     @Override
-    public void startDiscovery(@NonNull Class service, @NonNull ServiceDiscoveryListener listener) throws InstantiationException, IllegalAccessException {
-        startDiscovery(service, listener, TIMEOUT_IN_SEC, TimeUnit.SECONDS);
+    public void startDiscovery(@NonNull Class service, boolean once, @NonNull ServiceDiscoveryListener listener) throws InstantiationException, IllegalAccessException {
+        startDiscovery(service, once, TIMEOUT_IN_SEC, TimeUnit.SECONDS, listener);
     }
 
 
@@ -42,7 +42,7 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
     @Override
-    public void startDiscovery(@NonNull Class service, @NonNull ServiceDiscoveryListener listener, long timeout, @NonNull TimeUnit unit) throws IllegalAccessException, InstantiationException {
+    public void startDiscovery(@NonNull Class service, boolean once, long timeout, @NonNull TimeUnit unit, @NonNull ServiceDiscoveryListener listener) throws IllegalAccessException, InstantiationException {
         if(disposableMap.containsKey(service)) {
             return;
         }
@@ -58,7 +58,12 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
                 .map(seq -> receiveServiceInfo(converter))
                 .doOnNext(svcInfo -> Log.trace("received info : {}", svcInfo))
                 .onErrorReturn(throwable -> RMIServiceInfo.builder().build())
-                .filter(discoveryCache::add)
+                .filter(discovered -> {
+                    if(!once) {
+                        return true;
+                    }
+                    return discoveryCache.add(discovered);
+                })
                 .filter(info::equals)
                 .doOnNext(discovered -> Log.debug("Discovered New Service : {} @ {}", discovered.getName(), discovered.getProxyFactoryHint()))
                 .doOnNext(info::copyFrom)

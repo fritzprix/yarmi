@@ -7,12 +7,12 @@ import com.doodream.rmovjs.net.SimpleNegotiator;
 import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.bson.BsonConverter;
-import com.doodream.rmovjs.serde.json.JsonConverter;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /**
+ * Service Annotation
  * Created by innocentevil on 18. 5. 4.
  */
 
