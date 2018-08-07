@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import de.undercouch.bson4jackson.BsonFactory;
 import de.undercouch.bson4jackson.BsonGenerator;
 import de.undercouch.bson4jackson.BsonParser;
@@ -17,12 +18,12 @@ import io.reactivex.Observable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.List;
 import java.util.Map;
 
 public class BsonConverter implements Converter {
@@ -47,7 +48,7 @@ public class BsonConverter implements Converter {
         try {
             return new Reader() {
 
-                private BsonParser parser = bsonFactory.createParser(inputStream);
+                private BsonParser parser = bsonFactory.createParser(new BufferedInputStream(inputStream));
 
                 @Override
                 public synchronized <T> T read(Class<T> cls) throws IOException {
@@ -99,12 +100,15 @@ public class BsonConverter implements Converter {
 
 
     @Override
-    public <T> T resolve(Object unresolved, Type type) throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+    public <T> T resolve(Object unresolved, Type type) throws ClassNotFoundException {
         if(unresolved == null) {
             return null;
         }
         Class cls = Class.forName(type.getTypeName());
         Class unresolvedCls = unresolved.getClass();
+//        if(!type.getTypeName().contains("SCM")) {
+//            Log.debug("cls of unresolved : {} / given type : {}", unresolvedCls, cls);
+//        }
         if(cls.equals(unresolvedCls)) {
             return (T) unresolved;
         }

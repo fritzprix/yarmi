@@ -7,9 +7,7 @@ import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.*;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -96,12 +94,23 @@ public class JsonConverter implements Converter {
 
     @Override
     public Reader reader(InputStream inputStream)  {
-        return new JsonReader(this, inputStream);
+        return new Reader() {
+            private BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            @Override
+            public <T> T read(Class<T> cls) throws IOException {
+                String line = reader.readLine();
+                if(line == null) {
+                    return null;
+                }
+                line = line.trim();
+                return invert(StandardCharsets.UTF_8.encode(line).array(), cls);
+            }
+        };
     }
 
     @Override
     public Writer writer(OutputStream outputStream) {
-        return new JsonWriter(this, outputStream);
+        return src -> outputStream.write(convert(src));
     }
 
     @Override

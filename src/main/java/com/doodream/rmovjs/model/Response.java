@@ -34,7 +34,6 @@ public class Response<T> {
     private T body;
     private boolean isSuccessful;
     private boolean hasSessionSwitch;
-    private ResponseBody errorBody;
     private int code;
     private int nonce;
     @SerializedName("scm")
@@ -44,16 +43,8 @@ public class Response<T> {
         return Response.<T>builder()
                 .body(body)
                 .code(SUCCESS)
+                .hasSessionSwitch(body instanceof BlobSession)
                 .isSuccessful(true)
-                .build();
-    }
-
-    public static Response<BlobSession> success(BlobSession session) {
-        return Response.<BlobSession>builder()
-                .body(session)
-                .code(SUCCESS)
-                .isSuccessful(true)
-                .hasSessionSwitch(true)
                 .build();
     }
 
@@ -66,10 +57,10 @@ public class Response<T> {
     }
 
     public static Response error(int code, String msg) {
-        return Response.<ResponseBody>builder()
-                .code(code)
+        return Response.<String>builder()
                 .isSuccessful(false)
-                .errorBody(new ResponseBody(msg))
+                .code(code)
+                .body(msg)
                 .build();
     }
 
@@ -102,20 +93,16 @@ public class Response<T> {
     }
 
     public static void validate(Response res) {
-        if(res.code == Response.SUCCESS) {
-            Preconditions.checkNotNull(res.getBody(), "Successful response must have non-null body");
-        } else {
-            Preconditions.checkNotNull(res.getErrorBody(), "Error response must have non-null error body");
+        Preconditions.checkNotNull(res.getBody(), "Successful response must have non-null body");
+        if(!res.isSuccessful) {
+            Preconditions.checkArgument(res.getBody() instanceof String, "Error response must have non-null error body");
         }
     }
 
     public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
-        return (controlMessage) -> {
-            writer.write(Response.builder()
-                    .scm(controlMessage)
-                    .build());
-
-        };
+        return (controlMessage) -> writer.write(Response.builder()
+                .scm(controlMessage)
+                .build());
     }
 
     /**

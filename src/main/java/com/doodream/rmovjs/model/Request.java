@@ -61,11 +61,9 @@ public class Request {
     }
 
     public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
-        return (controlMessage) -> {
-            writer.write(Request.builder()
-                    .scm(controlMessage)
-                    .build());
-        };
+        return (controlMessage) -> writer.write(Request.builder()
+                .scm(controlMessage)
+                .build());
     }
 
     public boolean hasScm() {

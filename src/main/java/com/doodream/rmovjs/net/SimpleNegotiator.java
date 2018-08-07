@@ -43,7 +43,7 @@ public class SimpleNegotiator implements RMINegotiator {
                 return;
             }
             Preconditions.checkNotNull(response, "Response is null");
-            Log.error("Handshake Fail ({}) {}",response.getCode(), response.getErrorBody());
+            Log.error("Handshake Fail ({}) {}",response.getCode(), response.getBody());
         } catch (IOException ignore) { }
         throw new HandshakeFailException();
     }

@@ -1,7 +1,5 @@
 package com.doodream.rmovjs.annotation.method;
 
-import com.doodream.rmovjs.method.RMIMethod;
-
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 

@@ -30,7 +30,7 @@ public class RMIBasicTest {
 
     @Test
     public void createTestClient() throws IOException, IllegalAccessException, InstantiationException {
-        new SimpleServiceDiscovery().startDiscovery(TestService.class, new ServiceDiscoveryListener() {
+        new SimpleServiceDiscovery().startDiscovery(TestService.class, true, new ServiceDiscoveryListener() {
             @Override
             public void onDiscovered(RMIServiceProxy proxy) {
 
