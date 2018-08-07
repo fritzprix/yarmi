@@ -52,10 +52,7 @@ public class BsonConverter implements Converter {
 
                 @Override
                 public synchronized <T> T read(Class<T> cls) throws IOException {
-                    try {
-                        return parser.readValueAs(cls);
-                    } catch (MismatchedInputException ignore) { }
-                    return null;
+                    return parser.readValueAs(cls);
                 }
             };
         } catch (IOException e) {
