@@ -126,6 +126,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 return;
             }
             synchronized (request) {
+                Log.debug("request({}) is response({})", request, response);
                 request.setResponse(response);
                 request.notifyAll(); // wakeup waiting thread
             }
@@ -161,6 +162,9 @@ public class BaseServiceProxy implements RMIServiceProxy {
                             }
                         }
                     } catch (InterruptedException e) {
+                        return Optional.of(RMIError.CLOSED.getResponse());
+                    }
+                    if(request.getResponse() == null) {
                         return Optional.of(RMIError.TIMEOUT.getResponse());
                     }
                     return Optional.of(request.getResponse());
@@ -300,6 +304,9 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
     @Override
     public Long getQosUpdate(long timeout) {
+        if(!isOpen()) {
+            return Long.MAX_VALUE;
+        }
         long sTime = System.currentTimeMillis();
         final Response response = request(HEALTH_CHECK_ENDPOINT, timeout);
         if (response.isSuccessful() && (response.getCode() == Response.SUCCESS)) {

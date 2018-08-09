@@ -16,6 +16,7 @@ import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  *  High-Available RMI Client
@@ -39,11 +41,7 @@ public class HaRMIClient<T> implements InvocationHandler {
         RoundRobin {
             @Override
             public Object selectNext(List<Object> proxies, Object lastSelected) {
-                int lastIdx = proxies.indexOf(lastSelected) + 1;
-                if(proxies.size() <= lastIdx) {
-                    lastIdx = 0;
-                }
-                return proxies.get(lastIdx);
+               return proxies.get(0);
             }
         },
         FastestFirst {
@@ -63,6 +61,7 @@ public class HaRMIClient<T> implements InvocationHandler {
     }
 
     private static final long DEFAULT_QOS_UPDATE_PERIOD = 2000L;
+    private static final long AVAILABILITY_WAIT_TIMEOUT = 5000L;
     private static final Logger Log = LoggerFactory.getLogger(HaRMIClient.class);
 
     private AvailabilityChangeListener availabilityChangeListener;
@@ -72,11 +71,19 @@ public class HaRMIClient<T> implements InvocationHandler {
     private long qosFactor;
     private ExecutorService listenerInvoker;
     private HashSet<String> discoveredProxySet;
-    private ArrayList<Object> clients;
+    private final ArrayList<Object> clients;
     private Class<T> controller;
     private Class svc;
     private long qosUpdateTime;
     private TimeUnit qosUpdateTimeUnit;
+
+    public static void destroy(Object callProxy, boolean force) {
+        final HaRMIClient client = (HaRMIClient) Proxy.getInvocationHandler(callProxy);
+        if(client == null) {
+            return;
+        }
+        client.close(force);
+    }
 
     public static <T> T create(ServiceDiscovery discovery, long qos, Class svc, Class<T> ctrl, RequestRoutePolicy policy, AvailabilityChangeListener listener) {
 
@@ -114,11 +121,34 @@ public class HaRMIClient<T> implements InvocationHandler {
         return (T) Proxy.newProxyInstance(ctrl.getClassLoader(),new Class[]{ ctrl }, haRMIClient);
     }
 
+    public static boolean isAvailable(Object callProxy, boolean blockUntilAvailable) {
+        HaRMIClient haRMIClient = (HaRMIClient) Proxy.getInvocationHandler(callProxy);
+        if(haRMIClient == null) {
+            return false;
+        }
+        int availability;
+        synchronized (haRMIClient.clients) {
+            while (!((availability = haRMIClient.getUpdatedAvailability()) > 0) && blockUntilAvailable) {
+                try {
+                    haRMIClient.clients.wait(AVAILABILITY_WAIT_TIMEOUT);
+                } catch (InterruptedException e) {
+                    return false;
+                }
+            }
+        }
+        return availability > 0;
+    }
+
+    private int getUpdatedAvailability() {
+        return clients.size();
+    }
+
 
     private HaRMIClient(Class svc, Class<T> ctrl, long qos, long qosUpdatePeriod, TimeUnit timeUnit, RequestRoutePolicy policy) {
         this.svc = svc;
         this.controller = ctrl;
         this.routePolicy = policy;
+        Log.debug("policy {}", policy);
         this.qosFactor = qos;
         listenerInvoker = Executors.newSingleThreadExecutor();
         clients = new ArrayList<>();
@@ -143,10 +173,17 @@ public class HaRMIClient<T> implements InvocationHandler {
         }
 
         if (discoveredProxySet.add(serviceProxy.who())) {
+            Log.debug("try to add client");
             clients.add(RMIClient.create(serviceProxy, svc, controller, qosFactor, qosUpdateTime, qosUpdateTimeUnit));
+            Log.debug("client is added");
         }
 
-        listenerInvoker.submit(() -> availabilityChangeListener.onAvailabilityChanged(clients.size()));
+        listenerInvoker.submit(() -> {
+            synchronized (clients) {
+                availabilityChangeListener.onAvailabilityChanged(clients.size());
+                clients.notifyAll();
+            }
+        });
     }
 
 
@@ -177,26 +214,35 @@ public class HaRMIClient<T> implements InvocationHandler {
     }
 
 
-    private Object selectNext() throws InterruptedException {
+    private Object selectNext() throws TimeoutException {
+        Log.debug("try select next");
         Object selected;
+        int trial = 1;
         do {
             synchronized (this) {
                 selected = routePolicy.selectNext(clients, lastProxy);
             }
             if(selected == null) {
-                Thread.sleep(100L);
+                Log.debug("wait for next proxy available");
+                try {
+                    Thread.sleep(AVAILABILITY_WAIT_TIMEOUT);
+                } catch (InterruptedException e) {
+                    Log.error("",e);
+                    return null;
+                }
+            } else {
+                return selected;
             }
-        } while(selected != null);
-        return selected;
+        } while(trial-- > 0);
+        throw new TimeoutException("No Available Service");
     }
 
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-
         lastProxy = selectNext();
         Preconditions.checkNotNull(lastProxy);
-
+        Log.debug("invoking : {} , {}", method, args);
         try {
             return method.invoke(lastProxy, method, args);
         } catch (RMIException e) {
@@ -217,7 +263,12 @@ public class HaRMIClient<T> implements InvocationHandler {
             Log.warn("client ({}) is not in the discovered set", client.who());
         }
         RMIClient.destroy(badProxy, true);
-        listenerInvoker.submit(() -> availabilityChangeListener.onAvailabilityChanged(clients.size()));
+        listenerInvoker.submit(() -> {
+            synchronized (client) {
+                availabilityChangeListener.onAvailabilityChanged(clients.size());
+                client.notifyAll();
+            }
+        });
     }
 
 }
