@@ -7,7 +7,9 @@ import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
+import io.reactivex.Observer;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import lombok.NonNull;
@@ -34,14 +36,42 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
         onStart();
 
         listen = true;
-        compositeDisposable.add(Observable.just(converter)
+        Observable.just(converter)
                 .map(c -> acceptClient())
                 .doOnNext(socket -> Log.debug("{} connected", socket.getRemoteName()))
                 .repeatUntil(() -> !listen)
                 .map(client -> negotiator.handshake(client, serviceInfo, converter, false))
                 .map(socket -> new ClientSocketAdapter(socket, converter))
                 .subscribeOn(Schedulers.newThread())
-                .subscribe(adapter-> onHandshakeSuccess(adapter, handleRequest),this::onError));
+                .subscribeWith(new Observer<ClientSocketAdapter>() {
+
+                    private ClientSocketAdapter adapter;
+
+                    @Override
+                    public void onSubscribe(Disposable disposable) {
+                        compositeDisposable.add(disposable);
+                    }
+
+                    @Override
+                    public void onNext(ClientSocketAdapter clientSocketAdapter) {
+                        adapter = clientSocketAdapter;
+                        onHandshakeSuccess(adapter, handleRequest);
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        BaseServiceAdapter.this.onError(throwable, adapter);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        try {
+                            adapter.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
 
         return getProxyConnectionHint(serviceInfo);
     }
@@ -71,12 +101,18 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                     final Response response = handleRequest.apply(request);
                     Log.trace("Response => {}", response);
                     adapter.write(response);
-                },this::onError));
+                }, throwable -> this.onError(throwable, adapter)));
     }
 
-    private void onError(Throwable throwable) {
-        Log.error("Error : {}", throwable);
-        close();
+    private void onError(Throwable throwable, ClientSocketAdapter adapter) {
+        if(adapter == null) {
+            return;
+        }
+        try {
+            adapter.close();
+        } catch (IOException ignore) {
+            // socket is already closed.
+        }
     }
 
     @Override
@@ -86,7 +122,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
             try {
                 onClose();
             } catch (IOException e) {
-                Log.warn("{}", e);
+                Log.warn("", e);
             }
         }
         compositeDisposable.dispose();

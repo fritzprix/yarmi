@@ -16,12 +16,11 @@ import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.ref.WeakReference;
+import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -34,26 +33,44 @@ import java.util.concurrent.TimeoutException;
  */
 public class HaRMIClient<T> implements InvocationHandler {
 
+    private interface Selectable {
+        RMIClient selectNext(List<RMIClient> proxies, RMIClient lastSelected);
+    }
+
     /**
-     * policy
+     * types of policy used to select service every request
      */
-    public enum RequestRoutePolicy {
+    public enum RequestRoutePolicy implements Selectable {
         RoundRobin {
             @Override
-            public Object selectNext(List<Object> proxies, Object lastSelected) {
-               return proxies.get(0);
+            public RMIClient selectNext(List<RMIClient> proxies, RMIClient lastSelected) {
+                if(lastSelected == null) {
+                    return proxies.get(0);
+                }
+                if(proxies.contains(lastSelected)) {
+                    int idx =  proxies.indexOf(lastSelected) + 1;
+                    if(idx >= proxies.size()) {
+                        idx = 0;
+                    }
+                    return proxies.get(idx);
+                }
+                return proxies.get(0);
             }
         },
         FastestFirst {
             @Override
-            public Object selectNext(List<Object> proxies, Object lastSelected) {
+            public RMIClient selectNext(List<RMIClient> proxies, RMIClient lastSelected) {
                 return Observable.fromIterable(proxies)
-                        .sorted(Comparator.comparing(RMIClient::access))
+                        .sorted(RMIClient::compareTo)
                         .blockingFirst();
             }
-        };
-
-        public abstract Object selectNext(List<Object> proxies, Object lastSelected);
+        },
+        Random {
+            @Override
+            public RMIClient selectNext(List<RMIClient> proxies, RMIClient lastSelected) {
+                return null;
+            }
+        }
     }
 
     public interface AvailabilityChangeListener {
@@ -62,21 +79,27 @@ public class HaRMIClient<T> implements InvocationHandler {
 
     private static final long DEFAULT_QOS_UPDATE_PERIOD = 2000L;
     private static final long AVAILABILITY_WAIT_TIMEOUT = 5000L;
+    private static final int MAX_TRIAL_COUNT = 3;
     private static final Logger Log = LoggerFactory.getLogger(HaRMIClient.class);
 
     private AvailabilityChangeListener availabilityChangeListener;
     private RequestRoutePolicy routePolicy;
     private CompositeDisposable compositeDisposable;
-    private Object lastProxy;
+    private RMIClient lastProxy;
     private long qosFactor;
     private ExecutorService listenerInvoker;
     private HashSet<String> discoveredProxySet;
-    private final ArrayList<Object> clients;
+    private final ArrayList<RMIClient> clients;
     private Class<T> controller;
     private Class svc;
     private long qosUpdateTime;
     private TimeUnit qosUpdateTimeUnit;
 
+    /**
+     * close call proxy and release its resources
+     * @param callProxy call proxy returned by {@link #create(ServiceDiscovery, long, Class, Class, RequestRoutePolicy, AvailabilityChangeListener)}
+     * @param force if false, caller wait until the on-going requests are finished. if true, close the network connection immediately without waiting
+     */
     public static void destroy(Object callProxy, boolean force) {
         final HaRMIClient client = (HaRMIClient) Proxy.getInvocationHandler(callProxy);
         if(client == null) {
@@ -85,6 +108,18 @@ public class HaRMIClient<T> implements InvocationHandler {
         client.close(force);
     }
 
+    /**
+     * create call proxy for multiple services
+     * it tries to keep connection to services as many as possible
+     * @param discovery @{@link ServiceDiscovery} used to discover service
+     * @param qos latency in millisecond which service should meet to keep connection to this client
+     * @param svc service definition class annotated by {@link Service}
+     * @param ctrl controller interface
+     * @param policy policy used to select service
+     * @param listener listener to monitor the change of service availability
+     * @param <T> controller type which proxy is created from
+     * @return call proxy
+     */
     public static <T> T create(ServiceDiscovery discovery, long qos, Class svc, Class<T> ctrl, RequestRoutePolicy policy, AvailabilityChangeListener listener) {
 
         Service service = (Service) svc.getAnnotation(Service.class);
@@ -121,6 +156,12 @@ public class HaRMIClient<T> implements InvocationHandler {
         return (T) Proxy.newProxyInstance(ctrl.getClassLoader(),new Class[]{ ctrl }, haRMIClient);
     }
 
+    /**
+     * check the availability of the service
+     * @param callProxy call proxy returned by {@link #create(ServiceDiscovery, long, Class, Class, RequestRoutePolicy, AvailabilityChangeListener)}
+     * @param blockUntilAvailable if true, caller will block until at least a service available, otherwise return immediately
+     * @return true, if there is at least an available service, otherwise false
+     */
     public static boolean isAvailable(Object callProxy, boolean blockUntilAvailable) {
         HaRMIClient haRMIClient = (HaRMIClient) Proxy.getInvocationHandler(callProxy);
         if(haRMIClient == null) {
@@ -139,16 +180,23 @@ public class HaRMIClient<T> implements InvocationHandler {
         return availability > 0;
     }
 
-    private int getUpdatedAvailability() {
+    private synchronized int getUpdatedAvailability() {
         return clients.size();
     }
 
-
+    /**
+     * private constructor
+     * @param svc service definition annotated with {@link Service}
+     * @param ctrl class of controller interface
+     * @param qos minimum Quality of Service (latency) used to determine the service is good or bad, if the service will be disconnected if it doesn't satisfy the QoS
+     * @param qosUpdatePeriod time value how frequently the QoS be measured.
+     * @param timeUnit time unit for qosUpdatePeriod
+     * @param policy policy used to select service for each request
+     */
     private HaRMIClient(Class svc, Class<T> ctrl, long qos, long qosUpdatePeriod, TimeUnit timeUnit, RequestRoutePolicy policy) {
         this.svc = svc;
         this.controller = ctrl;
         this.routePolicy = policy;
-        Log.debug("policy {}", policy);
         this.qosFactor = qos;
         listenerInvoker = Executors.newSingleThreadExecutor();
         clients = new ArrayList<>();
@@ -171,11 +219,8 @@ public class HaRMIClient<T> implements InvocationHandler {
         if (serviceProxy == null) {
             return;
         }
-
         if (discoveredProxySet.add(serviceProxy.who())) {
-            Log.debug("try to add client");
-            clients.add(RMIClient.create(serviceProxy, svc, controller, qosFactor, qosUpdateTime, qosUpdateTimeUnit));
-            Log.debug("client is added");
+            clients.add(RMIClient.createClient(serviceProxy, svc, controller, qosFactor, qosUpdateTime, qosUpdateTimeUnit));
         }
 
         listenerInvoker.submit(() -> {
@@ -210,44 +255,42 @@ public class HaRMIClient<T> implements InvocationHandler {
     private void close(boolean force) {
         compositeDisposable.dispose();
         listenerInvoker.shutdown();
-        clients.forEach(proxy -> RMIClient.destroy(proxy, force));
+        clients.forEach(client -> {
+            try {
+                client.close(force);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
 
-    private Object selectNext() throws TimeoutException {
-        Log.debug("try select next");
-        Object selected;
-        int trial = 1;
-        do {
-            synchronized (this) {
+    private RMIClient selectNext() throws TimeoutException {
+        RMIClient selected;
+        int trial = MAX_TRIAL_COUNT;
+        try {
+            do {
                 selected = routePolicy.selectNext(clients, lastProxy);
-            }
-            if(selected == null) {
-                Log.debug("wait for next proxy available");
-                try {
-                    Thread.sleep(AVAILABILITY_WAIT_TIMEOUT);
-                } catch (InterruptedException e) {
-                    Log.error("",e);
-                    return null;
+                if (selected != null) {
+                    return selected;
                 }
-            } else {
-                return selected;
-            }
-        } while(trial-- > 0);
-        throw new TimeoutException("No Available Service");
+                synchronized (clients) {
+                    clients.wait();
+                }
+            } while (trial-- > 0);
+        } catch (InterruptedException ignore) { }
+        throw new TimeoutException(String.format("fail to select next client /w %s", routePolicy));
     }
 
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         lastProxy = selectNext();
-        Preconditions.checkNotNull(lastProxy);
-        Log.debug("invoking : {} , {}", method, args);
+        Preconditions.checkNotNull(lastProxy, "invalid call proxy : null call proxy");
         try {
-            return method.invoke(lastProxy, method, args);
+            return lastProxy.invoke(lastProxy, method, args);
         } catch (RMIException e) {
             if(RMIError.isServiceBad(e.code())) {
-                // bad service
                 purgeBadProxy(lastProxy);
             }
             // rethrow it
@@ -255,14 +298,27 @@ public class HaRMIClient<T> implements InvocationHandler {
         }
     }
 
+    @Override
+    protected void finalize() throws Throwable {
+        close(true);
+        super.finalize();
+    }
 
-    private synchronized void purgeBadProxy(Object badProxy) {
-        clients.remove(badProxy);
-        final RMIClient client = RMIClient.access(badProxy);
+    /**
+     * purge bad proxy
+     * @param client client which doesn't meet QoS requirement
+     */
+    private synchronized void purgeBadProxy(RMIClient client) {
+        Log.debug("Purge client {}", client);
+        clients.remove(client);
         if(!discoveredProxySet.remove(client.who())) {
-            Log.warn("client ({}) is not in the discovered set", client.who());
+            Log.warn("client ({}) is not in the discovered set", client);
         }
-        RMIClient.destroy(badProxy, true);
+        try {
+            client.close(true);
+        } catch (IOException e) {
+            Log.warn(e.getMessage());
+        }
         listenerInvoker.submit(() -> {
             synchronized (client) {
                 availabilityChangeListener.onAvailabilityChanged(clients.size());

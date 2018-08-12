@@ -175,10 +175,11 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         return (T) svcProxy;
     }
 
-    public static <T> T create(RMIServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl, long pingTimeout, long pingInterval, TimeUnit timeUnit) {
+    static <T> RMIClient createClient(RMIServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl, long pingTimeout, long pingInterval, TimeUnit timeUnit) {
         Service service = svc.getAnnotation(Service.class);
         Preconditions.checkNotNull(service);
         if(!serviceProxy.provide(ctrl)) {
+            Log.warn("service is not supported");
             return null;
         }
 
@@ -220,11 +221,19 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
             // method collision is not properly handled at the moment, simple poc is performed to test
             // https://gist.github.com/fritzprix/ca0ecc08fc3125cde529dd11185be0b9
 
-            return (T) Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[]{ ctrl }, rmiClient);
+            return rmiClient;
         } catch (Exception e) {
             Log.error(e.getLocalizedMessage());
             return null;
         }
+    }
+
+    public static <T> T create(RMIServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl, long pingTimeout, long pingInterval, TimeUnit timeUnit) {
+        RMIClient rmiClient = createClient(serviceProxy, svc, ctrl, pingTimeout, pingInterval, timeUnit);
+        if(rmiClient == null) {
+            return null;
+        }
+        return (T) Proxy.newProxyInstance(ctrl.getClassLoader(), new Class[] {ctrl}, rmiClient);
     }
 
     /**
@@ -243,7 +252,13 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
-        close(true);
+        try {
+            close(true);
+        } catch (IOException ignore) {
+
+        } finally {
+            super.finalize();
+        }
     }
 
     /**
@@ -272,7 +287,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
      * @param force if false, wait until on-going request complete, otherwise, close immediately
      * @throws IOException proxy is already closed,
      */
-    private void close(boolean force) throws IOException {
+    void close(boolean force) throws IOException {
         markToClose = true;
         if(!force) {
             try {

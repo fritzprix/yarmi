@@ -107,18 +107,24 @@ public class BaseServiceProxy implements RMIServiceProxy {
         isOpened = true;
 
         compositeDisposable.add(Observable.<Response>create(emitter -> {
-            while (isOpened) {
-                Response response = reader.read(Response.class);
-                if(response == null) {
-                    return;
+            try {
+                while (isOpened) {
+                    Response response = reader.read(Response.class);
+                    if (response == null) {
+                        return;
+                    }
+                    if (response.hasScm()) {
+                        handleSessionControlMessage(response);
+                        continue;
+                    }
+                    emitter.onNext(response);
                 }
-                if(response.hasScm()) {
-                    handleSessionControlMessage(response);
-                    continue;
-                }
-                emitter.onNext(response);
+            } catch (IOException ignore) {
+                isOpened = false;
             }
-            emitter.onComplete();
+            finally {
+                emitter.onComplete();
+            }
         }).subscribeOn(mListener).subscribe(response -> {
             Request request = requestWaitQueue.remove(response.getNonce());
             if(request == null) {
@@ -130,7 +136,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 request.setResponse(response);
                 request.notifyAll(); // wakeup waiting thread
             }
-        }, this::onError));
+        }, this::onError, this::close));
     }
 
     @Override
