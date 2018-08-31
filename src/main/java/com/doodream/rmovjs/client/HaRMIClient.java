@@ -1,167 +1,329 @@
 package com.doodream.rmovjs.client;
 
+import com.doodream.rmovjs.annotation.RMIException;
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.method.RMIMethod;
-import com.doodream.rmovjs.model.Endpoint;
+import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.sdp.ServiceDiscovery;
 import com.doodream.rmovjs.sdp.ServiceDiscoveryListener;
-import com.doodream.rmovjs.util.LruCache;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
-import io.reactivex.Single;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.annotation.Annotation;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  *  High-Available RMI Client
  */
-public class HaRMIClient implements InvocationHandler {
-
+public class HaRMIClient<T> implements InvocationHandler {
 
     /**
      * policy
      */
     public enum RequestRoutePolicy {
-        RoundRobin,
-s    }
+        RoundRobin {
+            @Override
+            public Object selectNext(List<Object> proxies, Object lastSelected) {
+               return proxies.get(0);
+            }
+        },
+        FastestFirst {
+            @Override
+            public Object selectNext(List<Object> proxies, Object lastSelected) {
+                return Observable.fromIterable(proxies)
+                        .sorted(new Comparator<Object>() {
+                            @Override
+                            public int compare(Object o1, Object o2) {
+                                return RMIClient.access(o1).compareTo(RMIClient.access(o2));
+                            }
+                        })
+                        .blockingFirst();
+            }
+        };
 
-    private static final long PING_INTERVAL = 2000L;
+        public abstract Object selectNext(List<Object> proxies, Object lastSelected);
+    }
+
+    public interface AvailabilityChangeListener {
+        void onAvailabilityChanged(int availableServices);
+    }
+
+    private static final long DEFAULT_QOS_UPDATE_PERIOD = 2000L;
+    private static final long AVAILABILITY_WAIT_TIMEOUT = 5000L;
     private static final Logger Log = LoggerFactory.getLogger(HaRMIClient.class);
 
-    private String controllerPath;
-    private Map<Method, Endpoint> methodMap;
+    private AvailabilityChangeListener availabilityChangeListener;
     private RequestRoutePolicy routePolicy;
     private CompositeDisposable compositeDisposable;
-    private Class controller;
+    private Object lastProxy;
+    private long qosFactor;
+    private ExecutorService listenerInvoker;
     private HashSet<String> discoveredProxySet;
-    private ServiceDiscovery discovery;
+    private final ArrayList<Object> clients;
+    private Class<T> controller;
+    private Class svc;
+    private long qosUpdateTime;
+    private TimeUnit qosUpdateTimeUnit;
 
-    private LruCache<String, RMIServiceProxy> proxies;
+    public static void destroy(Object callProxy, boolean force) {
+        final HaRMIClient client = (HaRMIClient) Proxy.getInvocationHandler(callProxy);
+        if(client == null) {
+            return;
+        }
+        client.close(force);
+    }
 
-    public static <T> T create(ServiceDiscovery discovery, Class svc, Class<T> ctrl, RequestRoutePolicy policy) throws InstantiationException {
+    public static <T> T create(ServiceDiscovery discovery, long qos, Class svc, final Class<T> ctrl, RequestRoutePolicy policy, AvailabilityChangeListener listener) {
 
         Service service = (Service) svc.getAnnotation(Service.class);
         Preconditions.checkNotNull(service);
 
 
-        HaRMIClient haRMIClient = new HaRMIClient(policy);
-        CompositeDisposable compositeDisposable = new CompositeDisposable();
-        compositeDisposable.add(startDiscovery(discovery, svc)
-                .subscribeOn(Schedulers.newThread())
-                .subscribe(haRMIClient::onServiceDiscovered,haRMIClient::onError));
-
-        compositeDisposable.add(Observable.interval(PING_INTERVAL, TimeUnit.MILLISECONDS)
-                .subscribeOn(Schedulers.newThread())
-                .subscribe(haRMIClient::pingActiveService));
-
-        haRMIClient.setDisposable(compositeDisposable);
-
-
         Controller controller = Observable.fromArray(svc.getDeclaredFields())
-                .filter(field -> field.getType().equals(ctrl))
-                .map(field -> field.getAnnotation(Controller.class))
+                .filter(new Predicate<Field>() {
+                    @Override
+                    public boolean test(Field field) throws Exception {
+                        return field.getType().equals(ctrl);
+                    }
+                })
+                .map(new Function<Field, Controller>() {
+                    @Override
+                    public Controller apply(Field field) throws Exception {
+                        return field.getAnnotation(Controller.class);
+                    }
+                })
                 .blockingFirst(null);
 
 
-        Preconditions.checkNotNull(controller, "no matched controller");
-        Preconditions.checkArgument(ctrl.isInterface());
-
-        haRMIClient.setController(ctrl);
+        List<Method> validMethods = Observable.fromArray(ctrl.getMethods())
+                .filter(new Predicate<Method>() {
+                    @Override
+                    public boolean test(Method method) throws Exception {
+                        return RMIMethod.isValidMethod(method);
+                    }
+                })
+                .toList()
+                .blockingGet();
 
         final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
         Preconditions.checkNotNull(serviceInfo, "Invalid Service Class %s", svc);
 
+        Preconditions.checkArgument(validMethods.size() > 0);
+        Preconditions.checkNotNull(controller, "no matched controller");
+        Preconditions.checkArgument(ctrl.isInterface());
 
-        Observable<Method> methodObservable = Observable.fromArray(ctrl.getMethods())
-                .filter(RMIMethod::isValidMethod);
+        final HaRMIClient<T> haRMIClient = new HaRMIClient<>(svc, ctrl, qos, DEFAULT_QOS_UPDATE_PERIOD, TimeUnit.MILLISECONDS, policy);
+        haRMIClient.availabilityChangeListener = listener;
 
-        Observable<Endpoint> endpointObservable = methodObservable
-                .map(method -> Endpoint.create(controller, method));
 
-        Single<HashMap<Method, Endpoint>> hashMapSingle = methodObservable
-                .zipWith(endpointObservable, RMIClient::zipIntoMethodMap)
-                .collectInto(new HashMap<>(), RMIClient::collectMethodMap);
+        CompositeDisposable compositeDisposable = new CompositeDisposable();
+        compositeDisposable.add(startDiscovery(discovery, svc)
+                .subscribeOn(Schedulers.newThread())
+                .subscribe(new Consumer<RMIServiceProxy>() {
+                    @Override
+                    public void accept(RMIServiceProxy rmiServiceProxy) throws Exception {
+                        haRMIClient.registerProxy(rmiServiceProxy);
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        haRMIClient.onError(throwable);
+                    }
+                }));
 
-        haRMIClient.setMethodEndpointMap(hashMapSingle.blockingGet());
+        haRMIClient.setDisposable(compositeDisposable);
 
-        return (T) Proxy.newProxyInstance(ctrl.getClassLoader(),new Class[]{ctrl}, haRMIClient);
+        return (T) Proxy.newProxyInstance(ctrl.getClassLoader(),new Class[]{ ctrl }, haRMIClient);
+    }
+
+    public static boolean isAvailable(Object callProxy, boolean blockUntilAvailable) {
+        HaRMIClient haRMIClient = (HaRMIClient) Proxy.getInvocationHandler(callProxy);
+        if(haRMIClient == null) {
+            return false;
+        }
+        int availability;
+        synchronized (haRMIClient.clients) {
+            while (!((availability = haRMIClient.getUpdatedAvailability()) > 0) && blockUntilAvailable) {
+                try {
+                    haRMIClient.clients.wait(AVAILABILITY_WAIT_TIMEOUT);
+                } catch (InterruptedException e) {
+                    return false;
+                }
+            }
+        }
+        return availability > 0;
+    }
+
+    private int getUpdatedAvailability() {
+        return clients.size();
+    }
+
+
+    private HaRMIClient(Class svc, Class<T> ctrl, long qos, long qosUpdatePeriod, TimeUnit timeUnit, RequestRoutePolicy policy) {
+        this.svc = svc;
+        this.controller = ctrl;
+        this.routePolicy = policy;
+        Log.debug("policy {}", policy);
+        this.qosFactor = qos;
+        listenerInvoker = Executors.newSingleThreadExecutor();
+        clients = new ArrayList<>();
+        discoveredProxySet = new HashSet<>();
+        qosUpdateTime = qosUpdatePeriod;
+        qosUpdateTimeUnit = timeUnit;
     }
 
     private void onError(Throwable throwable) {
-
+        Log.error(throwable.getLocalizedMessage());
+        close(true);
     }
 
-    private <T> void setController(Class<T> ctrl) {
-        controller = ctrl;
-    }
 
     private void setDisposable(CompositeDisposable compositeDisposable) {
         this.compositeDisposable = compositeDisposable;
     }
 
-    private void onServiceDiscovered(RMIServiceProxy serviceProxy) {
-        Observable.just(serviceProxy)
-                .filter(proxy -> proxy.provide(controller))
-                .filter(proxy -> discoveredProxySet.add(proxy.who()))
-                .blockingSubscribe(this::addActiveServiceProxy);
-    }
+    private synchronized void registerProxy(RMIServiceProxy serviceProxy) {
+        if (serviceProxy == null) {
+            return;
+        }
 
-    private void addActiveServiceProxy(RMIServiceProxy serviceProxy) {
-    }
+        if (discoveredProxySet.add(serviceProxy.who())) {
+            Log.debug("try to add client");
+            clients.add(RMIClient.create(serviceProxy, svc, controller, qosFactor, qosUpdateTime, qosUpdateTimeUnit));
+            Log.debug("client is added");
+        }
 
-    private void pingActiveService(Long aLong) {
-
-    }
-
-    private void setMethodEndpointMap(HashMap<Method, Endpoint> map) {
-        methodMap = map;
-    }
-
-    private static Observable<RMIServiceProxy> startDiscovery(ServiceDiscovery discovery, Class svc) {
-        return Observable.create(emitter -> discovery.startDiscovery(svc, new ServiceDiscoveryListener() {
+        listenerInvoker.submit(new Runnable() {
             @Override
-            public void onDiscovered(RMIServiceProxy proxy) {
-                emitter.onNext(proxy);
+            public void run() {
+                synchronized (clients) {
+                    availabilityChangeListener.onAvailabilityChanged(clients.size());
+                    clients.notifyAll();
+                }
             }
-
-            @Override
-            public void onDiscoveryStarted() {
-
-            }
-
-            @Override
-            public void onDiscoveryFinished() throws IllegalAccessException {
-                emitter.onComplete();
-            }
-        }));
+        });
     }
 
-    private HaRMIClient(RequestRoutePolicy policy) {
-        this.routePolicy = policy;
-        discoveredProxySet =  new HashSet<>();
+
+    private static Observable<RMIServiceProxy> startDiscovery(final ServiceDiscovery discovery, final Class svc) {
+        return Observable.create(new ObservableOnSubscribe<RMIServiceProxy>() {
+            @Override
+            public void subscribe(final ObservableEmitter<RMIServiceProxy> emitter) throws Exception {
+                discovery.startDiscovery(svc, false, new ServiceDiscoveryListener() {
+                    @Override
+                    public void onDiscovered(RMIServiceProxy proxy) {
+                        emitter.onNext(proxy);
+                    }
+
+                    @Override
+                    public void onDiscoveryStarted() {
+
+                    }
+
+                    @Override
+                    public void onDiscoveryFinished() {
+                        emitter.onComplete();
+                    }
+                });
+            }
+        });
     }
 
-    private void close() {
+
+    private void close(final boolean force) {
         compositeDisposable.dispose();
+        listenerInvoker.shutdown();
+        clients.forEach(new java.util.function.Consumer<Object>() {
+            @Override
+            public void accept(Object proxy) {
+                RMIClient.destroy(proxy, force);
+            }
+        });
+    }
+
+
+    private Object selectNext() throws TimeoutException {
+        Log.debug("try select next");
+        Object selected;
+        int trial = 1;
+        do {
+            synchronized (this) {
+                selected = routePolicy.selectNext(clients, lastProxy);
+            }
+            if(selected == null) {
+                Log.debug("wait for next proxy available");
+                try {
+                    Thread.sleep(AVAILABILITY_WAIT_TIMEOUT);
+                } catch (InterruptedException e) {
+                    Log.error("",e);
+                    return null;
+                }
+            } else {
+                return selected;
+            }
+        } while(trial-- > 0);
+        throw new TimeoutException("No Available Service");
     }
 
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        return null;
+        lastProxy = selectNext();
+        Preconditions.checkNotNull(lastProxy);
+        Log.debug("invoking : {} , {}", method, args);
+        try {
+            return method.invoke(lastProxy, args);
+        } catch (RMIException e) {
+            if(RMIError.isServiceBad(e.code())) {
+                // bad service
+                purgeBadProxy(lastProxy);
+            }
+            // rethrow it
+            throw e;
+        }
+    }
+
+
+    private synchronized void purgeBadProxy(Object badProxy) {
+        clients.remove(badProxy);
+        final RMIClient client = RMIClient.access(badProxy);
+        if(!discoveredProxySet.remove(client.who())) {
+            Log.warn("client ({}) is not in the discovered set", client.who());
+        }
+        RMIClient.destroy(badProxy, true);
+        listenerInvoker.submit(new Runnable() {
+            @Override
+            public void run() {
+                synchronized (client) {
+                    availabilityChangeListener.onAvailabilityChanged(clients.size());
+                    client.notifyAll();
+                }
+            }
+        });
     }
 
 }

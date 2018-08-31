@@ -23,10 +23,10 @@ public class Types {
             List<Type> types = new ArrayList<>();
             for (String s : split) {
                 try {
-                    Type[] parameters = unwrapType(s);
+                    final Type[] parameters = unwrapType(s);
                     matcher = INTERNAL_TYPE_SELECTOR_PATTERN.matcher(s);
                     if(matcher.matches()) {
-                        Type rawClass = Class.forName(matcher.group(1));
+                        final Type rawClass = Class.forName(matcher.group(1));
                         types.add(new ParameterizedType() {
                             @Override
                             public Type[] getActualTypeArguments() {

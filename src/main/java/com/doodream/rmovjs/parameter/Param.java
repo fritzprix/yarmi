@@ -4,6 +4,7 @@ import com.doodream.rmovjs.serde.Converter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.reactivex.Observable;
+import io.reactivex.functions.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -38,7 +39,12 @@ public class Param<T> {
 
     public static Param create(Type cls, Annotation[] annotations) {
         List<Annotation> filteredAnnotations = Observable.fromArray(annotations)
-                .filter(ParamType::isSupportedAnnotation)
+                .filter(new Predicate<Annotation>() {
+                    @Override
+                    public boolean test(Annotation annotation) throws Exception {
+                        return ParamType.isSupportedAnnotation(annotation);
+                    }
+                })
                 .toList()
                 .blockingGet();
 

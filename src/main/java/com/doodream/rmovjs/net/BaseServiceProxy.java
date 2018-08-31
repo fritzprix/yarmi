@@ -6,14 +6,22 @@ import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
+import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.doodream.rmovjs.server.BasicService;
 import com.doodream.rmovjs.server.svc.HealthCheckController;
 import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.Scheduler;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +32,9 @@ import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntUnaryOperator;
 
 
 public class BaseServiceProxy implements RMIServiceProxy {
@@ -33,14 +43,18 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
     // endpoint for health check
     private static final Endpoint HEALTH_CHECK_ENDPOINT;
-//    private static long REQUEST_TIMEOUT = 10000L;
     static {
         Controller controller = BasicService.getHealthCheckController();
         if(controller == null) {
             HEALTH_CHECK_ENDPOINT = Endpoint.builder().build();
         } else {
             Method healthCheck = Observable.fromArray(HealthCheckController.class.getDeclaredMethods())
-                    .filter(RMIMethod::isValidMethod)
+                    .filter(new Predicate<Method>() {
+                        @Override
+                        public boolean test(Method method) throws Exception {
+                            return RMIMethod.isValidMethod(method);
+                        }
+                    })
                     .blockingFirst();
 
             HEALTH_CHECK_ENDPOINT = Endpoint.create(controller, healthCheck);
@@ -51,11 +65,14 @@ public class BaseServiceProxy implements RMIServiceProxy {
             Log.debug("healthCheck {}", HEALTH_CHECK_ENDPOINT);
         }
     }
-    private AtomicInteger semaphore;
+    private AtomicInteger openSemaphore;
+    private AtomicInteger pingSemaphore;
+    private long measuredQos;
     private volatile boolean isOpened;
     private final ConcurrentHashMap<String, BlobSession> sessionRegistry;
     private ConcurrentHashMap<Integer, Request> requestWaitQueue;
     private CompositeDisposable compositeDisposable;
+    private Disposable pingDisposable;
     private int requestNonce;
     private RMIServiceInfo serviceInfo;
     private Converter converter;
@@ -73,9 +90,12 @@ public class BaseServiceProxy implements RMIServiceProxy {
         sessionRegistry = new ConcurrentHashMap<>();
         requestWaitQueue = new ConcurrentHashMap<>();
         compositeDisposable = new CompositeDisposable();
+        pingDisposable = null;
+        // set Qos as bad as possible
+        measuredQos = Long.MAX_VALUE;
 
-        semaphore = new AtomicInteger();
-        semaphore.getAndSet(0);
+        openSemaphore = new AtomicInteger(0);
+        pingSemaphore = new AtomicInteger(0);
         requestNonce = 0;
         serviceInfo = info;
         isOpened = false;
@@ -84,13 +104,12 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
     @Override
     public synchronized void open() throws IOException, IllegalAccessException, InstantiationException {
-        if(semaphore.getAndAdd(1) != 0) {
+        if(!markAsUse(openSemaphore)) {
             return;
         }
         Log.debug("Initialized");
         RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
         converter = (Converter) serviceInfo.getConverter().newInstance();
-        // TODO: 18. 8. 1
 
         socket.open();
         reader = converter.reader(socket.getInputStream());
@@ -100,30 +119,43 @@ public class BaseServiceProxy implements RMIServiceProxy {
         Log.trace("open proxy for {} : success", serviceInfo.getName());
         isOpened = true;
 
-        compositeDisposable.add(Observable.<Response>create(emitter -> {
-            while (isOpened) {
-                Response response = reader.read(Response.class);
-                if(response == null) {
-                    return;
+        compositeDisposable.add(Observable.<Response>create(new ObservableOnSubscribe<Response>() {
+            @Override
+            public void subscribe(ObservableEmitter<Response> emitter) throws Exception {
+                while (isOpened) {
+                    Response response = reader.read(Response.class);
+                    if(response == null) {
+                        return;
+                    }
+                    if(response.hasScm()) {
+                        handleSessionControlMessage(response);
+                        continue;
+                    }
+                    emitter.onNext(response);
                 }
-                if(response.hasScm()) {
-                    handleSessionControlMessage(response);
-                    continue;
-                }
-                emitter.onNext(response);
+                emitter.onComplete();
             }
-            emitter.onComplete();
-        }).subscribeOn(mListener).subscribe(response -> {
-            Request request = requestWaitQueue.remove(response.getNonce());
-            if(request == null) {
-                Log.warn("no mapped request exists : {}", response);
-                return;
-            }
-            synchronized (request) {
-                request.setResponse(response);
-                request.notifyAll(); // wakeup waiting thread
-            }
-        }, this::onError));
+        }).subscribeOn(mListener)
+                .subscribe(new Consumer<Response>() {
+                    @Override
+                    public void accept(Response response) throws Exception {
+                        Request request = requestWaitQueue.remove(response.getNonce());
+                        if (request == null) {
+                            Log.warn("no mapped request exists : {}", response);
+                            return;
+                        }
+                        synchronized (request) {
+                            Log.debug("request({}) is response({})", request, response);
+                            request.setResponse(response);
+                            request.notifyAll(); // wakeup waiting thread
+                        }
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        onError(throwable);
+                    }
+                }));
     }
 
     @Override
@@ -132,53 +164,104 @@ public class BaseServiceProxy implements RMIServiceProxy {
     }
 
     @Override
-    public Response request(Endpoint endpoint, Object ...args) {
+    public Response request(final Endpoint endpoint, final long timeoutInMillisec, Object ...args) {
 
         return Observable.just(Request.fromEndpoint(endpoint, args))
-                .doOnNext(request -> request.setNonce(++requestNonce))
-                .doOnNext(request -> {
-                    final BlobSession session = request.getSession();
-                    if(session != null) {
-                        registerSession(session);
+                .doOnNext(new Consumer<Request>() {
+                    @Override
+                    public void accept(Request request) throws Exception {
+                        request.setNonce(++requestNonce);
                     }
                 })
-                .doOnNext(request -> Log.trace("Request => {}", request))
-                .map(request -> {
-                    requestWaitQueue.put(request.getNonce(), request);
-                    try {
-                        synchronized (request) {
-                            writer.write(request);
-                            // caller block here, until the response is ready
-//                            request.wait(REQUEST_TIMEOUT);
-                            request.wait();
-                        }
-                    } catch (InterruptedException e) {
-                        // TODO: 18. 8. 1 handle timeout
-                        return Optional.of(RMIError.TIMEOUT.getResponse());
-                    }
-                    return Optional.of(request.getResponse());
-                })
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .defaultIfEmpty(RMIError.UNHANDLED.getResponse())
-                .doOnError(this::onError)
-                .doOnNext(response -> response.resolve(converter, endpoint.getUnwrappedRetType()))
-                .doOnNext(response -> {
-                    Log.trace("Response <= {}", response);
-                    if(response.isHasSessionSwitch() &&
-                    response.isSuccessful()) {
-                        final BlobSession session = (BlobSession) response.getBody();
+                .doOnNext(new Consumer<Request>() {
+                    @Override
+                    public void accept(Request request) throws Exception {
+                        final BlobSession session = request.getSession();
                         if(session != null) {
-                            session.init();
-                            if (sessionRegistry.put(session.getKey(), session) != null) {
-                                Log.warn("session conflict for {}", session.getKey());
-                                return;
-                            }
-                            session.start(reader, writer, converter, Request::buildSessionMessageWriter, () -> unregisterSession(session));
+                            registerSession(session);
                         }
+                        Log.trace("Request => {}", request);
+                    }
+                })
+                .map(new Function<Request, Optional<Response>>() {
+                    @Override
+                    public Optional<Response> apply(Request request) throws Exception {
+                        requestWaitQueue.put(request.getNonce(), request);
+                        try {
+                            synchronized (request) {
+                                writer.write(request);
+                                if(timeoutInMillisec > 0) {
+                                    request.wait(timeoutInMillisec);
+                                } else {
+                                    request.wait();
+                                }
+                            }
+                        } catch (InterruptedException e) {
+                            return Optional.of(RMIError.CLOSED.getResponse());
+                        }
+                        if(request.getResponse() == null) {
+                            return Optional.of(RMIError.TIMEOUT.getResponse());
+                        }
+                        return Optional.of(request.getResponse());
+                    }
+                })
+                .filter(new Predicate<Optional<Response>>() {
+                    @Override
+                    public boolean test(Optional<Response> response) throws Exception {
+                        return response.isPresent();
+                    }
+                })
+                .map(new Function<Optional<Response>, Response>() {
+                    @Override
+                    public Response apply(Optional<Response> responseOptional) throws Exception {
+                        Response response = responseOptional.get();
+                        if(response.isSuccessful()) {
+                            response.resolve(converter, endpoint.getUnwrappedRetType());
+                        }
+                        return response;
+                    }
+                })
+                .map(new Function<Response, Response>() {
+                    @Override
+                    public Response apply(Response response) throws Exception {
+                        if(response.isHasSessionSwitch()) {
+                            return handleBlobResponse(response);
+                        } else {
+                            return response;
+                        }                    }
+                })
+                .defaultIfEmpty(RMIError.UNHANDLED.getResponse())
+                .doOnError(new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        onError(throwable);
                     }
                 })
                 .blockingSingle();
+    }
+
+    private Response handleBlobResponse(Response response) {
+        if(response.getBody() != null) {
+            final BlobSession session = (BlobSession) response.getBody();
+            session.init();
+            if(sessionRegistry.put(session.getKey(), session) != null) {
+                Log.warn("session conflict for {}", session.getKey());
+            } else {
+                session.start(reader, writer, converter, new SessionControlMessageWriter.Builder() {
+                    @Override
+                    public SessionControlMessageWriter build(Writer writer) {
+                        return Response.buildSessionMessageWriter(writer);
+                    }
+                }, new Runnable() {
+                    @Override
+                    public void run() {
+                        unregisterSession(session);
+                    }
+                });
+            }
+            return response;
+        }
+        return RMIError.BAD_RESPONSE.getResponse();
     }
 
     private void handleSessionControlMessage(Response response) throws IOException, IllegalAccessException, InstantiationException, ClassNotFoundException {
@@ -192,12 +275,22 @@ public class BaseServiceProxy implements RMIServiceProxy {
         session.handle(scm);
     }
 
-    private void registerSession(BlobSession session) {
+    private void registerSession(final BlobSession session) {
         if (sessionRegistry.put(session.getKey(), session) != null) {
             Log.warn("session : {} collision in registry", session.getKey());
         }
         Log.trace("session registered {}", session);
-        session.start(reader, writer, converter, Request::buildSessionMessageWriter, () -> unregisterSession(session));
+        session.start(reader, writer, converter, new SessionControlMessageWriter.Builder() {
+            @Override
+            public SessionControlMessageWriter build(Writer writer) {
+                return Request.buildSessionMessageWriter(writer);
+            }
+        }, new Runnable() {
+            @Override
+            public void run() {
+                unregisterSession(session);
+            }
+        });
     }
 
     private void unregisterSession(BlobSession session ) {
@@ -209,16 +302,17 @@ public class BaseServiceProxy implements RMIServiceProxy {
     }
 
     private void onError(Throwable throwable) {
-        Log.error("{}", throwable);
+        Log.error("Proxy closed {}", throwable);
         try {
             close();
         } catch (IOException ignored) { }
     }
 
     public void close() throws IOException {
-        if(semaphore.getAndDecrement() != 0) {
+        if(!markAsUnuse(openSemaphore)) {
             return;
         }
+        stopPeriodicQosUpdate();
         if(!socket.isClosed()) {
             socket.close();
         }
@@ -227,24 +321,92 @@ public class BaseServiceProxy implements RMIServiceProxy {
         }
         compositeDisposable.clear();
         // wake blocked thread from wait queue
-        requestWaitQueue.values().forEach(request -> {
-            synchronized (request) {
-                request.notifyAll();
-            }
-        });
+        requestWaitQueue.values()
+                .forEach(new java.util.function.Consumer<Request>() {
+                    @Override
+                    public void accept(Request request) {
+                        synchronized (request) {
+                            request.notifyAll();
+                        }
+                    }
+                });
+
         isOpened = false;
         Log.debug("proxy for {} closed", serviceInfo.getName());
     }
 
     @Override
-    public Optional<Long> ping() {
-        long sTime = System.currentTimeMillis();
-        final Response<Long> response = request(HEALTH_CHECK_ENDPOINT);
-        if(response.isSuccessful() && (response.getCode() == Response.SUCCESS)) {
-            return Optional.of(System.currentTimeMillis() - sTime);
+    public void startPeriodicQosUpdate(final long timeout, long interval, TimeUnit timeUnit) {
+        if(!markAsUse(pingSemaphore))  {
+            return;
         }
-        return Optional.empty();
+        pingDisposable = Observable.interval(interval, timeUnit)
+                .subscribeOn(Schedulers.io())
+                .subscribe(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long aLong) throws Exception {
+                        getQosUpdate(timeout);
+                    }
+                });
     }
+
+    @Override
+    public void stopPeriodicQosUpdate() {
+        if(!markAsUnuse(pingSemaphore)) {
+            return;
+        }
+        if(!pingDisposable.isDisposed()) {
+            pingDisposable.dispose();
+        }
+    }
+
+
+    /**
+     * check whether the resource has been used previously or not
+     * @param semaphore {@link AtomicInteger} to be used as semaphore for resource
+     * @return true, if the resource has been unused previously, otherwise false
+     */
+    private boolean markAsUse(AtomicInteger semaphore) {
+        return !(semaphore.getAndIncrement() > 0);
+    }
+
+    /**
+     * check whether the resource is still used or not
+     * @param semaphore {@link AtomicInteger} to be used as semaphore for resource
+     * @return true, resource becomes unused, otherwise false
+     */
+    private boolean markAsUnuse(AtomicInteger semaphore) {
+        return !(semaphore.updateAndGet(new IntUnaryOperator() {
+            @Override
+            public int applyAsInt(int v) {
+                if(v > 0) {
+                    return --v;
+                }
+                return v;
+            }
+        }) > 0);
+    }
+
+    @Override
+    public Long getQosUpdate(long timeout) {
+        if(!isOpen()) {
+            return Long.MAX_VALUE;
+        }
+        long sTime = System.currentTimeMillis();
+        final Response response = request(HEALTH_CHECK_ENDPOINT, timeout);
+        if (response.isSuccessful() && (response.getCode() == Response.SUCCESS)) {
+            measuredQos = System.currentTimeMillis() - sTime;
+        } else {
+            measuredQos = Long.MAX_VALUE;
+        }
+        return measuredQos;
+    }
+
+    @Override
+    public Long getQosMeasured() {
+        return measuredQos;
+    }
+
 
     @Override
     public String who() {
@@ -252,11 +414,26 @@ public class BaseServiceProxy implements RMIServiceProxy {
     }
 
     @Override
-    public boolean provide(Class controller) {
+    public boolean provide(final Class controller) {
         return Observable.fromIterable(serviceInfo.getControllerInfos())
-                .map(ControllerInfo::getStubCls)
-                .map(controller::equals)
-                .reduce((isThere1, isThere2) -> isThere1 || isThere2)
+                .map(new Function<ControllerInfo, Class>() {
+                    @Override
+                    public Class apply(ControllerInfo controllerInfo) throws Exception {
+                        return controllerInfo.getStubCls();
+                    }
+                })
+                .map(new Function<Class, Boolean>() {
+                    @Override
+                    public Boolean apply(Class aClass) throws Exception {
+                        return controller.equals(aClass);
+                    }
+                })
+                .reduce(new BiFunction<Boolean, Boolean, Boolean>() {
+                    @Override
+                    public Boolean apply(Boolean aBoolean, Boolean aBoolean2) throws Exception {
+                        return aBoolean || aBoolean2;
+                    }
+                })
                 .blockingGet(false);
     }
 }

@@ -8,7 +8,7 @@ import java.util.Set;
 public class LruCache<K,V> implements Map<K,V> {
     private LinkedHashMap<K,V> internalMap;
 
-    public LruCache(int maxObjCount) {
+    public LruCache(final int maxObjCount) {
         internalMap = new LinkedHashMap<K,V> (maxObjCount + 1, .75F, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {

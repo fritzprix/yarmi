@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.OptionalLong;
 import java.util.Random;
 import java.util.function.Consumer;
+import java.util.function.LongBinaryOperator;
 
 
 public class SenderSession implements Session, SessionHandler {
@@ -37,7 +38,13 @@ public class SenderSession implements Session, SessionHandler {
 
     SenderSession(Consumer<Session> onReady) {
         // create unique key for session
-        OptionalLong lo = RANDOM.longs(4).reduce((left, right) -> left + right);
+        OptionalLong lo = RANDOM.longs(4).reduce(new LongBinaryOperator() {
+            @Override
+            public long applyAsLong(long left, long right) {
+                return left + right;
+            }
+        });
+
         if(!lo.isPresent()) {
             throw new IllegalStateException("fail to generate random");
         }
@@ -49,7 +56,7 @@ public class SenderSession implements Session, SessionHandler {
         this.onReady = onReady;
     }
 
-    private static <K,V> Map<K, V> getLruCache(int size) {
+    private static <K,V> Map<K, V> getLruCache(final int size) {
         return new LinkedHashMap<K, V> (size * 4/3, 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry eldest) {

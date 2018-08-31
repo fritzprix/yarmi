@@ -6,10 +6,14 @@ import com.doodream.rmovjs.net.BaseServiceAdapter;
 import com.doodream.rmovjs.net.RMISocket;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 import io.reactivex.Observable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.*;
 
 public class TcpServiceAdapter extends BaseServiceAdapter {
@@ -35,16 +39,31 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
     }
 
     @Override
-    public ServiceProxyFactory getProxyFactory(RMIServiceInfo info) {
+    public ServiceProxyFactory getProxyFactory(final RMIServiceInfo info) {
         if(!RMIServiceInfo.isComplete(info)) {
             throw new IllegalArgumentException("Incomplete service info");
         }
-        String[] params = info.getParams().toArray(new String[0]);
+        final String[] params = info.getParams().toArray(new String[0]);
         return Observable.fromArray(TcpServiceProxyFactory.class.getConstructors())
-                .filter(constructor -> constructor.getParameterCount() == params.length)
-                .map(constructor -> constructor.newInstance(params))
+                .filter(new Predicate<Constructor<?>>() {
+                    @Override
+                    public boolean test(Constructor<?> constructor) throws Exception {
+                        return constructor.getParameterCount() == params.length;
+                    }
+                })
+                .map(new Function<Constructor<?>, Object>() {
+                    @Override
+                    public Object apply(Constructor<?> constructor) throws Exception {
+                        return constructor.newInstance(params);
+                    }
+                })
                 .cast(ServiceProxyFactory.class)
-                .doOnNext(serviceProxyFactory -> serviceProxyFactory.setTargetService(info))
+                .doOnNext(new Consumer<ServiceProxyFactory>() {
+                    @Override
+                    public void accept(ServiceProxyFactory serviceProxyFactory) throws Exception {
+                        serviceProxyFactory.setTargetService(info);
+                    }
+                })
                 .blockingFirst();
     }
 

@@ -17,7 +17,10 @@ import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Collection;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -34,7 +37,6 @@ public class Response<T> {
     private T body;
     private boolean isSuccessful;
     private boolean hasSessionSwitch;
-    private ResponseBody errorBody;
     private int code;
     private int nonce;
     @SerializedName("scm")
@@ -44,16 +46,8 @@ public class Response<T> {
         return Response.<T>builder()
                 .body(body)
                 .code(SUCCESS)
+                .hasSessionSwitch(body instanceof BlobSession)
                 .isSuccessful(true)
-                .build();
-    }
-
-    public static Response<BlobSession> success(BlobSession session) {
-        return Response.<BlobSession>builder()
-                .body(session)
-                .code(SUCCESS)
-                .isSuccessful(true)
-                .hasSessionSwitch(true)
                 .build();
     }
 
@@ -66,10 +60,10 @@ public class Response<T> {
     }
 
     public static Response error(int code, String msg) {
-        return Response.<ResponseBody>builder()
-                .code(code)
+        return Response.<String>builder()
                 .isSuccessful(false)
-                .errorBody(new ResponseBody(msg))
+                .code(code)
+                .body(msg)
                 .build();
     }
 
@@ -102,19 +96,18 @@ public class Response<T> {
     }
 
     public static void validate(Response res) {
-        if(res.code == Response.SUCCESS) {
-            Preconditions.checkNotNull(res.getBody(), "Successful response must have non-null body");
-        } else {
-            Preconditions.checkNotNull(res.getErrorBody(), "Error response must have non-null error body");
+        Preconditions.checkNotNull(res.getBody(), "Successful response must have non-null body");
+        if(!res.isSuccessful) {
+            Preconditions.checkArgument(res.getBody() instanceof String, "Error response must have non-null error body");
         }
     }
 
-    public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
-        return (controlMessage) -> {
-            writer.write(Response.builder()
-                    .scm(controlMessage)
-                    .build());
-
+    public static SessionControlMessageWriter buildSessionMessageWriter(final Writer writer) {
+        return new SessionControlMessageWriter() {
+            @Override
+            public void write(SessionControlMessage controlMessage) throws IOException {
+                writer.write(Response.builder().scm(controlMessage).build());
+            }
         };
     }
 
@@ -135,6 +128,30 @@ public class Response<T> {
      * @param type {@link Type} for body content
      */
     public void resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
-        setBody(converter.resolve(getBody(), type));
+        if(type instanceof ParameterizedType) {
+            Class rawCls = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
+            if(isCastable(body, rawCls)) {
+                // ex > Bson4Jackson parsed as collections like ArrayList<String>
+                // however, if there is recursive type parameters like ArrayList<ArrayList<String>>
+                return;
+            }
+        } else {
+            Class rawCls = Class.forName(type.getTypeName());
+            if(isCastable(body, rawCls)) {
+                return;
+            }
+        }
+        Log.debug("resolve is required for {} => {}", getBody(), type.getTypeName());
+        setBody((T) converter.resolve(getBody(), type));
+    }
+
+    private boolean isCastable(T body, Class rawCls) {
+        try {
+            rawCls.cast(body);
+            return true;
+        } catch (ClassCastException ignored) {
+            Log.warn("cast fail {}",rawCls, ignored);
+        }
+        return false;
     }
 }
