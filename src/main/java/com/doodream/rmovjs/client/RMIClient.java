@@ -11,7 +11,10 @@ import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.Single;
+import io.reactivex.functions.*;
 import io.reactivex.schedulers.Schedulers;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -19,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -99,31 +103,59 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
      * @param proxy RMI call proxy returned by {@link #create(RMIServiceProxy, Class, Class, long, long, TimeUnit)} or {@link #create(RMIServiceProxy, Class, Class)}
      * @param force if true, close regardless its on-going request, otherwise, wait until the all the on-going requests is complete
      */
-    public static void destroy(Object proxy, boolean force) {
+    public static void destroy(Object proxy, final boolean force) {
         forEachClient(proxy)
                 .subscribeOn(Schedulers.io())
-                .blockingSubscribe(client -> client.close(force));
+                .blockingSubscribe(new Consumer<RMIClient>() {
+                    @Override
+                    public void accept(RMIClient rmiClient) throws Exception {
+                        rmiClient.close(force);
+                    }
+                });
     }
 
-    private static Observable<RMIClient> forEachClient(Object proxy) {
-        return Observable.create(emitter -> {
-            Class proxyClass = proxy.getClass();
-            if(Proxy.isProxyClass(proxyClass)) {
-                RMIClient client = (RMIClient) Proxy.getInvocationHandler(proxy);
-                emitter.onNext(client);
-            } else {
-                Service service = proxy.getClass().getAnnotation(Service.class);
-                if(service == null) {
-                    throw new IllegalArgumentException("Invalid Proxy");
+    private static Observable<RMIClient> forEachClient(final Object proxy) {
+        return Observable.create(new ObservableOnSubscribe<RMIClient>() {
+            @Override
+            public void subscribe(final ObservableEmitter<RMIClient> emitter) throws Exception {
+                final Class proxyClass = proxy.getClass();
+                if(Proxy.isProxyClass(proxyClass)) {
+                    RMIClient client = (RMIClient) Proxy.getInvocationHandler(proxy);
+                    emitter.onNext(client);
+                } else {
+                    Service service = proxy.getClass().getAnnotation(Service.class);
+                    if(service == null) {
+                        throw new IllegalArgumentException("Invalid Proxy");
+                    }
+                    Observable.fromArray(proxyClass.getDeclaredFields())
+                            .filter(new Predicate<Field>() {
+                                @Override
+                                public boolean test(Field field) throws Exception {
+                                    return field.getAnnotation(Controller.class) != null;
+                                }
+                            })
+                            .map(new Function<Field, Object>() {
+                                @Override
+                                public Object apply(Field field) throws Exception {
+                                    return field.get(proxy);
+                                }
+                            })
+                            .map(new Function<Object, InvocationHandler>() {
+                                @Override
+                                public InvocationHandler apply(Object proxy) throws Exception {
+                                    return Proxy.getInvocationHandler(proxy);
+                                }
+                            })
+                            .cast(RMIClient.class)
+                            .blockingSubscribe(new Consumer<RMIClient>() {
+                                @Override
+                                public void accept(RMIClient rmiClient) throws Exception {
+                                    emitter.onNext(rmiClient);
+                                }
+                            });
                 }
-                Observable.fromArray(proxyClass.getDeclaredFields())
-                        .filter(field -> field.getAnnotation(Controller.class) != null)
-                        .map(field -> field.get(proxy))
-                        .map(Proxy::getInvocationHandler)
-                        .cast(RMIClient.class)
-                        .blockingSubscribe(emitter::onNext);
+                emitter.onComplete();
             }
-            emitter.onComplete();
         });
     }
 
@@ -162,34 +194,58 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
      *      *          or if the class has no nullary constructor;
      *      *          or if the instantiation fails for some other reason.
      */
-    public static <T> T createService(RMIServiceProxy serviceProxy, Class<T> svc, long timeout, long pingInterval, TimeUnit timeUnit) throws IllegalAccessException, InstantiationException {
-        Object svcProxy = svc.newInstance();
+    public static <T> T createService(final RMIServiceProxy serviceProxy, final Class<T> svc, final long timeout, final long pingInterval, final TimeUnit timeUnit) throws IllegalAccessException, InstantiationException {
+        final Object svcProxy = svc.newInstance();
         Observable.fromArray(svc.getDeclaredFields())
-                .filter(field -> field.getAnnotation(Controller.class) != null)
-                .blockingSubscribe(field -> {
-                    Object controller = create(serviceProxy, svc, field.getType(), pingInterval, timeout, timeUnit);
-                    field.setAccessible(true);
-                    field.set(svcProxy, controller);
+                .filter(new Predicate<Field>() {
+                    @Override
+                    public boolean test(Field field) throws Exception {
+                        return field.getAnnotation(Controller.class) != null;
+                    }
+                })
+                .blockingSubscribe(new Consumer<Field>() {
+                    @Override
+                    public void accept(Field field) throws Exception {
+                        Object controller = create(serviceProxy, svc, field.getType(), pingInterval, timeout, timeUnit);
+                        field.setAccessible(true);
+                        field.set(svcProxy, controller);
+                    }
                 });
 
         return (T) svcProxy;
     }
 
-    public static <T> T create(RMIServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl, long pingTimeout, long pingInterval, TimeUnit timeUnit) {
+    public static <T> T create(RMIServiceProxy serviceProxy, Class<?> svc, final Class<T> ctrl, long pingTimeout, long pingInterval, TimeUnit timeUnit) {
         Service service = svc.getAnnotation(Service.class);
         Preconditions.checkNotNull(service);
         if(!serviceProxy.provide(ctrl)) {
             return null;
         }
 
-        Controller controller = Observable.fromArray(svc.getDeclaredFields())
-                .filter(field -> field.getType().equals(ctrl))
-                .map(field -> field.getAnnotation(Controller.class))
+        final Controller controller = Observable.fromArray(svc.getDeclaredFields())
+                .filter(new Predicate<Field>() {
+                    @Override
+                    public boolean test(Field field) throws Exception {
+                        return field.getType().equals(ctrl);
+                    }
+                })
+                .map(new Function<Field, Controller>() {
+                    @Override
+                    public Controller apply(Field field) throws Exception {
+                        return field.getAnnotation(Controller.class);
+                    }
+                })
                 .blockingFirst(null);
 
         final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
         List<Method> validMethods = Observable.fromArray(ctrl.getMethods())
-                .filter(RMIMethod::isValidMethod).toList().blockingGet();
+                .filter(new Predicate<Method>() {
+                    @Override
+                    public boolean test(Method method) throws Exception {
+                        return RMIMethod.isValidMethod(method);
+                    }
+                })
+                .toList().blockingGet();
 
 
         Preconditions.checkNotNull(controller, "no matched controller");
@@ -206,11 +262,26 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
             RMIClient rmiClient = new RMIClient(serviceProxy, pingTimeout, pingInterval, timeUnit);
 
             Observable<Endpoint> endpointObservable = Observable.fromIterable(validMethods)
-                    .map(method -> Endpoint.create(controller, method));
+                    .map(new Function<Method, Endpoint>() {
+                        @Override
+                        public Endpoint apply(Method method) throws Exception {
+                            return Endpoint.create(controller, method);
+                        }
+                    });
 
             Single<HashMap<Method, Endpoint>> hashMapSingle = Observable.fromIterable(validMethods)
-                    .zipWith(endpointObservable, RMIClient::zipIntoMethodMap)
-                    .collectInto(new HashMap<>(), RMIClient::collectMethodMap);
+                    .zipWith(endpointObservable, new BiFunction<Method, Endpoint, Map<Method, Endpoint>>() {
+                        @Override
+                        public Map<Method, Endpoint> apply(Method method, Endpoint endpoint) throws Exception {
+                            return RMIClient.zipIntoMethodMap(method, endpoint);
+                        }
+                    })
+                    .collectInto(new HashMap<Method, Endpoint>(), new BiConsumer<HashMap<Method, Endpoint>, Map<Method, Endpoint>>() {
+                        @Override
+                        public void accept(HashMap<Method, Endpoint> hashMap, Map<Method, Endpoint> methodEndpointMap) throws Exception {
+                            RMIClient.collectMethodMap(hashMap, methodEndpointMap);
+                        }
+                    });
 
             rmiClient.setMethodEndpointMap(hashMapSingle.blockingGet());
 

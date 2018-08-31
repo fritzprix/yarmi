@@ -17,7 +17,10 @@ import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Collection;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -99,10 +102,13 @@ public class Response<T> {
         }
     }
 
-    public static SessionControlMessageWriter buildSessionMessageWriter(Writer writer) {
-        return (controlMessage) -> writer.write(Response.builder()
-                .scm(controlMessage)
-                .build());
+    public static SessionControlMessageWriter buildSessionMessageWriter(final Writer writer) {
+        return new SessionControlMessageWriter() {
+            @Override
+            public void write(SessionControlMessage controlMessage) throws IOException {
+                writer.write(Response.builder().scm(controlMessage).build());
+            }
+        };
     }
 
     /**
@@ -122,6 +128,30 @@ public class Response<T> {
      * @param type {@link Type} for body content
      */
     public void resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
-        setBody(converter.resolve(getBody(), type));
+        if(type instanceof ParameterizedType) {
+            Class rawCls = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
+            if(isCastable(body, rawCls)) {
+                // ex > Bson4Jackson parsed as collections like ArrayList<String>
+                // however, if there is recursive type parameters like ArrayList<ArrayList<String>>
+                return;
+            }
+        } else {
+            Class rawCls = Class.forName(type.getTypeName());
+            if(isCastable(body, rawCls)) {
+                return;
+            }
+        }
+        Log.debug("resolve is required for {} => {}", getBody(), type.getTypeName());
+        setBody((T) converter.resolve(getBody(), type));
+    }
+
+    private boolean isCastable(T body, Class rawCls) {
+        try {
+            rawCls.cast(body);
+            return true;
+        } catch (ClassCastException ignored) {
+            Log.warn("cast fail {}",rawCls, ignored);
+        }
+        return false;
     }
 }
