@@ -4,6 +4,8 @@ import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.serde.Converter;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,27 +29,82 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
     private CompositeDisposable compositeDisposable = new CompositeDisposable();
 
     @Override
-    public synchronized void startAdvertiser(RMIServiceInfo info, Converter converter, boolean block) throws IOException {
+    public synchronized void startAdvertiser(final RMIServiceInfo info, final Converter converter, boolean block) throws IOException {
 
         Observable<Long> tickObservable = Observable.interval(0L, 3L, TimeUnit.SECONDS);
 
         compositeDisposable.add(tickObservable
-                .map(aLong -> info)
-                .map(i -> buildLocalPacket(i, converter))
-                .doOnNext(this::broadcast)
-                .doOnError(Throwable::printStackTrace)
+                .map(new Function<Long, RMIServiceInfo>() {
+                    @Override
+                    public RMIServiceInfo apply(Long aLong) throws Exception {
+                        return info;
+                    }
+                })
+                .map(new Function<RMIServiceInfo, DatagramPacket>() {
+                    @Override
+                    public DatagramPacket apply(RMIServiceInfo info) throws Exception {
+                        return buildLocalPacket(info, converter);
+                    }
+                })
+                .doOnNext(new Consumer<DatagramPacket>() {
+                    @Override
+                    public void accept(DatagramPacket datagramPacket) throws Exception {
+                        broadcast(datagramPacket);
+                    }
+                })
+                .doOnError(new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        throwable.printStackTrace();
+                    }
+                })
                 .subscribeOn(Schedulers.io())
-                .subscribe(packet -> {}, this::onError));
+                .subscribe(new Consumer<DatagramPacket>() {
+                    @Override
+                    public void accept(DatagramPacket datagramPacket) throws Exception {
+
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        onError(throwable);
+                    }
+                }));
 
         Observable<DatagramPacket> packetObservable = tickObservable
-                .map(aLong -> info)
-                .map(i -> buildMulticastPacket(i, converter))
-                .doOnNext(this::broadcast);
+                .map(new Function<Long, RMIServiceInfo>() {
+                    @Override
+                    public RMIServiceInfo apply(Long aLong) throws Exception {
+                        return info;
+                    }
+                })
+                .map(new Function<RMIServiceInfo, DatagramPacket>() {
+                    @Override
+                    public DatagramPacket apply(RMIServiceInfo rmiServiceInfo) throws Exception {
+                        return buildLocalPacket(info, converter);
+                    }
+                })
+                .doOnNext(new Consumer<DatagramPacket>() {
+                    @Override
+                    public void accept(DatagramPacket datagramPacket) throws Exception {
+                        broadcast(datagramPacket);
+                    }
+                });
 
         Log.info("advertising service : {} {} @ {}", info.getName(), info.getVersion(), MULTICAST_GROUP_IP);
 
         if(!block) {
-            compositeDisposable.add(packetObservable.subscribeOn(Schedulers.io()).subscribe(packet->{}, this::onError));
+            compositeDisposable.add(packetObservable.subscribeOn(Schedulers.io()).subscribe(new Consumer<DatagramPacket>() {
+                @Override
+                public void accept(DatagramPacket datagramPacket) throws Exception {
+
+                }
+            }, new Consumer<Throwable>() {
+                @Override
+                public void accept(Throwable throwable) throws Exception {
+                    onError(throwable);
+                }
+            }));
             return;
         }
         packetObservable.blockingSubscribe();

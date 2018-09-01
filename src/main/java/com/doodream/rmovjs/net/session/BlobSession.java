@@ -5,6 +5,8 @@ import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +73,20 @@ public class BlobSession implements SessionHandler {
      * @return
      */
     public static Optional<BlobSession> findOne(Object[] args) {
-        return Observable.fromArray(args).filter(o -> o instanceof BlobSession).cast(BlobSession.class).map(Optional::ofNullable).blockingFirst(Optional.empty());
+        return Observable.fromArray(args)
+                .filter(new Predicate<Object>() {
+                    @Override
+                    public boolean test(Object o) throws Exception {
+                        return o instanceof BlobSession;
+                    }
+                })
+                .cast(BlobSession.class)
+                .map(new Function<BlobSession, Optional<BlobSession>>() {
+                    @Override
+                    public Optional<BlobSession> apply(BlobSession blobSession) throws Exception {
+                        return Optional.ofNullable(blobSession);
+                    }
+                }).blockingFirst(Optional.<BlobSession>empty());
     }
 
 

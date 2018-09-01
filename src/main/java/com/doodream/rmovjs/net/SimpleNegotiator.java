@@ -8,6 +8,9 @@ import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +36,7 @@ public class SimpleNegotiator implements RMINegotiator {
         return socket;
     }
 
-    private void handshakeFromClient(RMIServiceInfo service, Reader reader, Writer writer) throws HandshakeFailException {
+    private void handshakeFromClient(final RMIServiceInfo service, Reader reader, Writer writer) throws HandshakeFailException {
         try {
             writer.write(service);
             Response response = reader.read(Response.class);
@@ -48,23 +51,63 @@ public class SimpleNegotiator implements RMINegotiator {
         throw new HandshakeFailException();
     }
 
-    private void handshakeFromServer(RMIServiceInfo service, Reader reader, Writer writer) throws HandshakeFailException {
+    private void handshakeFromServer(final RMIServiceInfo service, Reader reader, final Writer writer) throws HandshakeFailException {
         try {
             Observable<RMIServiceInfo> handshakeRequestSingle = Observable.just(reader.read(RMIServiceInfo.class));
 
             Observable<Response> serviceInfoMatchedObservable = handshakeRequestSingle
-                    .filter(info -> info.hashCode() == service.hashCode())
-                    .map(info -> Response.success("OK"));
+                    .filter(new Predicate<RMIServiceInfo>() {
+                        @Override
+                        public boolean test(RMIServiceInfo info) throws Exception {
+                            return info.hashCode() == service.hashCode();
+                        }
+                    })
+                    .map(new Function<RMIServiceInfo, Response>() {
+                        @Override
+                        public Response apply(RMIServiceInfo rmiServiceInfo) throws Exception {
+                            return Response.success("OK");
+                        }
+                    });
 
             Observable<Response> serviceInfoMismatchObservable = handshakeRequestSingle
-                    .filter(info -> info.hashCode() != service.hashCode())
-                    .map(info -> Response.from(RMIError.BAD_REQUEST));
+                    .filter(new Predicate<RMIServiceInfo>() {
+                        @Override
+                        public boolean test(RMIServiceInfo info) throws Exception {
+                            return info.hashCode() != service.hashCode();
+                        }
+                    })
+                    .map(new Function<RMIServiceInfo, Response>() {
+                        @Override
+                        public Response apply(RMIServiceInfo rmiServiceInfo) throws Exception {
+                            return Response.from(RMIError.BAD_REQUEST);
+                        }
+                    });
 
             boolean success = serviceInfoMatchedObservable.mergeWith(serviceInfoMismatchObservable)
-                    .doOnNext(response -> Log.info("Handshake Response : ({}) {}", response.getCode(), response.getBody()))
-                    .doOnNext(writer::write)
-                    .map(Response::isSuccessful)
-                    .filter(Boolean::booleanValue)
+                    .doOnNext(new Consumer<Response>() {
+                        @Override
+                        public void accept(Response response) throws Exception {
+                            Log.trace("Handshake Response : ({}) {}", response.getCode(), response.getBody());
+                        }
+                    })
+                    .doOnNext(new Consumer<Response>() {
+                        @Override
+                        public void accept(Response response) throws Exception {
+                            writer.write(response);
+                        }
+                    })
+                    .map(new Function<Response, Boolean>() {
+                        @Override
+                        public Boolean apply(Response response) throws Exception {
+                            return response.isSuccessful();
+                        }
+                    })
+                    .filter(new Predicate<Boolean>() {
+                        @Override
+                        public boolean test(Boolean aBoolean) throws Exception {
+                            return aBoolean;
+                        }
+                    })
                     .blockingSingle(false);
             if (success) {
                 return;
