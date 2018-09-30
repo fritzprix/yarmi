@@ -12,9 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.Random;
-import java.util.function.Consumer;
 
 @Data
 public class BlobSession implements SessionHandler {
@@ -32,6 +30,7 @@ public class BlobSession implements SessionHandler {
     // read error start with -2000
     public static final int SIZE_NOT_MATCHED = -2001;
     public static final int INVALID_EOS_CHAR = -2002;
+    public static final BlobSession NULL = new BlobSession(null);
 
     private static int GLOBAL_KEY = 0;
     private static String DEFAULT_TYPE = "application/octet-stream";
@@ -72,7 +71,7 @@ public class BlobSession implements SessionHandler {
      * @param args arguments
      * @return
      */
-    public static Optional<BlobSession> findOne(Object[] args) {
+    public static BlobSession findOne(Object[] args) {
         return Observable.fromArray(args)
                 .filter(new Predicate<Object>() {
                     @Override
@@ -81,12 +80,12 @@ public class BlobSession implements SessionHandler {
                     }
                 })
                 .cast(BlobSession.class)
-                .map(new Function<BlobSession, Optional<BlobSession>>() {
+                .map(new Function<BlobSession, BlobSession>() {
                     @Override
-                    public Optional<BlobSession> apply(BlobSession blobSession) throws Exception {
-                        return Optional.ofNullable(blobSession);
+                    public BlobSession apply(BlobSession blobSession) throws Exception {
+                        return blobSession;
                     }
-                }).blockingFirst(Optional.<BlobSession>empty());
+                }).blockingFirst(BlobSession.NULL);
     }
 
 

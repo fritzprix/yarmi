@@ -2,9 +2,7 @@ package com.doodream.rmovjs.model;
 
 
 import com.doodream.rmovjs.net.ClientSocketAdapter;
-import com.doodream.rmovjs.net.session.BlobSession;
-import com.doodream.rmovjs.net.session.SessionControlMessage;
-import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
+import com.doodream.rmovjs.net.session.*;
 import com.doodream.rmovjs.parameter.Param;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
@@ -22,8 +20,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
 
 /**
  * Request contains information for client method invocation consisted with below
@@ -86,17 +82,14 @@ public class Request {
                     .endpoint(endpoint.getUnique())
                     .build();
         } else {
-            Optional<BlobSession> optionalSession = BlobSession.findOne(args);
+            BlobSession session = BlobSession.findOne(args);
             final Request.RequestBuilder builder =  Request.builder()
                     .params(convertParams(endpoint, args))
                     .endpoint(endpoint.getUnique());
 
-            optionalSession.ifPresent(new Consumer<BlobSession>() {
-                @Override
-                public void accept(BlobSession blobSession) {
-                    builder.session(blobSession);
-                }
-            });
+            if(!session.equals(BlobSession.NULL)) {
+                builder.session(session);
+            }
 
             return builder.build();
         }

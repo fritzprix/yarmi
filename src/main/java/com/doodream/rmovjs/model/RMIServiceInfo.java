@@ -1,7 +1,6 @@
 package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.Properties;
-import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.server.RMIController;
 import com.google.gson.annotations.SerializedName;

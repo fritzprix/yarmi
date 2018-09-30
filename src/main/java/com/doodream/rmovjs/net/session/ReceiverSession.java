@@ -8,7 +8,7 @@ import com.doodream.rmovjs.serde.Writer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -93,6 +93,9 @@ public class ReceiverSession implements Session, SessionHandler {
     public void handle(SessionControlMessage scm) throws SessionControlException, IOException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         final SessionCommand command = scm.getCommand();
         Object param = converter.resolve(scm.getParam(), command.getParamClass());
+        if(Log.isTraceEnabled()) {
+            Log.trace("{}  {}", command, param);
+        }
         switch (command) {
             case CHUNK:
                 SCMChunkParam chunkParam = (SCMChunkParam) param;

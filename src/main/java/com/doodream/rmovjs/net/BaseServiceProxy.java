@@ -180,12 +180,14 @@ public class BaseServiceProxy implements RMIServiceProxy {
                         if(session != null) {
                             registerSession(session);
                         }
-                        Log.trace("Request => {}", request);
+                        if(Log.isTraceEnabled()) {
+                            Log.trace("Request => {}", request);
+                        }
                     }
                 })
-                .map(new Function<Request, Optional<Response>>() {
+                .map(new Function<Request, Response>() {
                     @Override
-                    public Optional<Response> apply(Request request) throws Exception {
+                    public Response apply(Request request) throws Exception {
                         requestWaitQueue.put(request.getNonce(), request);
                         try {
                             synchronized (request) {
@@ -197,24 +199,17 @@ public class BaseServiceProxy implements RMIServiceProxy {
                                 }
                             }
                         } catch (InterruptedException e) {
-                            return Optional.of(RMIError.CLOSED.getResponse());
+                            return RMIError.CLOSED.getResponse();
                         }
                         if(request.getResponse() == null) {
-                            return Optional.of(RMIError.TIMEOUT.getResponse());
+                            return RMIError.TIMEOUT.getResponse();
                         }
-                        return Optional.of(request.getResponse());
+                        return request.getResponse();
                     }
                 })
-                .filter(new Predicate<Optional<Response>>() {
+                .map(new Function<Response, Response>() {
                     @Override
-                    public boolean test(Optional<Response> response) throws Exception {
-                        return response.isPresent();
-                    }
-                })
-                .map(new Function<Optional<Response>, Response>() {
-                    @Override
-                    public Response apply(Optional<Response> responseOptional) throws Exception {
-                        Response response = responseOptional.get();
+                    public Response apply(Response response) throws Exception {
                         if(response.isSuccessful()) {
                             response.resolve(converter, endpoint.getUnwrappedRetType());
                         }
@@ -250,7 +245,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 session.start(reader, writer, converter, new SessionControlMessageWriter.Builder() {
                     @Override
                     public SessionControlMessageWriter build(Writer writer) {
-                        return Response.buildSessionMessageWriter(writer);
+                        return Request.buildSessionMessageWriter(writer);
                     }
                 }, new Runnable() {
                     @Override
@@ -276,8 +271,10 @@ public class BaseServiceProxy implements RMIServiceProxy {
     }
 
     private void registerSession(final BlobSession session) {
-        if (sessionRegistry.put(session.getKey(), session) != null) {
-            Log.warn("session : {} collision in registry", session.getKey());
+        synchronized (this) {
+            if (sessionRegistry.put(session.getKey(), session) != null) {
+                Log.warn("session : {} collision in registry", session.getKey());
+            }
         }
         Log.trace("session registered {}", session);
         session.start(reader, writer, converter, new SessionControlMessageWriter.Builder() {
@@ -294,22 +291,24 @@ public class BaseServiceProxy implements RMIServiceProxy {
     }
 
     private void unregisterSession(BlobSession session ) {
-        if (sessionRegistry.remove(session.getKey()) == null) {
-            Log.warn("fail to remove session : session not exists {}", session.getKey());
-            return;
+        synchronized (this) {
+            if (sessionRegistry.remove(session.getKey()) == null) {
+                Log.warn("fail to remove session : session not exists {}", session.getKey());
+                return;
+            }
         }
         Log.trace("remove session : {}", session.getKey());
     }
 
     private void onError(Throwable throwable) {
-        Log.error("Proxy closed {}", throwable);
+        Log.error("Proxy closed", throwable);
         try {
             close();
         } catch (IOException ignored) { }
     }
 
     public void close() throws IOException {
-        if(!markAsUnuse(openSemaphore)) {
+        if(!markAsUnused(openSemaphore)) {
             return;
         }
         stopPeriodicQosUpdate();
@@ -352,7 +351,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
     @Override
     public void stopPeriodicQosUpdate() {
-        if(!markAsUnuse(pingSemaphore)) {
+        if(!markAsUnused(pingSemaphore)) {
             return;
         }
         if(!pingDisposable.isDisposed()) {
@@ -375,7 +374,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
      * @param semaphore {@link AtomicInteger} to be used as semaphore for resource
      * @return true, resource becomes unused, otherwise false
      */
-    private boolean markAsUnuse(AtomicInteger semaphore) {
+    private boolean markAsUnused(AtomicInteger semaphore) {
         return !(semaphore.updateAndGet(new IntUnaryOperator() {
             @Override
             public int applyAsInt(int v) {

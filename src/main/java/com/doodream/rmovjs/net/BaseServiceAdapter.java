@@ -18,7 +18,6 @@ import io.reactivex.functions.Predicate;
 import io.reactivex.observables.GroupedObservable;
 import io.reactivex.schedulers.Schedulers;
 import lombok.NonNull;
-import org.omg.PortableServer.REQUEST_PROCESSING_POLICY_ID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +90,6 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
 
     private void onHandshakeSuccess(final ClientSocketAdapter adapter, final Function<Request, Response> handleRequest) {
 
-
         compositeDisposable.add(adapter.listen()
                 .groupBy(new Function<Request, Boolean>() {
                     @Override
@@ -99,17 +97,17 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                         return Request.isValid(request);
                     }
                 })
-                .flatMap(new Function<GroupedObservable<Boolean, Request>, ObservableSource<Optional<Request>>>() {
+                .flatMap(new Function<GroupedObservable<Boolean, Request>, ObservableSource<Request>>() {
                     @Override
-                    public ObservableSource<Optional<Request>> apply(final GroupedObservable<Boolean, Request> booleanRequestGroupedObservable) throws Exception {
-                        return Observable.create(new ObservableOnSubscribe<Optional<Request>>() {
+                    public ObservableSource<Request> apply(final GroupedObservable<Boolean, Request> booleanRequestGroupedObservable) throws Exception {
+                        return Observable.create(new ObservableOnSubscribe<Request>() {
                             @Override
-                            public void subscribe(final ObservableEmitter<Optional<Request>> emitter) throws Exception {
+                            public void subscribe(final ObservableEmitter<Request> emitter) throws Exception {
                                 if(booleanRequestGroupedObservable.getKey()) {
                                     emitter.setDisposable(booleanRequestGroupedObservable.subscribe(new Consumer<Request>() {
                                                 @Override
                                                 public void accept(Request request) throws Exception {
-                                                    emitter.onNext(Optional.of(request));
+                                                    emitter.onNext(request);
                                                 }
                                             }));
                                 } else {
@@ -118,7 +116,6 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                                         @Override
                                         public void accept(Request request) throws Exception {
                                             adapter.write(Response.from(RMIError.BAD_REQUEST));
-                                            emitter.onNext(Optional.<Request>empty());
                                         }
                                     }));
                                 }
@@ -126,24 +123,13 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                         });
                     }
                 })
-                .filter(new Predicate<Optional>() {
-                    @Override
-                    public boolean test(Optional request) throws Exception {
-                        return request.<Request>isPresent();
-                    }
-                })
-                //[ERROR] (argument mismatch; <anonymous io.reactivex.functions.Function<java.util.Optional<com.doodream.rmovjs.model.Request>,com.doodream.rmovjs.model.Request>> cannot be converted to io.reactivex.functions.Function<? super java.util.Optional,? extends R>)
-                .map(new Function<Optional<Request>, Request>() {
-                    @Override
-                    public Request apply(Optional<Request> request) throws Exception {
-                        return request.get();
-                    }
-                })
                 .doOnNext(new Consumer<Request>() {
                     @Override
                     public void accept(Request request) throws Exception {
                         request.setClient(adapter);
-                        Log.trace("Request <= {}", request);
+                        if(Log.isTraceEnabled()) {
+                            Log.trace("Request <= {}", request);
+                        }
                     }
                 })
                 .observeOn(Schedulers.io())
@@ -151,7 +137,9 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                     @Override
                     public void accept(Request request) throws Exception {
                         final Response response = handleRequest.apply(request);
-                        Log.trace("Response => {}", response);
+                        if(Log.isTraceEnabled()) {
+                            Log.trace("Response => {}", response);
+                        }
                         adapter.write(response);
                     }
                 }, new Consumer<Throwable>() {
@@ -163,7 +151,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     }
 
     private void onError(Throwable throwable) {
-        Log.error("Error : {}", throwable);
+        Log.error("Error : ", throwable);
         close();
     }
 
@@ -174,7 +162,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
             try {
                 onClose();
             } catch (IOException e) {
-                Log.warn("{}", e);
+                Log.warn("", e);
             }
         }
         compositeDisposable.dispose();

@@ -21,8 +21,6 @@ import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -257,12 +255,10 @@ public class HaRMIClient<T> implements InvocationHandler {
     private void close(final boolean force) {
         compositeDisposable.dispose();
         listenerInvoker.shutdown();
-        clients.forEach(new java.util.function.Consumer<Object>() {
-            @Override
-            public void accept(Object proxy) {
-                RMIClient.destroy(proxy, force);
-            }
-        });
+        for (Object client : clients) {
+            RMIClient.destroy(client, force);
+
+        }
     }
 
 
@@ -294,12 +290,10 @@ public class HaRMIClient<T> implements InvocationHandler {
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         lastProxy = selectNext();
         Preconditions.checkNotNull(lastProxy);
-        Log.debug("invoking : {} , {}", method, args);
         try {
             return method.invoke(lastProxy, args);
         } catch (RMIException e) {
             if(RMIError.isServiceBad(e.code())) {
-                // bad service
                 purgeBadProxy(lastProxy);
             }
             // rethrow it

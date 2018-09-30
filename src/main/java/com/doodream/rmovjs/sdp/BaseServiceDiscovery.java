@@ -1,12 +1,10 @@
 package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.RMIServiceProxy;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 import com.doodream.rmovjs.serde.Converter;
-import com.doodream.rmovjs.server.RMIService;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
@@ -87,14 +85,6 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
                         }
                         return discoveryCache.add(discovered);
                     }
-                })
-                .filter(new Predicate<RMIServiceInfo>() {
-                    @Override
-                    public boolean test(RMIServiceInfo discovered) throws Exception {
-                        if(!once) {
-                            return true;
-                        }
-                        return discoveryCache.add(discovered);                    }
                 })
                 .filter(new Predicate<RMIServiceInfo>() {
                     @Override

@@ -378,7 +378,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
     @Override
     public int compareTo(@NotNull RMIClient o) {
-        return Math.toIntExact(getMeasuredPing() - o.getMeasuredPing());
+        return (int) (getMeasuredPing() - o.getMeasuredPing());
     }
 
     private long getMeasuredPing() {

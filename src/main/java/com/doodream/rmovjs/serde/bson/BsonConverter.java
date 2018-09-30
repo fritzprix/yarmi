@@ -3,6 +3,7 @@ package com.doodream.rmovjs.serde.bson;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
+import com.doodream.rmovjs.util.Types;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -25,10 +26,9 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -106,11 +106,10 @@ public class BsonConverter implements Converter {
 
 
     @Override
-    public <T> T resolve(final Object unresolved, Type type) throws ClassNotFoundException {
+    public Object resolve(final Object unresolved, Type type) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
         if(unresolved == null) {
             return null;
         }
-        Log.debug("unresolved : {}", unresolved.getClass());
         Class clsz;
         if(type instanceof ParameterizedType) {
             clsz = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
@@ -119,76 +118,35 @@ public class BsonConverter implements Converter {
         }
         final Class cls = clsz;
         final Class unresolvedCls = unresolved.getClass();
-//        if(!type.getTypeName().contains("SCM")) {
-//            Log.debug("cls of unresolved : {} / given type : {}", unresolvedCls, cls);
-//        }
-        if(cls.equals(unresolvedCls)) {
-            return (T) unresolved;
+        if(cls.equals(unresolvedCls) ||
+                Types.isCastable(unresolved, type)) {
+            return cls.cast(unresolved);
         }
 
-        Observable<Object> constructorObservable = Observable.fromArray(cls.getConstructors())
-                .filter(new Predicate<Constructor>() {
-                    @Override
-                    public boolean test(Constructor constructor) throws Exception {
-                        return constructor.getParameterCount() == 1;
-                    }
-                })
-                .filter(new Predicate<Constructor>() {
-                    @Override
-                    public boolean test(Constructor constructor) throws Exception {
-                        return constructor.getParameterTypes()[0].equals(unresolvedCls);
-                    }
-                })
-                .map(new Function<Constructor, Object>() {
-                    @Override
-                    public Object apply(Constructor constructor) throws Exception {
-                        return constructor.newInstance(unresolved);
-                    }
-                });
+        if(unresolvedCls.equals(LinkedHashMap.class)) {
+            return resolveKvMap((Map<?, ?>) unresolved, cls);
+        }
 
-        Observable<ParameterizedType> parameterizedTypeObservable = Observable.fromArray(unresolvedCls.getGenericInterfaces())
-                .cast(ParameterizedType.class)
-                .cache();
+        if(unresolvedCls.equals(ArrayList.class)) {
+            Type[] typeArguments = ((ParameterizedType) type).getActualTypeArguments();
+            if(typeArguments == null || (typeArguments.length == 0)) {
+                return unresolved;
+            }
+            ArrayList unresolvedList = (ArrayList) unresolved;
+            return Observable.<ArrayList>fromIterable(unresolvedList).map(new Function() {
+                        @Override
+                        public Object apply(Object o) throws Exception {
+                            return resolve(o, typeArguments[0]);
+                        }}).toList().blockingGet();
+        }
 
-        Observable<Object> mapObservable = parameterizedTypeObservable
-                .filter(new Predicate<ParameterizedType>() {
-                    @Override
-                    public boolean test(ParameterizedType parameterizedType) throws Exception {
-                        return parameterizedType.getRawType().equals(Map.class);
-                    }
-                })
-                .map(new Function<ParameterizedType, Map<?,?>>() {
-                    @Override
-                    public Map<?, ?> apply(ParameterizedType parameterizedType) throws Exception {
-                        return (Map<?,?>) unresolved;
-                    }
-                })
-                .map(new Function<Map<?,?>, Object>() {
-                    @Override
-                    public Object apply(Map<?, ?> map) throws Exception {
-                        return resolveKvMap(map, cls);
-                    }
-                });
-
-        // TODO: 18. 8. 31 handle collection types other than map
-        Observable<List<?>> listObservable = parameterizedTypeObservable
-                .filter(new Predicate<ParameterizedType>() {
-                    @Override
-                    public boolean test(ParameterizedType parameterizedType) throws Exception {
-                        return parameterizedType.getRawType().equals(List.class);
-                    }
-                })
-                .map(new Function<ParameterizedType, List<?>>() {
-                    @Override
-                    public List<?> apply(ParameterizedType parameterizedType) throws Exception {
-                        return (List<?>) unresolved;
-                    }
-                });
-
-
-        return (T) mapObservable.mergeWith(constructorObservable)
-                .mergeWith(listObservable)
-                .blockingSingle(unresolved);
+        try {
+            Constructor<?> constructor = cls.getConstructor(unresolvedCls);
+            return constructor.newInstance(unresolved);
+        } catch (NoSuchMethodException | InvocationTargetException e) {
+            Log.error("",e);
+            return unresolved;
+        }
 
     }
 

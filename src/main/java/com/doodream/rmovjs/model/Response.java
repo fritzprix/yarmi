@@ -8,6 +8,7 @@ import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Writer;
 import com.doodream.rmovjs.serde.json.JsonConverter;
+import com.doodream.rmovjs.util.Types;
 import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
@@ -130,28 +131,18 @@ public class Response<T> {
     public void resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         if(type instanceof ParameterizedType) {
             Class rawCls = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
-            if(isCastable(body, rawCls)) {
+            if(Types.isCastable(body, rawCls)) {
                 // ex > Bson4Jackson parsed as collections like ArrayList<String>
                 // however, if there is recursive type parameters like ArrayList<ArrayList<String>>
                 return;
             }
         } else {
             Class rawCls = Class.forName(type.getTypeName());
-            if(isCastable(body, rawCls)) {
+            if(Types.isCastable(body, rawCls)) {
                 return;
             }
         }
-        Log.debug("resolve is required for {} => {}", getBody(), type.getTypeName());
         setBody((T) converter.resolve(getBody(), type));
     }
 
-    private boolean isCastable(T body, Class rawCls) {
-        try {
-            rawCls.cast(body);
-            return true;
-        } catch (ClassCastException ignored) {
-            Log.warn("cast fail {}",rawCls, ignored);
-        }
-        return false;
-    }
 }

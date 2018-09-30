@@ -80,10 +80,7 @@ public class ClientSocketAdapter {
                         }
                         if(session != null) {
                             session.init();
-                            if (sessionRegistry.put(session.getKey(), session) != null) {
-                                Log.warn("session conflict");
-                                return;
-                            }
+                            registerSession(session);
                             Log.debug("session registered {}", session);
                             session.start(reader, writer, converter, new SessionControlMessageWriter.Builder() {
                                 @Override
@@ -102,6 +99,7 @@ public class ClientSocketAdapter {
                     }
                     emitter.onComplete();
                 } catch (IOException e) {
+                    Log.error("", e);
                     client.close();
                 }
             }
@@ -109,10 +107,21 @@ public class ClientSocketAdapter {
         return requestObservable.subscribeOn(Schedulers.io());
     }
 
+    private void registerSession(BlobSession session) {
+        synchronized (this) {
+            if (sessionRegistry.put(session.getKey(), session) != null) {
+                Log.warn("session conflict");
+                return;
+            }
+        }
+    }
+
     private void unregisterSession(BlobSession session ) {
-        if (sessionRegistry.remove(session.getKey()) == null) {
-            Log.warn("fail to remove session : session not exists {}", session.getKey());
-            return;
+        synchronized (this) {
+            if (sessionRegistry.remove(session.getKey()) == null) {
+                Log.warn("fail to remove session : session not exists {}", session.getKey());
+                return;
+            }
         }
         Log.trace("remove session : {}", session.getKey());
     }
