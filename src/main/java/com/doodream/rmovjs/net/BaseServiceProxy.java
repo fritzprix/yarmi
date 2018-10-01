@@ -73,7 +73,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
     private ConcurrentHashMap<Integer, Request> requestWaitQueue;
     private CompositeDisposable compositeDisposable;
     private Disposable pingDisposable;
-    private int requestNonce;
+    private AtomicInteger requestNonce;
     private RMIServiceInfo serviceInfo;
     private Converter converter;
     private RMISocket socket;
@@ -96,7 +96,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
         openSemaphore = new AtomicInteger(0);
         pingSemaphore = new AtomicInteger(0);
-        requestNonce = 0;
+        requestNonce = new AtomicInteger(0);
         serviceInfo = info;
         isOpened = false;
         this.socket = socket;
@@ -145,7 +145,6 @@ public class BaseServiceProxy implements RMIServiceProxy {
                             return;
                         }
                         synchronized (request) {
-                            Log.debug("request({}) is response({})", request, response);
                             request.setResponse(response);
                             request.notifyAll(); // wakeup waiting thread
                         }
@@ -170,7 +169,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 .doOnNext(new Consumer<Request>() {
                     @Override
                     public void accept(Request request) throws Exception {
-                        request.setNonce(++requestNonce);
+                        request.setNonce(requestNonce.getAndIncrement());
                     }
                 })
                 .doOnNext(new Consumer<Request>() {
