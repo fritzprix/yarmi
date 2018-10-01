@@ -130,7 +130,7 @@ public class JsonConverter implements Converter {
     }
 
     @Override
-    public <T> T resolve(Object unresolved, Type type) {
+    public Object resolve(Object unresolved, Type type) {
         if(unresolved == null) {
             return null;
         }
