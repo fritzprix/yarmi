@@ -121,8 +121,13 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
 
     private void broadcast(DatagramPacket datagramPacket) throws IOException {
         DatagramSocket socket = new DatagramSocket();
-        socket.send(datagramPacket);
-        socket.close();
+        try {
+            socket.send(datagramPacket);
+        } catch (IOException e) {
+            Log.warn(e.getMessage());
+        } finally {
+            socket.close();
+        }
     }
 
     private DatagramPacket buildMulticastPacket(RMIServiceInfo info, Converter converter) throws UnsupportedEncodingException, UnknownHostException {
