@@ -1,5 +1,8 @@
 package com.doodream.rmovjs.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -8,6 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Types {
+    private static final Logger Log = LoggerFactory.getLogger(Types.class);
     private static Pattern INTERNAL_TYPE_SELECTOR_PATTERN = Pattern.compile("([^\\<\\>]+)\\<([\\s\\S]+)\\>");
 
     public static Type[] unwrapType(String typeName) throws ClassNotFoundException, IllegalArgumentException {
@@ -98,15 +102,17 @@ public class Types {
         try {
             rawCls.cast(body);
             return true;
-        } catch (ClassCastException ignored) { }
+        } catch (ClassCastException ignored) {
+        }
         return false;
     }
 
     public static  <T> boolean isCastable(T body, Type type) {
         try {
-            type.getClass().cast(body);
+            ((Class) type).cast(body);
             return true;
-        } catch (ClassCastException ignored) { }
+        } catch (ClassCastException ignored) {
+        }
         return false;
 
     }
