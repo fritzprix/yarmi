@@ -304,7 +304,7 @@ public class RMIService {
                 return routeRequest(request);
             }
         }));
-        advertiser.startAdvertiser(serviceInfo, converter, block);
+        advertiser.startAdvertiser(serviceInfo, block);
     }
 
     /**
