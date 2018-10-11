@@ -17,7 +17,6 @@ import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.Scheduler;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.Action;
 import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
@@ -28,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Base64;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +64,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
     private ConcurrentHashMap<Integer, Request> requestWaitQueue;
     private CompositeDisposable compositeDisposable;
     private Disposable pingDisposable;
-    private AtomicInteger requestNonce;
+    private AtomicInteger requestId;
     private RMIServiceInfo serviceInfo;
     private Converter converter;
     private RMISocket socket;
@@ -88,7 +86,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
 
         openSemaphore = new AtomicInteger(0);
         pingSemaphore = new AtomicInteger(0);
-        requestNonce = new AtomicInteger(0);
+        requestId = new AtomicInteger(0);
         serviceInfo = info;
         isOpened = false;
         this.socket = socket;
@@ -167,7 +165,7 @@ public class BaseServiceProxy implements RMIServiceProxy {
                 .doOnNext(new Consumer<Request>() {
                     @Override
                     public void accept(Request request) throws Exception {
-                        request.setNonce(requestNonce.incrementAndGet());
+                        request.setNonce(requestId.incrementAndGet());
                         final BlobSession session = request.getSession();
                         if(session != null) {
                             registerSession(session);
