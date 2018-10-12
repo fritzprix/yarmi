@@ -1,9 +1,12 @@
 package com.doodream.rmovjs.parameter;
 
+import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.serde.Converter;
+import com.doodream.rmovjs.util.Types;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.reactivex.Observable;
+import io.reactivex.functions.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -38,7 +41,12 @@ public class Param<T> {
 
     public static Param create(Type cls, Annotation[] annotations) {
         List<Annotation> filteredAnnotations = Observable.fromArray(annotations)
-                .filter(ParamType::isSupportedAnnotation)
+                .filter(new Predicate<Annotation>() {
+                    @Override
+                    public boolean test(Annotation annotation) throws Exception {
+                        return ParamType.isSupportedAnnotation(annotation);
+                    }
+                })
                 .toList()
                 .blockingGet();
 
@@ -61,7 +69,10 @@ public class Param<T> {
         this.value = value;
     }
 
-    public T resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+    public Object resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+        if(Types.isCastable(value, type)) {
+            return value;
+        }
         return converter.resolve(value, type);
     }
 

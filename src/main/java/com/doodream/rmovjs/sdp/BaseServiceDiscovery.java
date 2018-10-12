@@ -8,6 +8,10 @@ import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,64 +46,135 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
     @Override
-    public void startDiscovery(@NonNull Class service, boolean once, long timeout, @NonNull TimeUnit unit, @NonNull ServiceDiscoveryListener listener) throws IllegalAccessException, InstantiationException {
+    public void startDiscovery(@NonNull final Class service, final boolean once, long timeout, @NonNull TimeUnit unit, @NonNull final ServiceDiscoveryListener listener) throws IllegalAccessException, InstantiationException {
         if(disposableMap.containsKey(service)) {
             return;
         }
         final RMIServiceInfo info = RMIServiceInfo.from(service);
-        Converter converter = (Converter) info.getConverter().newInstance();
+        final Converter converter = (Converter) info.getConverter().newInstance();
         Preconditions.checkNotNull(info, "Invalid service type %s", service);
         Preconditions.checkNotNull(converter, "converter is not declared");
 
-        HashSet<RMIServiceInfo> discoveryCache = new HashSet<>();
+        final HashSet<RMIServiceInfo> discoveryCache = new HashSet<>();
         listener.onDiscoveryStarted();
 
         Observable<RMIServiceInfo> serviceInfoObservable = observeTick()
-                .map(seq -> receiveServiceInfo(converter))
-                .doOnNext(svcInfo -> Log.trace("received info : {}", svcInfo))
-                .onErrorReturn(throwable -> RMIServiceInfo.builder().build())
-                .filter(discovered -> {
-                    if(!once) {
-                        return true;
+                .map(new Function<Long, RMIServiceInfo>() {
+                    @Override
+                    public RMIServiceInfo apply(Long aLong) throws Exception {
+                        return receiveServiceInfo(converter);
                     }
-                    return discoveryCache.add(discovered);
                 })
-                .filter(info::equals)
-                .doOnNext(discovered -> Log.debug("Discovered New Service : {} @ {}", discovered.getName(), discovered.getProxyFactoryHint()))
-                .doOnNext(info::copyFrom)
+                .doOnNext(new Consumer<RMIServiceInfo>() {
+                    @Override
+                    public void accept(RMIServiceInfo svcInfo) throws Exception {
+                        Log.trace("received info : {}", svcInfo);
+                    }
+                })
+                .onErrorReturn(new Function<Throwable, RMIServiceInfo>() {
+                    @Override
+                    public RMIServiceInfo apply(Throwable throwable) throws Exception {
+                        return RMIServiceInfo.builder().build();
+                    }
+                })
+                .filter(new Predicate<RMIServiceInfo>() {
+                    @Override
+                    public boolean test(RMIServiceInfo discovered) throws Exception {
+                        if(!once) {
+                            return true;
+                        }
+                        return discoveryCache.add(discovered);
+                    }
+                })
+                .filter(new Predicate<RMIServiceInfo>() {
+                    @Override
+                    public boolean test(RMIServiceInfo rmiServiceInfo) throws Exception {
+                        return info.equals(rmiServiceInfo);
+                    }
+                })
+                .doOnNext(new Consumer<RMIServiceInfo>() {
+                    @Override
+                    public void accept(RMIServiceInfo discovered) throws Exception {
+                        Log.debug("Discovered New Service : {} @ {}", discovered.getName(), discovered.getProxyFactoryHint());
+                        info.copyFrom(discovered);
+                    }
+                })
                 .timeout(timeout, unit);
 
 
         disposableMap.put(service, serviceInfoObservable
-                .map(RMIServiceInfo::getAdapter)
-                .map(Class::newInstance)
-                .cast(ServiceAdapter.class)
-                .map(serviceAdapter -> serviceAdapter.getProxyFactory(info))
-                .map(ServiceProxyFactory::build)
-                .doOnDispose(() -> {
-                    close();
-                    disposableMap.remove(service);
-                    listener.onDiscoveryFinished();
-
-                })
-                .doOnError(throwable -> {
-                    if(throwable instanceof TimeoutException) {
-                        Log.debug("Discovery Timeout");
-                    } else {
-                        Log.warn("{}", throwable);
+                .map(new Function<RMIServiceInfo, Class<?>>() {
+                    @Override
+                    public Class<?> apply(RMIServiceInfo rmiServiceInfo) throws Exception {
+                        return rmiServiceInfo.getAdapter();
                     }
-                    close();
-                    disposableMap.remove(service);
-                    listener.onDiscoveryFinished();
                 })
-                .doOnComplete(() -> {
-                    close();
-                    disposableMap.remove(service);
-                    listener.onDiscoveryFinished();
+                .map(new Function<Class<?>, Object>() {
+                    @Override
+                    public Object apply(Class<?> cls) throws Exception {
+                        return cls.newInstance();
+                    }
                 })
-                .onErrorReturn(throwable -> RMIServiceProxy.NULL_PROXY)
-                .filter(proxy -> !RMIServiceProxy.NULL_PROXY.equals(proxy))
-                .subscribe(listener::onDiscovered));
+                .cast(ServiceAdapter.class)
+                .map(new Function<ServiceAdapter, ServiceProxyFactory>() {
+                    @Override
+                    public ServiceProxyFactory apply(ServiceAdapter serviceAdapter) throws Exception {
+                        return serviceAdapter.getProxyFactory(info);
+                    }
+                })
+                .map(new Function<ServiceProxyFactory, RMIServiceProxy>() {
+                    @Override
+                    public RMIServiceProxy apply(ServiceProxyFactory serviceProxyFactory) throws Exception {
+                        return serviceProxyFactory.build();
+                    }
+                })
+                .doOnDispose(new Action() {
+                    @Override
+                    public void run() throws Exception {
+                        close();
+                        disposableMap.remove(service);
+                        listener.onDiscoveryFinished();
+                    }
+                })
+                .doOnError(new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        if(throwable instanceof TimeoutException) {
+                            Log.debug("Discovery Timeout");
+                        } else {
+                            Log.warn("{}", throwable);
+                        }
+                        close();
+                        disposableMap.remove(service);
+                        listener.onDiscoveryFinished();
+                    }
+                })
+                .doOnComplete(new Action() {
+                    @Override
+                    public void run() throws Exception {
+                        close();
+                        disposableMap.remove(service);
+                        listener.onDiscoveryFinished();
+                    }
+                })
+                .onErrorReturn(new Function<Throwable, RMIServiceProxy>() {
+                    @Override
+                    public RMIServiceProxy apply(Throwable throwable) throws Exception {
+                        return RMIServiceProxy.NULL_PROXY;
+                    }
+                })
+                .filter(new Predicate<RMIServiceProxy>() {
+                    @Override
+                    public boolean test(RMIServiceProxy proxy) throws Exception {
+                        return !RMIServiceProxy.NULL_PROXY.equals(proxy);
+                    }
+                })
+                .subscribe(new Consumer<RMIServiceProxy>() {
+                    @Override
+                    public void accept(RMIServiceProxy rmiServiceProxy) throws Exception {
+                        listener.onDiscovered(rmiServiceProxy);
+                    }
+                }));
 
     }
 

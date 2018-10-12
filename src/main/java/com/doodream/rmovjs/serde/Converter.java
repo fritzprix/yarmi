@@ -20,5 +20,5 @@ public interface Converter {
 
     <T> T invert(byte[] b, Class<T> cls);
 
-    <T> T resolve(Object unresolved, Type type) throws ClassNotFoundException, IllegalAccessException, InstantiationException;
+    Object resolve(Object unresolved, Type type) throws ClassNotFoundException, IllegalAccessException, InstantiationException;
 }

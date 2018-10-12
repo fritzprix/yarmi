@@ -3,6 +3,7 @@ package com.doodream.rmovjs.serde.bson;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
+import com.doodream.rmovjs.util.Types;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -15,6 +16,9 @@ import de.undercouch.bson4jackson.BsonFactory;
 import de.undercouch.bson4jackson.BsonGenerator;
 import de.undercouch.bson4jackson.BsonParser;
 import io.reactivex.Observable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,8 +26,10 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class BsonConverter implements Converter {
@@ -44,7 +50,7 @@ public class BsonConverter implements Converter {
                 .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
     }
     @Override
-    public Reader reader(InputStream inputStream) {
+    public Reader reader(final InputStream inputStream) {
         try {
             return new Reader() {
 
@@ -62,7 +68,7 @@ public class BsonConverter implements Converter {
     }
 
     @Override
-    public Writer writer(OutputStream outputStream) {
+    public Writer writer(final OutputStream outputStream) {
         try {
             return new Writer() {
                 private BsonGenerator bsonGenerator = bsonFactory.createGenerator(outputStream);
@@ -100,50 +106,84 @@ public class BsonConverter implements Converter {
 
 
     @Override
-    public <T> T resolve(Object unresolved, Type type) throws ClassNotFoundException {
+    public Object resolve(final Object unresolved, Type type) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
         if(unresolved == null) {
             return null;
         }
-        Class cls = Class.forName(type.getTypeName());
-        Class unresolvedCls = unresolved.getClass();
-//        if(!type.getTypeName().contains("SCM")) {
-//            Log.debug("cls of unresolved : {} / given type : {}", unresolvedCls, cls);
-//        }
-        if(cls.equals(unresolvedCls)) {
-            return (T) unresolved;
+        Class clsz;
+        if(type instanceof ParameterizedType) {
+            clsz = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
+        } else {
+            clsz = Class.forName(type.getTypeName());
+        }
+        final Class cls = clsz;
+        final Class unresolvedCls = unresolved.getClass();
+        Log.debug("resolve {} -> {}", unresolvedCls, cls);
+
+        if(unresolvedCls.equals(LinkedHashMap.class)) {
+            return resolveKvMap((Map<?, ?>) unresolved, cls);
         }
 
-        Observable<Object> constructorObservable = Observable.fromArray(cls.getConstructors())
-                .filter(constructor -> constructor.getParameterCount() == 1)
-                .filter(constructor -> constructor.getParameterTypes()[0].equals(unresolvedCls))
-                .map(constructor -> constructor.newInstance(unresolved));
+        if(unresolvedCls.equals(ArrayList.class)) {
+            Type[] typeArguments = ((ParameterizedType) type).getActualTypeArguments();
+            if(typeArguments == null || (typeArguments.length == 0)) {
+                return unresolved;
+            }
+            ArrayList unresolvedList = (ArrayList) unresolved;
+            return Observable.<ArrayList>fromIterable(unresolvedList).map(new Function() {
+                @Override
+                public Object apply(Object o) throws Exception {
+                    return resolve(o, typeArguments[0]);
+                }}).toList().blockingGet();
+        }
 
-        Observable<ParameterizedType> parameterizedTypeObservable = Observable.fromArray(unresolvedCls.getGenericInterfaces())
-                .cast(ParameterizedType.class)
-                .cache();
+        if(cls.equals(unresolvedCls) ||
+                Types.isCastable(unresolved, type) ||
+                Types.isCastable(unresolved, cls)) {
+            return cls.cast(unresolved);
+        }
 
-        Observable<Object> mapObservable = parameterizedTypeObservable
-                .filter(typeParam -> typeParam.getRawType().equals(Map.class))
-                .map(typeParam -> (Map<?,?>) unresolved)
-                .map(map -> resolveKvMap(map, cls));
 
-        return (T) mapObservable.mergeWith(constructorObservable)
-                .blockingSingle(unresolved);
+
+        if(unresolvedCls.getSuperclass().equals(Number.class)) {
+
+        }
+
+        try {
+            Constructor<?> constructor = cls.getConstructor(unresolvedCls);
+            return constructor.newInstance(unresolved);
+        } catch (NoSuchMethodException | InvocationTargetException ignored) {
+
+        }
+        try {
+            Method valueOf = cls.getMethod("valueOf", String.class);
+            return valueOf.invoke(null, String.valueOf(unresolved));
+        } catch (NoSuchMethodException | InvocationTargetException ignored) {
+
+        }
+        return unresolved;
 
     }
 
-    private Object resolveKvMap(Map<?, ?> map, Class cls) throws IllegalAccessException, InstantiationException {
-        Object resolved = cls.newInstance();
+    private Object resolveKvMap(final Map<?, ?> map, Class cls) throws IllegalAccessException, InstantiationException {
+        final Object resolved = cls.newInstance();
         Observable.fromArray(cls.getDeclaredFields())
-                .filter(field -> map.containsKey(field.getName()))
-                .doOnNext(field -> field.setAccessible(true))
-                .doOnNext(field -> field.set(resolved, map.get(field.getName())))
+                .filter(new Predicate<Field>() {
+                    @Override
+                    public boolean test(Field field) throws Exception {
+                        return map.containsKey(field.getName());
+                    }
+                })
+                .doOnNext(new Consumer<Field>() {
+                    @Override
+                    public void accept(Field field) throws Exception {
+                        field.setAccessible(true);
+                        field.set(resolved, map.get(field.getName()));
+                    }
+                })
                 .blockingSubscribe();
 
         return resolved;
     }
 
-    private <T> T handlePrimitive(Object unresolved, Class cls) {
-        return (T) cls.cast(unresolved);
-    }
 }

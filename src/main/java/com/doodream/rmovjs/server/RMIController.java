@@ -13,6 +13,10 @@ import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
+import io.reactivex.functions.BiConsumer;
+import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.*;
 
@@ -56,36 +61,70 @@ public class RMIController {
      * @throws IllegalAccessException
      * @throws InstantiationException
      */
-    public static RMIController create(Field field, Object[] controllerImpls) throws IllegalAccessException, InstantiationException {
+    public static RMIController create(final Field field, Object[] controllerImpls) throws IllegalAccessException, InstantiationException {
 
-        Controller controller = field.getAnnotation(Controller.class);
+        final Controller controller = field.getAnnotation(Controller.class);
 
         Preconditions.checkNotNull(controller, "controller should be annotated with @Controller");
-        Class cls = field.getType();
+        final Class cls = field.getType();
         Class module = controller.module();
 
 
-        Object impl = Observable.fromArray(controllerImpls)
-                .filter(o -> isImplementOf(o, field.getGenericType()))
+        final Object impl = Observable.fromArray(controllerImpls)
+                .filter(new Predicate<Object>() {
+                    @Override
+                    public boolean test(Object o) throws Exception {
+                        return isImplementOf(o, field.getGenericType());
+                    }
+                })
                 .defaultIfEmpty(module.newInstance())
                 .blockingFirst();
 
         Preconditions.checkNotNull(impl, "implementation should not null");
 
         Observable<Endpoint> endpointObservable = Observable.fromArray(cls.getDeclaredMethods())
-                .filter(RMIMethod::isValidMethod)
-                .map(method -> Endpoint.create(controller, method));
+                .filter(new Predicate<Method>() {
+                    @Override
+                    public boolean test(Method method) throws Exception {
+                        return RMIMethod.isValidMethod(method);
+                    }
+                })
+                .map(new Function<Method, Endpoint>() {
+                    @Override
+                    public Endpoint apply(Method method) throws Exception {
+                        return Endpoint.create(controller, method);
+                    }
+                });
 
         Single<HashMap<String, Endpoint>> endpointLookupSingle = endpointObservable
-                .collectInto(new HashMap<>(), RMIController::collectMethod);
+                .collectInto(new HashMap<String, Endpoint>(), new BiConsumer<HashMap<String, Endpoint>, Endpoint>() {
+                    @Override
+                    public void accept(HashMap<String, Endpoint> stringEndpointHashMap, Endpoint endpoint) throws Exception {
+                        RMIController.collectMethod(stringEndpointHashMap, endpoint);
+                    }
+                });
 
         return Observable.just(RMIController.builder())
-                .map(controllerBuilder -> controllerBuilder.impl(impl))
-                .map(controllerBuilder -> controllerBuilder.controller(controller))
-                .map(controllerBuilder -> controllerBuilder.stub(cls))
-                .zipWith(endpointLookupSingle.toObservable(), RMIControllerBuilder::endpointMap)
-                .map(RMIControllerBuilder::build)
+                .map(new Function<RMIControllerBuilder, RMIControllerBuilder>() {
+                    @Override
+                    public RMIControllerBuilder apply(RMIControllerBuilder builder) throws Exception {
+                        return builder.impl(impl).controller(controller).stub(cls);
+                    }
+                })
+                .zipWith(endpointLookupSingle.toObservable(), new BiFunction<RMIControllerBuilder, HashMap<String, Endpoint>, RMIControllerBuilder>() {
+                    @Override
+                    public RMIControllerBuilder apply(RMIControllerBuilder builder, HashMap<String, Endpoint> stringEndpointHashMap) throws Exception {
+                        return builder.endpointMap(stringEndpointHashMap);
+                    }
+                })
+                .map(new Function<RMIControllerBuilder, RMIController>() {
+                    @Override
+                    public RMIController apply(RMIControllerBuilder builder) throws Exception {
+                        return builder.build();
+                    }
+                })
                 .blockingFirst();
+
     }
 
 
@@ -128,7 +167,7 @@ public class RMIController {
      * @throws InvocationTargetException exception occurred within the method call
      * @throws IllegalAccessException 
      */
-    Response handleRequest(Request request, Converter converter) throws InvocationTargetException, IllegalAccessException {
+    Response handleRequest(final Request request, final Converter converter) throws InvocationTargetException, IllegalAccessException {
 
         Endpoint endpoint = endpointMap.get(request.getEndpoint());
 
@@ -139,13 +178,26 @@ public class RMIController {
         Observable<Type> typeObservable = Observable.fromArray(endpoint.getJMethod().getGenericParameterTypes());
 
         List<Object> params = Observable.fromIterable(request.getParams())
-                .sorted(Param::sort)
-                .zipWith(typeObservable, (param, type) -> param.resolve(converter, type))
-                .map(o -> {
-                    if(o instanceof BlobSession) {
-                        return request.getSession();
+                .sorted(new Comparator<Param>() {
+                    @Override
+                    public int compare(Param o1, Param o2) {
+                        return Param.sort(o1, o2);
                     }
-                    return o;
+                })
+                .zipWith(typeObservable, new BiFunction<Param, Type, Object>() {
+                    @Override
+                    public Object apply(Param param, Type type) throws Exception {
+                        return param.resolve(converter,type);
+                    }
+                })
+                .map(new Function<Object, Object>() {
+                    @Override
+                    public Object apply(Object o) throws Exception {
+                        if(o instanceof  BlobSession) {
+                            return request.getSession();
+                        }
+                        return o;
+                    }
                 })
                 .toList().blockingGet();
 

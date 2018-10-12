@@ -5,10 +5,14 @@ import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.server.RMIController;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 
@@ -48,7 +52,7 @@ public class RMIServiceInfo {
 
     public static RMIServiceInfo from(Class<?> svc) {
         Service service = svc.getAnnotation(Service.class);
-        RMIServiceInfoBuilder builder = RMIServiceInfo.builder();
+        final RMIServiceInfoBuilder builder = RMIServiceInfo.builder();
 
         builder.version(Properties.getVersionString())
                 .adapter(service.adapter())
@@ -58,11 +62,31 @@ public class RMIServiceInfo {
                 .name(service.name());
 
         Observable.fromArray(svc.getDeclaredFields())
-                .filter(RMIController::isValidController)
-                .map(RMIController::create)
-                .map(ControllerInfo::build)
+                .filter(new Predicate<Field>() {
+                    @Override
+                    public boolean test(Field field) throws Exception {
+                        return RMIController.isValidController(field);
+                    }
+                })
+                .map(new Function<Field, RMIController>() {
+                    @Override
+                    public RMIController apply(Field field) throws Exception {
+                        return RMIController.create(field);
+                    }
+                })
+                .map(new Function<RMIController, ControllerInfo>() {
+                    @Override
+                    public ControllerInfo apply(RMIController rmiController) throws Exception {
+                        return ControllerInfo.build(rmiController);
+                    }
+                })
                 .toList()
-                .doOnSuccess(builder::controllerInfos)
+                .doOnSuccess(new Consumer<List<ControllerInfo>>() {
+                    @Override
+                    public void accept(List<ControllerInfo> controllerInfos) throws Exception {
+                        builder.controllerInfos(controllerInfos);
+                    }
+                })
                 .subscribe();
 
         return builder.build();
