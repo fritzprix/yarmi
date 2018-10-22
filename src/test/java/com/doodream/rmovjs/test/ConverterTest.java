@@ -38,6 +38,8 @@ public class ConverterTest {
     @Test
     public void converterSerDeserTest() throws ClassNotFoundException, IOException, InstantiationException, IllegalAccessException {
         for (Converter converter : converters) {
+            Assert.assertTrue(testPrimitiveType(converter, 1.3, double.class));
+            Assert.assertTrue(testPrimitiveType(converter, 1, int.class));
             Assert.assertTrue(testNumericObject(converter, 1.3f));
             Assert.assertTrue(testNumericObject(converter, 100L));
             Assert.assertTrue(testNumericObject(converter, 100));
@@ -46,6 +48,11 @@ public class ConverterTest {
             Assert.assertTrue(testGenericObject(converter));
             Assert.assertTrue(testComplexGeneric(converter));
         }
+    }
+
+    private <T> boolean testPrimitiveType(Converter converter, T v, Class<?> cls) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
+        Object resolved = converter.resolve(v, cls);
+        return resolved.equals(v);
     }
 
     private <T> boolean testNumericObject(Converter converter, T v) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
