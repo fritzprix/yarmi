@@ -106,15 +106,19 @@ public class BsonConverter implements Converter {
 
 
     @Override
-    public Object resolve(final Object unresolved, Type type) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+    public Object resolve(final Object unresolved, Type type) throws InstantiationException, IllegalAccessException {
         if(unresolved == null) {
             return null;
         }
         Class clsz;
-        if(type instanceof ParameterizedType) {
-            clsz = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
-        } else {
-            clsz = Class.forName(type.getTypeName());
+        try {
+            if (type instanceof ParameterizedType) {
+                clsz = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
+            } else {
+                clsz = Class.forName(type.getTypeName());
+            }
+        } catch (ClassNotFoundException e) {
+            return unresolved;
         }
         final Class cls = clsz;
         final Class unresolvedCls = unresolved.getClass();
