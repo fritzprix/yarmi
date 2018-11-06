@@ -71,7 +71,7 @@ public class SimpleServiceDiscovery extends BaseServiceDiscovery {
     }
 
     @Override
-    protected void close() {
+    protected void onStopDiscovery() {
         if(!disposable.isDisposed()) {
             disposable.dispose();
         }

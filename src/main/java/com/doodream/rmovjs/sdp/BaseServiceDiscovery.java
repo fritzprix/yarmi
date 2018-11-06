@@ -1,9 +1,6 @@
 package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.net.RMIServiceProxy;
-import com.doodream.rmovjs.net.ServiceAdapter;
-import com.doodream.rmovjs.net.ServiceProxyFactory;
 import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.*;
@@ -17,7 +14,6 @@ import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
@@ -132,7 +128,7 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
                 .doOnDispose(new Action() {
                     @Override
                     public void run() throws Exception {
-                        close();
+                        onStopDiscovery();
                         disposableMap.remove(service);
                         listener.onDiscoveryFinished();
                     }
@@ -146,14 +142,14 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
                         } else {
                             Log.warn("{}", throwable);
                         }
-                        close();
+                        onStopDiscovery();
                         disposableMap.remove(service);
                         listener.onDiscoveryFinished();
                     }
                 }, new Action() {
                     @Override
                     public void run() throws Exception {
-                        close();
+                        onStopDiscovery();
                         disposableMap.remove(service);
                         listener.onDiscoveryFinished();
                     }
@@ -175,5 +171,5 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
     protected abstract void onStartDiscovery(DiscoveryEventListener listener);
-    protected abstract void close();
+    protected abstract void onStopDiscovery();
 }
