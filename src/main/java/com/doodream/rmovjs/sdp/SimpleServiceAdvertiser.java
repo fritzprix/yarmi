@@ -2,6 +2,7 @@ package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.serde.Converter;
+import com.doodream.rmovjs.serde.json.JsonConverter;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.Consumer;
@@ -29,9 +30,10 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
     private CompositeDisposable compositeDisposable = new CompositeDisposable();
 
     @Override
-    public synchronized void startAdvertiser(final RMIServiceInfo info, final Converter converter, boolean block) throws IOException {
+    public synchronized void startAdvertiser(final RMIServiceInfo info, boolean block) throws IOException {
 
         Observable<Long> tickObservable = Observable.interval(0L, 3L, TimeUnit.SECONDS);
+        final JsonConverter converter = new JsonConverter();
 
         compositeDisposable.add(tickObservable
                 .map(new Function<Long, RMIServiceInfo>() {

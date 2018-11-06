@@ -40,7 +40,7 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
 
     @Override
     public ServiceProxyFactory getProxyFactory(final RMIServiceInfo info) {
-        if(!RMIServiceInfo.isComplete(info)) {
+        if(!RMIServiceInfo.isValid(info)) {
             throw new IllegalArgumentException("Incomplete service info");
         }
         final String[] params = info.getParams().toArray(new String[0]);
@@ -70,7 +70,6 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
     @Override
     protected void onStart() throws IOException {
         serverSocket = new ServerSocket();
-        Log.debug("service address {}", mAddress.getAddress().getHostAddress());
         serverSocket.bind(mAddress);
         Log.debug("service started @ {}", mAddress.getAddress().getHostAddress());
     }

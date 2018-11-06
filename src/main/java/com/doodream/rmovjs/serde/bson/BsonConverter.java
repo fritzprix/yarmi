@@ -106,22 +106,23 @@ public class BsonConverter implements Converter {
 
 
     @Override
-    public Object resolve(final Object unresolved, Type type) throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+    public Object resolve(final Object unresolved, Type type) throws InstantiationException, IllegalAccessException {
         if(unresolved == null) {
             return null;
         }
         Class clsz;
-        if(type instanceof ParameterizedType) {
-            clsz = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
-        } else {
-            clsz = Class.forName(type.getTypeName());
+        try {
+            if (type instanceof ParameterizedType) {
+                clsz = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
+            } else {
+                clsz = Class.forName(type.getTypeName());
+            }
+        } catch (ClassNotFoundException e) {
+            return unresolved;
         }
         final Class cls = clsz;
         final Class unresolvedCls = unresolved.getClass();
-        if(cls.equals(unresolvedCls) ||
-                Types.isCastable(unresolved, type)) {
-            return cls.cast(unresolved);
-        }
+        Log.debug("resolve {} -> {}", unresolvedCls, cls);
 
         if(unresolvedCls.equals(LinkedHashMap.class)) {
             return resolveKvMap((Map<?, ?>) unresolved, cls);
@@ -134,19 +135,37 @@ public class BsonConverter implements Converter {
             }
             ArrayList unresolvedList = (ArrayList) unresolved;
             return Observable.<ArrayList>fromIterable(unresolvedList).map(new Function() {
-                        @Override
-                        public Object apply(Object o) throws Exception {
-                            return resolve(o, typeArguments[0]);
-                        }}).toList().blockingGet();
+                @Override
+                public Object apply(Object o) throws Exception {
+                    return resolve(o, typeArguments[0]);
+                }}).toList().blockingGet();
+        }
+
+        if(cls.equals(unresolvedCls) ||
+                Types.isCastable(unresolved, type) ||
+                Types.isCastable(unresolved, cls)) {
+            return cls.cast(unresolved);
+        }
+
+
+
+        if(unresolvedCls.getSuperclass().equals(Number.class)) {
+
         }
 
         try {
             Constructor<?> constructor = cls.getConstructor(unresolvedCls);
             return constructor.newInstance(unresolved);
-        } catch (NoSuchMethodException | InvocationTargetException e) {
-            Log.error("",e);
-            return unresolved;
+        } catch (NoSuchMethodException | InvocationTargetException ignored) {
+
         }
+        try {
+            Method valueOf = cls.getMethod("valueOf", String.class);
+            return valueOf.invoke(null, String.valueOf(unresolved));
+        } catch (NoSuchMethodException | InvocationTargetException ignored) {
+
+        }
+        return unresolved;
 
     }
 
@@ -171,7 +190,4 @@ public class BsonConverter implements Converter {
         return resolved;
     }
 
-    private <T> T handlePrimitive(Object unresolved, Class cls) {
-        return (T) cls.cast(unresolved);
-    }
 }

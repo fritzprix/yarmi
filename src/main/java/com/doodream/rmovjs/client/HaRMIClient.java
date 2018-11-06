@@ -234,9 +234,10 @@ public class HaRMIClient<T> implements InvocationHandler {
 
     private static Observable<RMIServiceProxy> startDiscovery(ServiceDiscovery discovery, Class svc) {
         return Observable.create(emitter -> discovery.startDiscovery(svc, false, new ServiceDiscoveryListener() {
+
             @Override
-            public void onDiscovered(RMIServiceProxy proxy) {
-                emitter.onNext(proxy);
+            public void onDiscovered(RMIServiceInfo info) {
+                emitter.onNext(RMIServiceInfo.toServiceProxy(info));
             }
 
             @Override

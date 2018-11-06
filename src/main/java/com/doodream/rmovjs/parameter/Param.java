@@ -71,7 +71,7 @@ public class Param<T> {
 
     public Object resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         if(Types.isCastable(value, type)) {
-            return (T) value;
+            return value;
         }
         return converter.resolve(value, type);
     }

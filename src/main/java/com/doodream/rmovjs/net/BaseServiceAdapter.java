@@ -14,7 +14,6 @@ import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.BooleanSupplier;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
-import io.reactivex.functions.Predicate;
 import io.reactivex.observables.GroupedObservable;
 import io.reactivex.schedulers.Schedulers;
 import lombok.NonNull;
@@ -22,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Optional;
 
 public abstract class BaseServiceAdapter implements ServiceAdapter {
 
@@ -123,19 +121,14 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                         });
                     }
                 })
-                .doOnNext(new Consumer<Request>() {
-                    @Override
-                    public void accept(Request request) throws Exception {
-                        request.setClient(adapter);
-                        if(Log.isTraceEnabled()) {
-                            Log.trace("Request <= {}", request);
-                        }
-                    }
-                })
                 .observeOn(Schedulers.io())
                 .subscribe(new Consumer<Request>() {
                     @Override
                     public void accept(Request request) throws Exception {
+                        if(Log.isTraceEnabled()) {
+                            Log.trace("Request <= {}", request);
+                        }
+                        request.setClient(adapter);
                         final Response response = handleRequest.apply(request);
                         if(Log.isTraceEnabled()) {
                             Log.trace("Response => {}", response);
