@@ -1,11 +1,7 @@
 package com.doodream.rmovjs.serde;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
 
 /**
@@ -24,5 +20,5 @@ public interface Converter {
 
     <T> T invert(byte[] b, Class<T> cls);
 
-    <T> T resolve(Object unresolved, Type type) throws ClassNotFoundException, IllegalAccessException, InstantiationException;
+    Object resolve(Object unresolved, Type type) throws ClassNotFoundException, IllegalAccessException, InstantiationException;
 }

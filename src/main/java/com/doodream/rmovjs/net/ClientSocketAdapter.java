@@ -77,7 +77,6 @@ public class ClientSocketAdapter {
                 }
                 emitter.onComplete();
             } catch (IOException e) {
-//                emitter.onError(e);
                 client.close();
             }
         });
@@ -107,4 +106,8 @@ public class ClientSocketAdapter {
         return client.getRemoteName();
     }
 
+    public void close() throws IOException {
+        client.close();
+        Log.debug("client closed");
+    }
 }

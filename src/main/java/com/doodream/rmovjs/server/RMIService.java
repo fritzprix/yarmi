@@ -10,6 +10,10 @@ import com.doodream.rmovjs.sdp.ServiceAdvertiser;
 import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
+import io.reactivex.functions.BiConsumer;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,9 +23,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -50,6 +56,117 @@ public class RMIService {
 
     /**
      *
+     * @param cls
+     * @param advertiser
+     * @param controllerImpls
+     * @param <T>
+     * @return
+     */
+    public static <T> RMIService create(Class<T> cls, ServiceAdvertiser advertiser, final Object ...controllerImpls) throws IllegalAccessException, InvocationTargetException, InstantiationException {
+
+        Service service = cls.getAnnotation(Service.class);
+        final String[] params = service.params();
+
+        Constructor constructor = Observable.fromArray(service.adapter().getConstructors())
+                .filter(new Predicate<Constructor<?>>() {
+                    @Override
+                    public boolean test(Constructor<?> constructor) throws Exception {
+                        return constructor.getParameterCount() == params.length;
+                    }
+                })
+                .blockingFirst();
+
+        Preconditions.checkNotNull(constructor);
+
+        ServiceAdapter adapter = (ServiceAdapter) constructor.newInstance(params);
+
+        final RMIServiceInfo serviceInfo = RMIServiceInfo.builder()
+                .name(service.name())
+                .adapter(service.adapter())
+                .negotiator(service.negotiator())
+                .converter(service.converter())
+                .params(Arrays.asList(params))
+                .version(Properties.getVersionString())
+                .build();
+
+        final Converter converter = service.converter().newInstance();
+        Preconditions.checkNotNull(converter, "converter is not declared");
+        final RMIServiceBuilder builder = RMIService.builder();
+
+        Observable<RMIController> basicControllerObservable = Observable.fromArray(BasicService.class.getDeclaredFields())
+                .filter(new Predicate<Field>() {
+                    @Override
+                    public boolean test(Field field) throws Exception {
+                        return RMIController.isValidController(field);
+                    }
+                })
+                .map(new Function<Field, RMIController>() {
+                    @Override
+                    public RMIController apply(Field field) throws Exception {
+                        return RMIController.create(field);
+                    }
+                })
+                .cache();
+
+        Observable<RMIController> controllerObservable = Observable.fromArray(cls.getDeclaredFields())
+                .filter(new Predicate<Field>() {
+                    @Override
+                    public boolean test(Field field) throws Exception {
+                        return RMIController.isValidController(field);
+                    }
+                })
+                .map(new Function<Field, RMIController>() {
+                    @Override
+                    public RMIController apply(Field field) throws Exception {
+                        return RMIController.create(field, controllerImpls);
+                    }
+                })
+                .cache();
+
+        controllerObservable
+                .map(new Function<RMIController, ControllerInfo>() {
+                    @Override
+                    public ControllerInfo apply(RMIController rmiController) throws Exception {
+                        return ControllerInfo.build(rmiController);
+                    }
+                })
+                .toList()
+                .doOnSuccess(new Consumer<List<ControllerInfo>>() {
+                    @Override
+                    public void accept(List<ControllerInfo> controllerInfos) throws Exception {
+                        serviceInfo.setControllerInfos(controllerInfos);
+                    }
+                })
+                .subscribe();
+
+        controllerObservable = controllerObservable.mergeWith(basicControllerObservable);
+
+
+        controllerObservable.collectInto(new HashMap<String, RMIController>(), new BiConsumer<HashMap<String, RMIController>, RMIController>() {
+            @Override
+            public void accept(HashMap<String, RMIController> stringRMIControllerHashMap, RMIController rmiController) throws Exception {
+                RMIService.buildControllerMap(stringRMIControllerHashMap, rmiController);
+            }
+        }).doOnSuccess(new Consumer<HashMap<String, RMIController>>() {
+            @Override
+            public void accept(HashMap<String, RMIController> controllerMap) throws Exception {
+                builder.controllerMap(controllerMap);
+            }
+        }).subscribe();
+
+
+        return builder
+                .adapter(adapter)
+                .service(service)
+                .advertiser(advertiser)
+                .converter(converter)
+                .serviceInfo(serviceInfo)
+                .build();
+
+    }
+
+    /**
+     *
      * @param cls service definition class
      * @param advertiser advertiser to be used service discovery
      * @return {@link RMIService} created from the service definition class
@@ -59,15 +176,20 @@ public class RMIService {
      */
     public static <T> RMIService create(Class<T> cls, ServiceAdvertiser advertiser) throws IllegalAccessException, InstantiationException, InvocationTargetException {
         Service service = cls.getAnnotation(Service.class);
-        String[] params = service.params();
+        final String[] params = service.params();
 
 
         Constructor constructor = Observable.fromArray(service.adapter().getConstructors())
-                .filter(ctor -> ctor.getParameterCount() == params.length)
+                .filter(new Predicate<Constructor<?>>() {
+                    @Override
+                    public boolean test(Constructor<?> constructor) throws Exception {
+                        return constructor.getParameterCount() == params.length;
+                    }
+                })
                 .blockingFirst();
 
         ServiceAdapter adapter = (ServiceAdapter) constructor.newInstance(((Object[]) params));
-        RMIServiceInfo serviceInfo = RMIServiceInfo.builder()
+        final RMIServiceInfo serviceInfo = RMIServiceInfo.builder()
                 .name(service.name())
                 .adapter(service.adapter())
                 .negotiator(service.negotiator())
@@ -76,33 +198,71 @@ public class RMIService {
                 .version(Properties.getVersionString())
                 .build();
 
-        final Converter converter = (Converter) serviceInfo.getConverter().newInstance();
+        final Converter converter = service.converter().newInstance();
         Preconditions.checkNotNull(converter, "converter is not declared");
-        RMIServiceBuilder builder = RMIService.builder();
+        final RMIServiceBuilder builder = RMIService.builder();
 
 
         // register controller for BasicService
         Observable<RMIController> basicControllerObservable = Observable.fromArray(BasicService.class.getDeclaredFields())
-                .filter(RMIController::isValidController)
-                .map(RMIController::create)
+                .filter(new Predicate<Field>() {
+                    @Override
+                    public boolean test(Field field) throws Exception {
+                        return RMIController.isValidController(field);
+                    }
+                })
+                .map(new Function<Field, RMIController>() {
+                    @Override
+                    public RMIController apply(Field field) throws Exception {
+                        return RMIController.create(field);
+                    }
+                })
                 .cache();
 
         Observable<RMIController> controllerObservable = Observable.fromArray(cls.getDeclaredFields())
-                .filter(RMIController::isValidController)
-                .map(RMIController::create)
+                .filter(new Predicate<Field>() {
+                    @Override
+                    public boolean test(Field field) throws Exception {
+                        return RMIController.isValidController(field);
+                    }
+                })
+                .map(new Function<Field, RMIController>() {
+                    @Override
+                    public RMIController apply(Field field) throws Exception {
+                        return RMIController.create(field);
+                    }
+                })
                 .cache();
 
         controllerObservable
-                .map(ControllerInfo::build)
+                .map(new Function<RMIController, ControllerInfo>() {
+                    @Override
+                    public ControllerInfo apply(RMIController rmiController) throws Exception {
+                        return ControllerInfo.build(rmiController);
+                    }
+                })
                 .toList()
-                .doOnSuccess(serviceInfo::setControllerInfos)
+                .doOnSuccess(new Consumer<List<ControllerInfo>>() {
+                    @Override
+                    public void accept(List<ControllerInfo> controllerInfos) throws Exception {
+                        serviceInfo.setControllerInfos(controllerInfos);
+                    }
+                })
                 .subscribe();
 
         controllerObservable = controllerObservable.mergeWith(basicControllerObservable);
 
-        controllerObservable.collectInto(new HashMap<>(), RMIService::buildControllerMap)
-                .doOnSuccess(builder::controllerMap)
-                .subscribe();
+        controllerObservable.collectInto(new HashMap<String, RMIController>(), new BiConsumer<HashMap<String, RMIController>, RMIController>() {
+            @Override
+            public void accept(HashMap<String, RMIController> stringRMIControllerHashMap, RMIController rmiController) throws Exception {
+                RMIService.buildControllerMap(stringRMIControllerHashMap, rmiController);
+            }
+        }).doOnSuccess(new Consumer<HashMap<String, RMIController>>() {
+            @Override
+            public void accept(HashMap<String, RMIController> controllerMap) throws Exception {
+                builder.controllerMap(controllerMap);
+            }
+        }).subscribe();
 
 
         return builder
@@ -119,9 +279,14 @@ public class RMIService {
      * @param map map used to collect controller
      * @param controller controller to be collected
      */
-    private static void buildControllerMap(HashMap<String, RMIController> map, RMIController controller) {
+    private static void buildControllerMap(final HashMap<String, RMIController> map, final RMIController controller) {
         Observable.fromIterable(controller.getEndpoints())
-                .doOnNext(s -> map.put(s, controller))
+                .doOnNext(new Consumer<String>() {
+                    @Override
+                    public void accept(String s) throws Exception {
+                        map.put(s, controller);
+                    }
+                })
                 .subscribe();
     }
 
@@ -133,8 +298,13 @@ public class RMIService {
      * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
      */
     public void listen(boolean block) throws IOException, IllegalAccessException, InstantiationException {
-        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, converter, this::routeRequest));
-        advertiser.startAdvertiser(serviceInfo, converter, block);
+        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, converter, new Function<Request, Response>() {
+            @Override
+            public Response apply(Request request) throws Exception {
+                return routeRequest(request);
+            }
+        }));
+        advertiser.startAdvertiser(serviceInfo, block);
     }
 
     /**
@@ -162,6 +332,7 @@ public class RMIService {
                 }
                 return end(response, request);
             } catch (InvocationTargetException e) {
+                Log.error("InvocationError : {}", e);
                 return end(Response.from(RMIError.INTERNAL_SERVER_ERROR), request);
             }
         }

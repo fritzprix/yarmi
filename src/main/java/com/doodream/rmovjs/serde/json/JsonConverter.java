@@ -7,24 +7,22 @@ import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.*;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import javax.xml.bind.DatatypeConverter;
+import java.io.*;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
 public class JsonConverter implements Converter {
 
     private static class ByteArrayToBase64TypeAdapter implements JsonSerializer<byte[]>, JsonDeserializer<byte[]> {
         public byte[] deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            byte[] data = Base64.getDecoder().decode(json.getAsString());
+            byte[] data = DatatypeConverter.parseBase64Binary(json.getAsString());
             return data;
         }
 
         public JsonElement serialize(byte[] src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(Base64.getEncoder().withoutPadding().encodeToString(src));
+            return new JsonPrimitive(DatatypeConverter.printBase64Binary(src));
         }
     }
 
@@ -95,13 +93,29 @@ public class JsonConverter implements Converter {
 
 
     @Override
-    public Reader reader(InputStream inputStream)  {
-        return new JsonReader(this, inputStream);
+    public Reader reader(final InputStream inputStream)  {
+        return new Reader() {
+            private BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            @Override
+            public <T> T read(Class<T> cls) throws IOException {
+                String line = reader.readLine();
+                if(line == null) {
+                    return null;
+                }
+                line = line.trim();
+                return invert(StandardCharsets.UTF_8.encode(line).array(), cls);
+            }
+        };
     }
 
     @Override
-    public Writer writer(OutputStream outputStream) {
-        return new JsonWriter(this, outputStream);
+    public Writer writer(final OutputStream outputStream) {
+        return new Writer() {
+            @Override
+            public void write(Object src) throws IOException {
+                outputStream.write(convert(src));
+            }
+        };
     }
 
     @Override
@@ -116,7 +130,7 @@ public class JsonConverter implements Converter {
     }
 
     @Override
-    public <T> T resolve(Object unresolved, Type type) {
+    public Object resolve(Object unresolved, Type type) {
         if(unresolved == null) {
             return null;
         }

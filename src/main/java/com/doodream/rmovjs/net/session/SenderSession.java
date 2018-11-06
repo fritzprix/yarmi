@@ -12,9 +12,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.OptionalLong;
 import java.util.Random;
-import java.util.function.Consumer;
 
 
 public class SenderSession implements Session, SessionHandler {
@@ -37,19 +35,15 @@ public class SenderSession implements Session, SessionHandler {
 
     SenderSession(Consumer<Session> onReady) {
         // create unique key for session
-        OptionalLong lo = RANDOM.longs(4).reduce((left, right) -> left + right);
-        if(!lo.isPresent()) {
-            throw new IllegalStateException("fail to generate random");
-        }
 
-        key = Integer.toHexString(String.format("%d%d%d",GLOBAL_KEY++, System.currentTimeMillis(), lo.getAsLong()).hashCode());
+        key = String.format("%8x%8x%8x",GLOBAL_KEY++, System.currentTimeMillis(), RANDOM.nextLong()).trim();
         chunkSeqNumber = 0;
         chunkLruCache = SenderSession.getLruCache(MAX_CNWD_SIZE * 2);
         writeBuffer = ByteBuffer.wrap(bufferSource);
         this.onReady = onReady;
     }
 
-    private static <K,V> Map<K, V> getLruCache(int size) {
+    private static <K,V> Map<K, V> getLruCache(final int size) {
         return new LinkedHashMap<K, V> (size * 4/3, 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry eldest) {
@@ -109,6 +103,9 @@ public class SenderSession implements Session, SessionHandler {
     public void handle(SessionControlMessage scm) throws IllegalStateException, IOException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         final SessionCommand command = scm.getCommand();
         Object param = converter.resolve(scm.getParam(), command.getParamClass());
+        if(Log.isTraceEnabled()) {
+            Log.trace("{} {}", command, param);
+        }
         switch (command) {
             case ACK:
                 // ready-to-receive from receiver
