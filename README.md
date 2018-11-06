@@ -42,7 +42,7 @@ yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing
         <dependency>
             <groupId>com.doodream</groupId>
             <artifactId>yarmi-core</artifactId>
-            <version>0.0.4</version>
+            <version>0.0.5</version>
         </dependency>
 </dependencies>
 ```
@@ -148,8 +148,8 @@ public static class SimpleClient {
             SimpleServiceDiscovery discovery = new SimpleServiceDiscovery();
             discovery.startDiscovery(TestService.class, new ServiceDiscoveryListener() {
                 @Override
-                public void onDiscovered(RMIServiceProxy proxy)  {
-                    discoveredService.add(proxy);
+                public void onDiscovered(RMIServiceInfo info)  {
+                    discoveredService.add(RMIServiceInfo.toServiceProxy(info));
                 }
     
                 @Override
