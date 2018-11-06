@@ -6,12 +6,13 @@ import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
-import io.reactivex.Observable;
+import io.reactivex.*;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
+import io.reactivex.schedulers.Schedulers;
 import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,12 +27,47 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
 
     private static final Logger Log = LoggerFactory.getLogger(BaseServiceDiscovery.class);
 
-    private static final long TIMEOUT_IN_SEC = 5L;
-    private long tickIntervalInMilliSec;
-    private HashMap<Class, Disposable> disposableMap;
+    protected interface DiscoveryEventListener {
+        void onStart();
+        void onDiscovered(RMIServiceInfo info);
+        void onError(Throwable e);
+        void onStop();
+    }
 
-    BaseServiceDiscovery(long interval, TimeUnit unit) {
-        tickIntervalInMilliSec = unit.toMillis(interval);
+
+    private static class ServiceInfoSource implements ObservableOnSubscribe<RMIServiceInfo>, DiscoveryEventListener {
+        private ObservableEmitter<RMIServiceInfo> emitter;
+
+        @Override
+        public void onStart() {
+        }
+
+        @Override
+        public void onDiscovered(RMIServiceInfo info) {
+            emitter.onNext(info);
+        }
+
+        @Override
+        public void onError(Throwable e) {
+            emitter.onError(e);
+        }
+
+        @Override
+        public void onStop() {
+            emitter.onComplete();
+        }
+
+        @Override
+        public void subscribe(ObservableEmitter<RMIServiceInfo> observableEmitter) throws Exception {
+            this.emitter = observableEmitter;
+        }
+    }
+
+
+    private static final long TIMEOUT_IN_SEC = 5L;
+    private final HashMap<Class, Disposable> disposableMap;
+
+    BaseServiceDiscovery() {
         disposableMap = new HashMap<>();
     }
 
@@ -40,10 +76,6 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
         startDiscovery(service, once, TIMEOUT_IN_SEC, TimeUnit.SECONDS, listener);
     }
 
-
-    private Observable<Long> observeTick() {
-        return Observable.interval(0L, tickIntervalInMilliSec, TimeUnit.MILLISECONDS);
-    }
 
     @Override
     public void startDiscovery(@NonNull final Class service, final boolean once, long timeout, @NonNull TimeUnit unit, @NonNull final ServiceDiscoveryListener listener) throws IllegalAccessException, InstantiationException {
@@ -56,15 +88,12 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
         Preconditions.checkNotNull(converter, "converter is not declared");
 
         final HashSet<RMIServiceInfo> discoveryCache = new HashSet<>();
+        final ServiceInfoSource serviceInfoSource = new ServiceInfoSource();
+
+        onStartDiscovery(serviceInfoSource);
         listener.onDiscoveryStarted();
 
-        Observable<RMIServiceInfo> serviceInfoObservable = observeTick()
-                .map(new Function<Long, RMIServiceInfo>() {
-                    @Override
-                    public RMIServiceInfo apply(Long aLong) throws Exception {
-                        return receiveServiceInfo(converter);
-                    }
-                })
+        disposableMap.put(service, Observable.create(serviceInfoSource)
                 .doOnNext(new Consumer<RMIServiceInfo>() {
                     @Override
                     public void accept(RMIServiceInfo svcInfo) throws Exception {
@@ -99,35 +128,7 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
                         info.copyFrom(discovered);
                     }
                 })
-                .timeout(timeout, unit);
-
-
-        disposableMap.put(service, serviceInfoObservable
-                .map(new Function<RMIServiceInfo, Class<?>>() {
-                    @Override
-                    public Class<?> apply(RMIServiceInfo rmiServiceInfo) throws Exception {
-                        return rmiServiceInfo.getAdapter();
-                    }
-                })
-                .map(new Function<Class<?>, Object>() {
-                    @Override
-                    public Object apply(Class<?> cls) throws Exception {
-                        return cls.newInstance();
-                    }
-                })
-                .cast(ServiceAdapter.class)
-                .map(new Function<ServiceAdapter, ServiceProxyFactory>() {
-                    @Override
-                    public ServiceProxyFactory apply(ServiceAdapter serviceAdapter) throws Exception {
-                        return serviceAdapter.getProxyFactory(info);
-                    }
-                })
-                .map(new Function<ServiceProxyFactory, RMIServiceProxy>() {
-                    @Override
-                    public RMIServiceProxy apply(ServiceProxyFactory serviceProxyFactory) throws Exception {
-                        return serviceProxyFactory.build();
-                    }
-                })
+                .timeout(timeout, unit)
                 .doOnDispose(new Action() {
                     @Override
                     public void run() throws Exception {
@@ -136,7 +137,8 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
                         listener.onDiscoveryFinished();
                     }
                 })
-                .doOnError(new Consumer<Throwable>() {
+                .subscribeOn(Schedulers.io())
+                .subscribe(listener::onDiscovered, new Consumer<Throwable>() {
                     @Override
                     public void accept(Throwable throwable) throws Exception {
                         if(throwable instanceof TimeoutException) {
@@ -148,35 +150,16 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
                         disposableMap.remove(service);
                         listener.onDiscoveryFinished();
                     }
-                })
-                .doOnComplete(new Action() {
+                }, new Action() {
                     @Override
                     public void run() throws Exception {
                         close();
                         disposableMap.remove(service);
                         listener.onDiscoveryFinished();
                     }
-                })
-                .onErrorReturn(new Function<Throwable, RMIServiceProxy>() {
-                    @Override
-                    public RMIServiceProxy apply(Throwable throwable) throws Exception {
-                        return RMIServiceProxy.NULL_PROXY;
-                    }
-                })
-                .filter(new Predicate<RMIServiceProxy>() {
-                    @Override
-                    public boolean test(RMIServiceProxy proxy) throws Exception {
-                        return !RMIServiceProxy.NULL_PROXY.equals(proxy);
-                    }
-                })
-                .subscribe(new Consumer<RMIServiceProxy>() {
-                    @Override
-                    public void accept(RMIServiceProxy rmiServiceProxy) throws Exception {
-                        listener.onDiscovered(rmiServiceProxy);
-                    }
                 }));
-
     }
+
 
 
     @Override
@@ -191,7 +174,6 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
         disposable.dispose();
     }
 
-
-    protected abstract RMIServiceInfo receiveServiceInfo(Converter converter) throws IOException;
+    protected abstract void onStartDiscovery(DiscoveryEventListener listener);
     protected abstract void close();
 }
