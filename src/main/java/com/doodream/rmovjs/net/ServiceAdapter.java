@@ -8,6 +8,7 @@ import com.doodream.rmovjs.serde.Converter;
 import io.reactivex.functions.Function;
 
 import java.io.IOException;
+import java.net.NetworkInterface;
 
 /**
  *  {@link ServiceAdapter} provides abstraction layer for network dependency including listed below
@@ -29,13 +30,14 @@ public interface ServiceAdapter {
      * client로 부터의 네트워크 연결을 대기하며 client로 부터의 {@link Request}를 처리하기 위한 handler를 등록한다.
      * @param serviceInfo 서비스 정의 instance {@link RMIServiceInfo}
      * @param converter {@link Request} 및 {@link Response} instance에 대한 deserialization / serialization module
+     * @param network network interface which the service adapter listen to
      * @param requestHandler {@link Request}의 수신 및 {@link Response}의 응답을 처리하기 위한 handler로 {@link com.doodream.rmovjs.server.RMIService}
      * @return proxyFactoryHint as string
      * @throws IOException server 측 네트워크 endpoint 생성의 실패 혹은 I/O 오류
      * @throws IllegalAccessError the error thrown when {@link ServiceAdapter} fails to resolve dependency object (e.g. negotiator,
      * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
      */
-    String listen(RMIServiceInfo serviceInfo, Converter converter, Function<Request, Response> requestHandler) throws IOException, IllegalAccessException, InstantiationException;
+    String listen(RMIServiceInfo serviceInfo, Converter converter, NetworkInterface network, Function<Request, Response> requestHandler) throws IOException, IllegalAccessException, InstantiationException;
 
     /**
      * return {@link ServiceProxyFactory} which is capable of building {@link RMIServiceProxy} able to connect to current service adapter

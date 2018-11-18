@@ -11,9 +11,7 @@ import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.ObservableSource;
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.functions.BooleanSupplier;
-import io.reactivex.functions.Consumer;
-import io.reactivex.functions.Function;
+import io.reactivex.functions.*;
 import io.reactivex.observables.GroupedObservable;
 import io.reactivex.schedulers.Schedulers;
 import lombok.NonNull;
@@ -21,6 +19,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 public abstract class BaseServiceAdapter implements ServiceAdapter {
 
@@ -29,14 +33,48 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     private volatile boolean listen = false;
 
     @Override
-    public String listen(final RMIServiceInfo serviceInfo, final Converter converter, @NonNull final Function<Request, Response> handleRequest) throws IllegalAccessException, InstantiationException, IOException {
+    public String listen(final RMIServiceInfo serviceInfo, final Converter converter, final NetworkInterface network, @NonNull final Function<Request, Response> handleRequest) throws IllegalAccessException, InstantiationException, IOException {
         if(listen) {
             throw new IllegalStateException("service already listening");
         }
         final RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
         Preconditions.checkNotNull(negotiator, "fail to resolve %s", serviceInfo.getNegotiator());
         Preconditions.checkNotNull(converter, "fail to resolve %s", serviceInfo.getConverter());
-        onStart();
+        Preconditions.checkNotNull(network, "no network interface given");
+
+        if(!network.isUp()) {
+            throw new IOException(String.format(Locale.ENGLISH, "network interface %s is disabled", network.getDisplayName()));
+        }
+        // get valid IPv4 address for
+        List<InetAddress> netIfcAddresses = Observable.fromIterable(network.getInterfaceAddresses())
+                .map(new Function<InterfaceAddress, InetAddress>() {
+                    @Override
+                    public InetAddress apply(InterfaceAddress interfaceAddress) throws Exception {
+                        return interfaceAddress.getAddress();
+                    }
+                })
+                .filter(new Predicate<InetAddress>() {
+                    @Override
+                    public boolean test(InetAddress address) throws Exception {
+                        return !address.isAnyLocalAddress() &&
+                                !address.isLoopbackAddress() &&
+                                (address.getAddress().length == 4);
+                    }
+                })
+                .collectInto(new ArrayList<>(), new BiConsumer<ArrayList<InetAddress>, InetAddress>() {
+                    @Override
+                    public void accept(ArrayList<InetAddress> objects, InetAddress address) throws Exception {
+                        objects.add(address);
+                    }
+                })
+                .blockingGet();
+
+        if(netIfcAddresses.size() <= 0) {
+            throw new IllegalArgumentException(String.format(Locale.ENGLISH, "network interface (%s) has no valid v4 address ", network.getDisplayName()));
+        }
+
+        InetAddress bindAddress = netIfcAddresses.get(0);
+        onStart(bindAddress);
 
         listen = true;
         compositeDisposable.add(Observable.just(converter)
@@ -163,7 +201,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     }
 
 
-    protected abstract void onStart() throws IOException;
+    protected abstract void onStart(InetAddress bindAddress) throws IOException;
     protected abstract boolean isClosed();
     protected abstract String getProxyConnectionHint(RMIServiceInfo serviceInfo);
     protected abstract RMISocket acceptClient() throws IOException;

@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.net.NetworkInterface;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -298,7 +299,9 @@ public class RMIService {
      * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
      */
     public void listen(boolean block) throws IOException, IllegalAccessException, InstantiationException {
-        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, converter, new Function<Request, Response>() {
+        // TODO: 18. 11. 19 start multiple service adapter  
+        // TODO: 18. 11. 19 pass network parameter
+        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, converter, null, new Function<Request, Response>() {
             @Override
             public Response apply(Request request) throws Exception {
                 return routeRequest(request);

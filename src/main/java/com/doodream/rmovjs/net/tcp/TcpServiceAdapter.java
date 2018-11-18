@@ -21,21 +21,11 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
     protected static final Logger Log = LoggerFactory.getLogger(TcpServiceAdapter.class);
 
     private ServerSocket serverSocket;
-    private InetSocketAddress mAddress;
-    public static final String DEFAULT_PORT = "6644";
+    private int port = DEFAULT_PORT;
+    public static final int DEFAULT_PORT = 6644;
 
-    public TcpServiceAdapter(String host, String port) throws UnknownHostException {
-        Log.debug("ServiceAdapter On {}/{}", host, port);
-        int p = Integer.valueOf(port);
-        mAddress = new InetSocketAddress(InetAddress.getByName(host), p);
-    }
-
-    public TcpServiceAdapter(String port) throws UnknownHostException {
-        this(Inet4Address.getLocalHost().getHostAddress(), port);
-    }
-
-    public TcpServiceAdapter() throws UnknownHostException {
-        this(DEFAULT_PORT);
+    public TcpServiceAdapter(String port) {
+        this.port = Integer.valueOf(port);
     }
 
     @Override
@@ -68,15 +58,15 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
     }
 
     @Override
-    protected void onStart() throws IOException {
+    protected void onStart(InetAddress bindAddress) throws IOException {
         serverSocket = new ServerSocket();
-        serverSocket.bind(mAddress);
-        Log.debug("service started @ {}", mAddress.getAddress().getHostAddress());
+        serverSocket.bind(new InetSocketAddress(bindAddress.getHostAddress(), port));
+        Log.debug("service started @ {}", bindAddress.getHostAddress());
     }
 
     @Override
     protected void onClose() throws IOException {
-        Log.debug("close() @ {}", mAddress.getAddress());
+        Log.debug("close() @ {}", serverSocket.getInetAddress().getAddress());
         if(serverSocket != null
                 && !serverSocket.isClosed()) {
             serverSocket.close();
@@ -90,7 +80,7 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
 
     @Override
     protected String getProxyConnectionHint(RMIServiceInfo serviceInfo) {
-        return mAddress.getAddress().getHostAddress();
+        return serverSocket.getInetAddress().getHostAddress();
     }
 
     @Override
