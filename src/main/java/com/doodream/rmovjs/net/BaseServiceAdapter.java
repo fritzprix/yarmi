@@ -21,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
-import java.net.NetworkInterface;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -33,7 +32,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     private volatile boolean listen = false;
 
     @Override
-    public String listen(final RMIServiceInfo serviceInfo, final Converter converter, final NetworkInterface network, @NonNull final Function<Request, Response> handleRequest) throws IllegalAccessException, InstantiationException, IOException {
+    public String listen(final RMIServiceInfo serviceInfo, final Converter converter, final InetAddress network, @NonNull final Function<Request, Response> handleRequest) throws IllegalAccessException, InstantiationException, IOException {
         if(listen) {
             throw new IllegalStateException("service already listening");
         }
@@ -42,39 +41,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
         Preconditions.checkNotNull(converter, "fail to resolve %s", serviceInfo.getConverter());
         Preconditions.checkNotNull(network, "no network interface given");
 
-        if(!network.isUp()) {
-            throw new IOException(String.format(Locale.ENGLISH, "network interface %s is disabled", network.getDisplayName()));
-        }
-        // get valid IPv4 address for
-        List<InetAddress> netIfcAddresses = Observable.fromIterable(network.getInterfaceAddresses())
-                .map(new Function<InterfaceAddress, InetAddress>() {
-                    @Override
-                    public InetAddress apply(InterfaceAddress interfaceAddress) throws Exception {
-                        return interfaceAddress.getAddress();
-                    }
-                })
-                .filter(new Predicate<InetAddress>() {
-                    @Override
-                    public boolean test(InetAddress address) throws Exception {
-                        return !address.isAnyLocalAddress() &&
-                                !address.isLoopbackAddress() &&
-                                (address.getAddress().length == 4);
-                    }
-                })
-                .collectInto(new ArrayList<>(), new BiConsumer<ArrayList<InetAddress>, InetAddress>() {
-                    @Override
-                    public void accept(ArrayList<InetAddress> objects, InetAddress address) throws Exception {
-                        objects.add(address);
-                    }
-                })
-                .blockingGet();
-
-        if(netIfcAddresses.size() <= 0) {
-            throw new IllegalArgumentException(String.format(Locale.ENGLISH, "network interface (%s) has no valid v4 address ", network.getDisplayName()));
-        }
-
-        InetAddress bindAddress = netIfcAddresses.get(0);
-        onStart(bindAddress);
+        onStart(network);
 
         listen = true;
         compositeDisposable.add(Observable.just(converter)

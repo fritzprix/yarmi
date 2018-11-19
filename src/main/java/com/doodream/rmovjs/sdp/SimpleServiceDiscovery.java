@@ -3,9 +3,7 @@ package com.doodream.rmovjs.sdp;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.serde.json.JsonConverter;
 import io.reactivex.Observable;
-import io.reactivex.ObservableSource;
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
@@ -39,54 +37,45 @@ public class SimpleServiceDiscovery extends BaseServiceDiscovery {
     }
 
     @Override
-    protected void onStartDiscovery(DiscoveryEventListener listener) {
+    protected void onStartDiscovery(DiscoveryEventListener listener, InetAddress network) {
         try {
-            Enumeration<NetworkInterface> networkInterfaceEnumeration = NetworkInterface.getNetworkInterfaces();
-            while (networkInterfaceEnumeration.hasMoreElements()) {
-                final NetworkInterface network = networkInterfaceEnumeration.nextElement();
-                if (!network.isUp()) {
-                    continue;
-                }
-                for (InterfaceAddress interfaceAddress : network.getInterfaceAddresses()) {
-                    Log.debug("subscribe SDP on {}", interfaceAddress.getAddress());
-                    final MulticastSocket socket = new MulticastSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
-                    socket.setInterface(interfaceAddress.getAddress());
-                    socket.joinGroup(SimpleServiceAdvertiser.getGroupAddress());
-                    disposable.add(listenMulticast(socket, 1000L, TimeUnit.MILLISECONDS)
-                            .map(new Function<byte[], RMIServiceInfo>() {
-                                @Override
-                                public RMIServiceInfo apply(byte[] bytes) throws Exception {
-                                    return converter.invert(bytes, RMIServiceInfo.class);
-                                }
-                            })
-                            .doOnDispose(new Action() {
-                                @Override
-                                public void run() throws Exception {
-                                    if(!socket.isClosed()) {
-                                        socket.close();
-                                    }
-                                }
-                            })
-                            .subscribeOn(Schedulers.io())
-                            .subscribe(new Consumer<RMIServiceInfo>() {
-                                @Override
-                                public void accept(RMIServiceInfo info) throws Exception {
-                                    Log.debug("service discovered ({}) on {}", info.getName(), socket.getInterface());
-                                    listener.onDiscovered(info);
-                                }
-                            }, new Consumer<Throwable>() {
-                                @Override
-                                public void accept(Throwable throwable) throws Exception {
-                                    listener.onError(throwable);
-                                }
-                            }, new Action() {
-                                @Override
-                                public void run() throws Exception {
-                                    listener.onStop();
-                                }
-                            }));
-                }
-            }
+            Log.debug("subscribe SDP on {}", network);
+            final MulticastSocket socket = new MulticastSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
+            socket.setInterface(network);
+            socket.joinGroup(SimpleServiceAdvertiser.getGroupAddress());
+            disposable.add(listenMulticast(socket, 1000L, TimeUnit.MILLISECONDS)
+                    .map(new Function<byte[], RMIServiceInfo>() {
+                        @Override
+                        public RMIServiceInfo apply(byte[] bytes) throws Exception {
+                            return converter.invert(bytes, RMIServiceInfo.class);
+                        }
+                    })
+                    .doOnDispose(new Action() {
+                        @Override
+                        public void run() throws Exception {
+                            if (!socket.isClosed()) {
+                                socket.close();
+                            }
+                        }
+                    })
+                    .subscribeOn(Schedulers.io())
+                    .subscribe(new Consumer<RMIServiceInfo>() {
+                        @Override
+                        public void accept(RMIServiceInfo info) throws Exception {
+                            Log.debug("service discovered ({}) on {}", info.getName(), socket.getInterface());
+                            listener.onDiscovered(info);
+                        }
+                    }, new Consumer<Throwable>() {
+                        @Override
+                        public void accept(Throwable throwable) throws Exception {
+                            listener.onError(throwable);
+                        }
+                    }, new Action() {
+                        @Override
+                        public void run() throws Exception {
+                            listener.onStop();
+                        }
+                    }));
         } catch (IOException e) {
             Log.error("fail to start discovery", e);
         }
@@ -106,6 +95,7 @@ public class SimpleServiceDiscovery extends BaseServiceDiscovery {
                     @Override
                     public byte[] apply(DatagramPacket datagramPacket) throws Exception {
                         socket.receive(datagramPacket);
+                        Log.debug("service info from {}", datagramPacket.getAddress());
                         return datagramPacket.getData();
                     }
                 });

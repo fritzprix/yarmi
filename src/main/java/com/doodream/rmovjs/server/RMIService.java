@@ -25,10 +25,12 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -292,7 +294,7 @@ public class RMIService {
     }
 
     /**
-     * start to listen for client connection while advertising its service
+     * start listening for client connection over default network interface, while advertising service
      * @param block if true, this call will block indefinite time, otherwise return immediately
      * @throws IOException server 측 네트워크 endpoint 생성의 실패 혹은 I/O 오류
      * @throws IllegalAccessError the error thrown when {@link ServiceAdapter} fails to resolve dependency object (e.g. negotiator,
@@ -301,13 +303,35 @@ public class RMIService {
     public void listen(boolean block) throws IOException, IllegalAccessException, InstantiationException {
         // TODO: 18. 11. 19 start multiple service adapter  
         // TODO: 18. 11. 19 pass network parameter
-        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, converter, null, new Function<Request, Response>() {
+        InetAddress localhost = InetAddress.getLocalHost();
+        listen(block, localhost);
+    }
+
+    /**
+     * start listening for client connection over given network interface, while advertising service
+     * @param block if true, this call will block indefinite time, otherwise return immediately
+     * @param network address of network interface
+     * @throws IllegalAccessException server 측 네트워크 endpoint 생성의 실패 혹은 I/O 오류
+     * @throws IOException the error thrown when {@link ServiceAdapter} fails to resolve dependency object (e.g. negotiator,
+     * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
+     */
+    public void listen(boolean block, InetAddress network) throws IllegalAccessException, IOException, InstantiationException {
+
+        NetworkInterface networkInterface = NetworkInterface.getByInetAddress(network);
+        if(!networkInterface.isUp()) {
+            throw new IOException(String.format(Locale.ENGLISH, "network (%s) is not up", networkInterface.getDisplayName()));
+        }
+        if(!networkInterface.supportsMulticast()) {
+            throw new IOException(String.format(Locale.ENGLISH, "given network (%s) doesn\'t support multicast", networkInterface.getDisplayName()));
+        }
+
+        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, converter, network, new Function<Request, Response>() {
             @Override
             public Response apply(Request request) throws Exception {
                 return routeRequest(request);
             }
         }));
-        advertiser.startAdvertiser(serviceInfo, block);
+        advertiser.startAdvertiser(serviceInfo, block, network);
     }
 
     /**

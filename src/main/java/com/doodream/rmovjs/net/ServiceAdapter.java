@@ -8,7 +8,7 @@ import com.doodream.rmovjs.serde.Converter;
 import io.reactivex.functions.Function;
 
 import java.io.IOException;
-import java.net.NetworkInterface;
+import java.net.InetAddress;
 
 /**
  *  {@link ServiceAdapter} provides abstraction layer for network dependency including listed below
@@ -37,7 +37,7 @@ public interface ServiceAdapter {
      * @throws IllegalAccessError the error thrown when {@link ServiceAdapter} fails to resolve dependency object (e.g. negotiator,
      * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
      */
-    String listen(RMIServiceInfo serviceInfo, Converter converter, NetworkInterface network, Function<Request, Response> requestHandler) throws IOException, IllegalAccessException, InstantiationException;
+    String listen(RMIServiceInfo serviceInfo, Converter converter, InetAddress network, Function<Request, Response> requestHandler) throws IOException, IllegalAccessException, InstantiationException;
 
     /**
      * return {@link ServiceProxyFactory} which is capable of building {@link RMIServiceProxy} able to connect to current service adapter

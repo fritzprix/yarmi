@@ -7,6 +7,7 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.*;
 import io.reactivex.schedulers.Schedulers;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,87 +41,9 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
     @Override
     public synchronized void startAdvertiser(final RMIServiceInfo info, boolean block) throws IOException {
 
-        final List<MulticastSocket> socketList = new ArrayList<>();
-        final Observable<Long> tickObservable = Observable.interval(0L, 3L, TimeUnit.SECONDS);
-        final JsonConverter converter = new JsonConverter();
+        InetAddress localhost = InetAddress.getLocalHost();
+        startAdvertiser(info, block, localhost);
 
-        List<NetworkInterface> networks = Collections.list(NetworkInterface.getNetworkInterfaces());
-        for (NetworkInterface network : networks) {
-            if (!network.isUp()) {
-                continue;
-            }
-            findValidInterface(network.getInterfaceAddresses())
-                    .map(new Function<InetAddress, MulticastSocket>() {
-                        @Override
-                        public MulticastSocket apply(InetAddress ifc) throws Exception {
-                            MulticastSocket socket = new MulticastSocket(BROADCAST_PORT);
-                            socket.setInterface(ifc);
-                            socket.setTimeToLive(2);
-                            return socket;
-                        }
-                    })
-                    .blockingSubscribe(new Consumer<MulticastSocket>() {
-                        @Override
-                        public void accept(MulticastSocket socket) throws Exception {
-                            socketList.add(socket);
-                        }
-                    });
-        }
-
-        Observable<DatagramPacket> packetObservable = tickObservable
-                .map(new Function<Long, RMIServiceInfo>() {
-                    @Override
-                    public RMIServiceInfo apply(Long aLong) throws Exception {
-                        return info;
-                    }
-                })
-                .map(new Function<RMIServiceInfo, DatagramPacket>() {
-                    @Override
-                    public DatagramPacket apply(RMIServiceInfo info) throws Exception {
-                        return buildMulticastPacket(info, converter);
-                    }
-                })
-                .doOnNext(new Consumer<DatagramPacket>() {
-                    @Override
-                    public void accept(DatagramPacket datagramPacket) throws Exception {
-                        for (MulticastSocket socket : socketList) {
-                            Log.debug("send Service Info @ {}", socket.getInterface());
-                            socket.send(datagramPacket);
-                        }
-                    }
-                })
-                .doOnDispose(new Action() {
-                    @Override
-                    public void run() throws Exception {
-                        for (MulticastSocket socket : socketList) {
-                            if(!socket.isClosed()) {
-                                socket.close();
-                            }
-                        }
-                    }
-                })
-                .doOnError(new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Exception {
-                        onError(throwable);
-                    }
-                })
-                .subscribeOn(Schedulers.io());
-        if(!block) {
-            compositeDisposable.add(packetObservable.subscribe());
-        } else {
-            packetObservable.blockingSubscribe();
-        }
-    }
-
-    private Observable<InetAddress> findValidInterface(List<InterfaceAddress> interfaceAddresses) {
-        return Observable.fromIterable(interfaceAddresses)
-                .map(new Function<InterfaceAddress, InetAddress>() {
-                    @Override
-                    public InetAddress apply(InterfaceAddress interfaceAddress) throws Exception {
-                        return interfaceAddress.getAddress();
-                    }
-                });
     }
 
     @Override
@@ -128,6 +51,8 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
         final Observable<Long> tickObservable = Observable.interval(0L, 3L, TimeUnit.SECONDS);
         final JsonConverter converter = new JsonConverter();
         final MulticastSocket socket = new MulticastSocket(BROADCAST_PORT);
+        socket.setInterface(inf);
+        socket.setTimeToLive(2);
 
 
         Observable<DatagramPacket> packetObservable = tickObservable
@@ -175,13 +100,6 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
     private void onError(Throwable throwable) {
         Log.error(throwable.getLocalizedMessage());
     }
-
-    private DatagramPacket buildLocalPacket(RMIServiceInfo i, Converter converter) throws UnsupportedEncodingException, UnknownHostException {
-        byte[] infoByteString = converter.convert(i);
-        return new DatagramPacket(infoByteString, infoByteString.length, new InetSocketAddress(BROADCAST_PORT));
-    }
-
-
 
 
     private DatagramPacket buildMulticastPacket(RMIServiceInfo info, Converter converter) throws UnsupportedEncodingException, UnknownHostException {
