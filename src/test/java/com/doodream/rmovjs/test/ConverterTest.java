@@ -17,10 +17,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.*;
 
 public class ConverterTest {
 
@@ -33,6 +33,20 @@ public class ConverterTest {
                 new JsonConverter(),
                 new BsonConverter()
         );
+    }
+
+    @Test
+    public void testNetworkInterface() throws SocketException {
+        List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+        Assert.assertNotNull(interfaces);
+        for (NetworkInterface ifc : interfaces) {
+            List<InterfaceAddress> addresses = ifc.getInterfaceAddresses();
+            for (InterfaceAddress address : addresses) {
+
+                System.out.printf("%s : %s(%d)\n", ifc.getDisplayName(), address.getAddress(), address.getNetworkPrefixLength());
+                System.out.printf("Broadcast : %s\n", address.getBroadcast());
+            }
+        }
     }
 
     @Test
