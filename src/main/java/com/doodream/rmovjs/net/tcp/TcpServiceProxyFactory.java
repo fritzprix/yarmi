@@ -20,7 +20,7 @@ public class TcpServiceProxyFactory implements ServiceProxyFactory {
     }
 
     public TcpServiceProxyFactory() {
-        this(TcpServiceAdapter.DEFAULT_PORT);
+        this(String.valueOf(TcpServiceAdapter.DEFAULT_PORT));
     }
 
     @Override

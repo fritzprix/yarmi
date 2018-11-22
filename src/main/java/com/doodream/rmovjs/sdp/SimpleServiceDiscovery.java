@@ -1,20 +1,19 @@
 package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.json.JsonConverter;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.net.*;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -25,49 +24,81 @@ import java.util.concurrent.TimeUnit;
  */
 public class SimpleServiceDiscovery extends BaseServiceDiscovery {
 
-    private DiscoveryEventListener listener;
+
+    private static final Logger Log = LoggerFactory.getLogger(SimpleServiceDiscovery.class);
     private final CompositeDisposable disposable;
-    private final MulticastSocket serviceBroadcastSocket;
     private final JsonConverter converter;
 
-    public SimpleServiceDiscovery() throws IOException {
+    public SimpleServiceDiscovery() {
         super();
         disposable = new CompositeDisposable();
         converter = new JsonConverter();
-        serviceBroadcastSocket = new MulticastSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
-        serviceBroadcastSocket.joinGroup(InetAddress.getByName(SimpleServiceAdvertiser.MULTICAST_GROUP_IP));
+
     }
 
     @Override
-    protected void onStartDiscovery(DiscoveryEventListener listener) {
-        this.listener = listener;
-        disposable.add(Observable.interval(1000L, TimeUnit.MILLISECONDS)
-                .map(new Function<Long, RMIServiceInfo>() {
+    protected void onStartDiscovery(DiscoveryEventListener listener, InetAddress network) {
+        try {
+            Log.debug("subscribe SDP on {}", network);
+            final MulticastSocket socket = new MulticastSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
+            socket.setInterface(network);
+            socket.joinGroup(SimpleServiceAdvertiser.getGroupAddress());
+            disposable.add(listenMulticast(socket, 1000L, TimeUnit.MILLISECONDS)
+                    .map(new Function<byte[], RMIServiceInfo>() {
+                        @Override
+                        public RMIServiceInfo apply(byte[] bytes) throws Exception {
+                            return converter.invert(bytes, RMIServiceInfo.class);
+                        }
+                    })
+                    .doOnDispose(new Action() {
+                        @Override
+                        public void run() throws Exception {
+                            if (!socket.isClosed()) {
+                                socket.close();
+                            }
+                        }
+                    })
+                    .subscribeOn(Schedulers.io())
+                    .subscribe(new Consumer<RMIServiceInfo>() {
+                        @Override
+                        public void accept(RMIServiceInfo info) throws Exception {
+                            Log.debug("service discovered ({}) on {}", info.getName(), socket.getInterface());
+                            listener.onDiscovered(info);
+                        }
+                    }, new Consumer<Throwable>() {
+                        @Override
+                        public void accept(Throwable throwable) throws Exception {
+                            listener.onError(throwable);
+                        }
+                    }, new Action() {
+                        @Override
+                        public void run() throws Exception {
+                            listener.onStop();
+                        }
+                    }));
+        } catch (IOException e) {
+            Log.error("fail to start discovery", e);
+        }
+    }
+
+    private Observable<byte[]> listenMulticast(MulticastSocket socket, long interval, TimeUnit timeUnit) throws IOException {
+        return Observable.interval(interval, timeUnit)
+                .map(new Function<Long, DatagramPacket>() {
                     @Override
-                    public RMIServiceInfo apply(Long aLong) throws Exception {
+                    public DatagramPacket apply(Long aLong) throws Exception {
                         byte[] buffer = new byte[64 * 1024];
                         Arrays.fill(buffer, (byte) 0);
-                        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                        serviceBroadcastSocket.receive(packet);
-                        return converter.invert(packet.getData(), RMIServiceInfo.class);
+                        return new DatagramPacket(buffer, buffer.length);
                     }
                 })
-                .subscribe(new Consumer<RMIServiceInfo>() {
+                .map(new Function<DatagramPacket, byte[]>() {
                     @Override
-                    public void accept(RMIServiceInfo info) throws Exception {
-                        listener.onDiscovered(info);
+                    public byte[] apply(DatagramPacket datagramPacket) throws Exception {
+                        socket.receive(datagramPacket);
+                        Log.debug("service info from {}", datagramPacket.getAddress());
+                        return datagramPacket.getData();
                     }
-                }, new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Exception {
-                        listener.onError(throwable);
-                    }
-                }, new Action() {
-                    @Override
-                    public void run() throws Exception {
-                        listener.onStop();
-                    }
-                }));
+                });
     }
 
     @Override
@@ -76,8 +107,5 @@ public class SimpleServiceDiscovery extends BaseServiceDiscovery {
             disposable.dispose();
         }
         disposable.clear();
-        if(!serviceBroadcastSocket.isClosed()) {
-            serviceBroadcastSocket.close();
-        }
     }
 }

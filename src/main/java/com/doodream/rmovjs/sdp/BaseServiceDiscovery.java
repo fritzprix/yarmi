@@ -14,6 +14,8 @@ import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
@@ -68,14 +70,14 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     }
 
     @Override
-    public void startDiscovery(@NonNull Class service, boolean once, @NonNull ServiceDiscoveryListener listener) throws InstantiationException, IllegalAccessException {
-        startDiscovery(service, once, TIMEOUT_IN_SEC, TimeUnit.SECONDS, listener);
+    public void startDiscovery(Class service, boolean once, InetAddress network, ServiceDiscoveryListener listener) throws InstantiationException, IllegalAccessException {
+        startDiscovery(service, once, TIMEOUT_IN_SEC, TimeUnit.SECONDS, network, listener);
     }
 
-
     @Override
-    public void startDiscovery(@NonNull final Class service, final boolean once, long timeout, @NonNull TimeUnit unit, @NonNull final ServiceDiscoveryListener listener) throws IllegalAccessException, InstantiationException {
+    public void startDiscovery(Class service, boolean once, long timeout, TimeUnit unit, InetAddress network, ServiceDiscoveryListener listener) throws IllegalAccessException, InstantiationException {
         if(disposableMap.containsKey(service)) {
+            Log.warn("discovery is already running for service {}", service);
             return;
         }
         final RMIServiceInfo info = RMIServiceInfo.from(service);
@@ -86,7 +88,7 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
         final HashSet<RMIServiceInfo> discoveryCache = new HashSet<>();
         final ServiceInfoSource serviceInfoSource = new ServiceInfoSource();
 
-        onStartDiscovery(serviceInfoSource);
+        onStartDiscovery(serviceInfoSource, network);
         listener.onDiscoveryStarted();
 
         disposableMap.put(service, Observable.create(serviceInfoSource)
@@ -156,6 +158,18 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
                 }));
     }
 
+    @Override
+    public void startDiscovery(@NonNull Class service, boolean once, @NonNull ServiceDiscoveryListener listener) throws InstantiationException, IllegalAccessException, UnknownHostException {
+        startDiscovery(service, once, TIMEOUT_IN_SEC, TimeUnit.SECONDS, listener);
+    }
+
+
+    @Override
+    public void startDiscovery(@NonNull final Class service, final boolean once, long timeout, @NonNull TimeUnit unit, @NonNull final ServiceDiscoveryListener listener) throws IllegalAccessException, InstantiationException, UnknownHostException {
+        InetAddress localHost = InetAddress.getLocalHost();
+        startDiscovery(service, once, timeout, unit, localHost, listener);
+    }
+
 
 
     @Override
@@ -170,6 +184,6 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
         disposable.dispose();
     }
 
-    protected abstract void onStartDiscovery(DiscoveryEventListener listener);
+    protected abstract void onStartDiscovery(DiscoveryEventListener listener, InetAddress network);
     protected abstract void onStopDiscovery();
 }
