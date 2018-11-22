@@ -21,8 +21,12 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
     protected static final Logger Log = LoggerFactory.getLogger(TcpServiceAdapter.class);
 
     private ServerSocket serverSocket;
-    private int port = DEFAULT_PORT;
-    public static final int DEFAULT_PORT = 6644;
+    private int port;
+    static final int DEFAULT_PORT = 6644;
+
+    public TcpServiceAdapter() {
+        port = DEFAULT_PORT;
+    }
 
     public TcpServiceAdapter(String port) {
         this.port = Integer.valueOf(port);
@@ -61,7 +65,7 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
     protected void onStart(InetAddress bindAddress) throws IOException {
         serverSocket = new ServerSocket();
         serverSocket.bind(new InetSocketAddress(bindAddress.getHostAddress(), port));
-        Log.debug("service started @ {}", bindAddress.getHostAddress());
+        Log.debug("service started @ {} : {}", serverSocket.getLocalSocketAddress(), serverSocket.getInetAddress().getHostAddress());
     }
 
     @Override
