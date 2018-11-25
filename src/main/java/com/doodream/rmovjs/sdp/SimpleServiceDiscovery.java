@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.*;
+import java.nio.channels.DatagramChannel;
+import java.nio.channels.MulticastChannel;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 

@@ -9,20 +9,18 @@ import com.doodream.rmovjs.server.RMIController;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @EqualsAndHashCode(exclude = {"proxyFactoryHint"})
 @Data
 public class RMIServiceInfo {
@@ -49,7 +47,7 @@ public class RMIServiceInfo {
     private List<ControllerInfo> controllerInfos;
 
     /**
-     *  remoteHint is used to guess conntion information (like address or bluetooth device name etc.,)
+     *  remoteHint is used to guess connection information (like address or bluetooth device name etc.,)
      *
      */
     @SerializedName("hint")

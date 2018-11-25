@@ -65,7 +65,7 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
     private static final long TIMEOUT_IN_SEC = 5L;
     private final HashMap<Class, Disposable> disposableMap;
 
-    BaseServiceDiscovery() {
+    public BaseServiceDiscovery() {
         disposableMap = new HashMap<>();
     }
 
