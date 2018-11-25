@@ -7,15 +7,23 @@ import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.ObservableSource;
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.functions.Function;
+import io.reactivex.functions.*;
+import io.reactivex.observables.GroupedObservable;
 import io.reactivex.schedulers.Schedulers;
 import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Optional;
+import java.net.InetAddress;
+import java.net.InterfaceAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 public abstract class BaseServiceAdapter implements ServiceAdapter {
 
@@ -24,58 +32,124 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     private volatile boolean listen = false;
 
     @Override
-    public String listen(RMIServiceInfo serviceInfo, Converter converter, @NonNull Function<Request, Response> handleRequest) throws IllegalAccessException, InstantiationException, IOException {
+    public String listen(final RMIServiceInfo serviceInfo, final Converter converter, final InetAddress network, @NonNull final Function<Request, Response> handleRequest) throws IllegalAccessException, InstantiationException, IOException {
         if(listen) {
             throw new IllegalStateException("service already listening");
         }
         final RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
         Preconditions.checkNotNull(negotiator, "fail to resolve %s", serviceInfo.getNegotiator());
         Preconditions.checkNotNull(converter, "fail to resolve %s", serviceInfo.getConverter());
-        onStart();
+        Preconditions.checkNotNull(network, "no network interface given");
+
+        onStart(network);
 
         listen = true;
         compositeDisposable.add(Observable.just(converter)
-                .map(c -> acceptClient())
-                .doOnNext(socket -> Log.debug("{} connected", socket.getRemoteName()))
-                .repeatUntil(() -> !listen)
-                .map(client -> negotiator.handshake(client, serviceInfo, converter, false))
-                .map(socket -> new ClientSocketAdapter(socket, converter))
+                .map(new Function<Converter, RMISocket>() {
+                    @Override
+                    public RMISocket apply(Converter converter) throws Exception {
+                        return acceptClient();
+                    }
+                })
+                .doOnNext(new Consumer<RMISocket>() {
+                    @Override
+                    public void accept(RMISocket socket) throws Exception {
+                        Log.debug("{} connected", socket.getRemoteName());
+                    }
+                })
+                .repeatUntil(new BooleanSupplier() {
+                    @Override
+                    public boolean getAsBoolean() throws Exception {
+                        return !listen;
+                    }
+                })
+                .map(new Function<RMISocket, RMISocket>() {
+                    @Override
+                    public RMISocket apply(RMISocket rmiSocket) throws Exception {
+                        return negotiator.handshake(rmiSocket, serviceInfo, converter, false);
+                    }
+                })
+                .map(new Function<RMISocket, ClientSocketAdapter>() {
+                    @Override
+                    public ClientSocketAdapter apply(RMISocket rmiSocket) throws Exception {
+                        return new ClientSocketAdapter(rmiSocket, converter);
+                    }
+                })
                 .subscribeOn(Schedulers.newThread())
-                .subscribe(adapter-> onHandshakeSuccess(adapter, handleRequest),this::onError));
+                .subscribe(new Consumer<ClientSocketAdapter>() {
+                    @Override
+                    public void accept(ClientSocketAdapter clientSocketAdapter) throws Exception {
+                        onHandshakeSuccess(clientSocketAdapter, handleRequest);
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        onError(throwable);
+                    }
+                }));
 
         return getProxyConnectionHint(serviceInfo);
     }
 
-    private void onHandshakeSuccess(ClientSocketAdapter adapter, Function<Request, Response> handleRequest) {
-
+    private void onHandshakeSuccess(final ClientSocketAdapter adapter, final Function<Request, Response> handleRequest) {
 
         compositeDisposable.add(adapter.listen()
-                .groupBy(Request::isValid)
-                .flatMap(booleanRequestGroupedObservable -> Observable.<Optional<Request>>create(emitter -> {
-                    if(booleanRequestGroupedObservable.getKey()) {
-                        emitter.setDisposable(booleanRequestGroupedObservable.subscribe(request -> emitter.onNext(Optional.of(request))));
-                    } else {
-                        // bad request handle added
-                        emitter.setDisposable(booleanRequestGroupedObservable.subscribe(request -> {
-                            adapter.write(Response.from(RMIError.BAD_REQUEST));
-                            emitter.onNext(Optional.empty());
-                        }));
+                .groupBy(new Function<Request, Boolean>() {
+                    @Override
+                    public Boolean apply(Request request) throws Exception {
+                        return Request.isValid(request);
                     }
-                }))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .doOnNext(request -> request.setClient(adapter))
-                .doOnNext(request -> Log.trace("Request <= {}", request))
+                })
+                .flatMap(new Function<GroupedObservable<Boolean, Request>, ObservableSource<Request>>() {
+                    @Override
+                    public ObservableSource<Request> apply(final GroupedObservable<Boolean, Request> booleanRequestGroupedObservable) throws Exception {
+                        return Observable.create(new ObservableOnSubscribe<Request>() {
+                            @Override
+                            public void subscribe(final ObservableEmitter<Request> emitter) throws Exception {
+                                if(booleanRequestGroupedObservable.getKey()) {
+                                    emitter.setDisposable(booleanRequestGroupedObservable.subscribe(new Consumer<Request>() {
+                                                @Override
+                                                public void accept(Request request) throws Exception {
+                                                    emitter.onNext(request);
+                                                }
+                                            }));
+                                } else {
+                                    // bad request handle added
+                                    emitter.setDisposable(booleanRequestGroupedObservable.subscribe(new Consumer<Request>() {
+                                        @Override
+                                        public void accept(Request request) throws Exception {
+                                            adapter.write(Response.from(RMIError.BAD_REQUEST));
+                                        }
+                                    }));
+                                }
+                            }
+                        });
+                    }
+                })
                 .observeOn(Schedulers.io())
-                .subscribe(request -> {
-                    final Response response = handleRequest.apply(request);
-                    Log.trace("Response => {}", response);
-                    adapter.write(response);
-                },this::onError));
+                .subscribe(new Consumer<Request>() {
+                    @Override
+                    public void accept(Request request) throws Exception {
+                        if(Log.isTraceEnabled()) {
+                            Log.trace("Request <= {}", request);
+                        }
+                        request.setClient(adapter);
+                        final Response response = handleRequest.apply(request);
+                        if(Log.isTraceEnabled()) {
+                            Log.trace("Response => {}", response);
+                        }
+                        adapter.write(response);
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        onError(throwable);
+                    }
+                }));
     }
 
     private void onError(Throwable throwable) {
-        Log.error("Error : {}", throwable);
+        Log.error("Error : ", throwable);
         close();
     }
 
@@ -86,7 +160,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
             try {
                 onClose();
             } catch (IOException e) {
-                Log.warn("{}", e);
+                Log.warn("", e);
             }
         }
         compositeDisposable.dispose();
@@ -94,7 +168,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     }
 
 
-    protected abstract void onStart() throws IOException;
+    protected abstract void onStart(InetAddress bindAddress) throws IOException;
     protected abstract boolean isClosed();
     protected abstract String getProxyConnectionHint(RMIServiceInfo serviceInfo);
     protected abstract RMISocket acceptClient() throws IOException;

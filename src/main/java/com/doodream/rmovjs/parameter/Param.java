@@ -1,10 +1,12 @@
 package com.doodream.rmovjs.parameter;
 
+import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.serde.Converter;
-import com.google.common.reflect.TypeToken;
+import com.doodream.rmovjs.util.Types;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.reactivex.Observable;
+import io.reactivex.functions.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,7 +14,6 @@ import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.lang.model.element.TypeElement;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -32,15 +33,20 @@ public class Param<T> {
     private static final Logger Log = LoggerFactory.getLogger(Param.class);
 
     private int order;
-    private ParamType type;
+    private ParamType location;
     private boolean required;
     private String name;
     private T value;
-    private Class cls;
+    private transient Type type;
 
-    public static Param create(Class cls, Annotation[] annotations) {
+    public static Param create(Type cls, Annotation[] annotations) {
         List<Annotation> filteredAnnotations = Observable.fromArray(annotations)
-                .filter(ParamType::isSupportedAnnotation)
+                .filter(new Predicate<Annotation>() {
+                    @Override
+                    public boolean test(Annotation annotation) throws Exception {
+                        return ParamType.isSupportedAnnotation(annotation);
+                    }
+                })
                 .toList()
                 .blockingGet();
 
@@ -48,8 +54,8 @@ public class Param<T> {
         ParamType type = ParamType.fromAnnotation(annotation);
 
         return Param.builder()
-                .type(type)
-                .cls(cls)
+                .type(cls)
+                .location(type)
                 .name(type.getName(annotation))
                 .required(type.isRequired(annotation))
                 .build();
@@ -63,13 +69,14 @@ public class Param<T> {
         this.value = value;
     }
 
-    public T resolve(Converter converter, Type type) {
+    public Object resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
+        if(Types.isCastable(value, type)) {
+            return value;
+        }
         return converter.resolve(value, type);
     }
 
-    public boolean isInstanceOf(Class<?> itfc) {
-        return !Observable.fromArray(this.cls.getInterfaces())
-                .filter(aClass -> aClass.equals(itfc))
-                .isEmpty().blockingGet();
+    public boolean isInstanceOf(Type itfc) {
+        return this.type == itfc;
     }
 }

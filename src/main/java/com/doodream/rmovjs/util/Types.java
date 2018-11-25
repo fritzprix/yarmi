@@ -11,8 +11,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Types {
-    private static Pattern INTERNAL_TYPE_SELECTOR_PATTERN = Pattern.compile("([^\\<\\>]+)\\<([\\s\\S]+)\\>");
     private static final Logger Log = LoggerFactory.getLogger(Types.class);
+    private static Pattern INTERNAL_TYPE_SELECTOR_PATTERN = Pattern.compile("([^\\<\\>]+)\\<([\\s\\S]+)\\>");
 
     public static Type[] unwrapType(String typeName) throws ClassNotFoundException, IllegalArgumentException {
         Matcher matcher = INTERNAL_TYPE_SELECTOR_PATTERN.matcher(typeName);
@@ -23,10 +23,10 @@ public class Types {
             List<Type> types = new ArrayList<>();
             for (String s : split) {
                 try {
-                    Type[] parameters = unwrapType(s);
+                    final Type[] parameters = unwrapType(s);
                     matcher = INTERNAL_TYPE_SELECTOR_PATTERN.matcher(s);
                     if(matcher.matches()) {
-                        Type rawClass = Class.forName(matcher.group(1));
+                        final Type rawClass = Class.forName(matcher.group(1));
                         types.add(new ParameterizedType() {
                             @Override
                             public Type[] getActualTypeArguments() {
@@ -96,5 +96,43 @@ public class Types {
             }
         }
         return 0;
+    }
+
+    public static <T> boolean isCastable(T body, Class<?> rawCls) {
+        try {
+            rawCls.cast(body);
+            return true;
+        } catch (ClassCastException ignored) {
+        }
+        return false;
+    }
+
+    public static  <T> boolean isCastable(T body, Type type) {
+        try {
+            ((Class) type).cast(body);
+            return true;
+        } catch (ClassCastException ignored) {
+        }
+        return false;
+
+    }
+
+    public static Type getType(Class<?> rawCls, Type ...typeParameter) {
+        return new ParameterizedType() {
+            @Override
+            public Type[] getActualTypeArguments() {
+                return typeParameter;
+            }
+
+            @Override
+            public Type getRawType() {
+                return rawCls;
+            }
+
+            @Override
+            public Type getOwnerType() {
+                return null;
+            }
+        };
     }
 }

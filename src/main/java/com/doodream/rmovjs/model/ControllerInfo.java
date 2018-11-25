@@ -16,8 +16,8 @@ public class ControllerInfo {
 
     public static <R> ControllerInfo build(RMIController controller) {
         return ControllerInfo.builder()
-                .stubCls(controller.getItfcCls())
                 .version(controller.getController().version())
+                .stubCls(controller.getStub())
                 .build();
     }
 }
