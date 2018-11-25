@@ -21,7 +21,7 @@ public class SimpleNegotiator implements RMINegotiator {
 
     @Override
     public RMISocket handshake(RMISocket socket, RMIServiceInfo service, Converter converter, boolean isClient) throws HandshakeFailException {
-        Log.info("Handshake start @ {}", isClient? "CLIENT" : "SERVER");
+        Log.info("Handshake start as {} @ {}", isClient? "CLIENT" : "SERVER", socket.getRemoteName());
         try {
             Reader reader = converter.reader(socket.getInputStream());
             Writer writer = converter.writer(socket.getOutputStream());
@@ -39,10 +39,11 @@ public class SimpleNegotiator implements RMINegotiator {
     private void handshakeFromClient(final RMIServiceInfo service, Reader reader, Writer writer) throws HandshakeFailException {
         try {
             writer.write(service);
+            Log.debug("write {}", service);
             Response response = reader.read(Response.class);
             if ((response != null) &&
                     response.isSuccessful()) {
-                Log.info("Handshake Success {} (Ver. {})", service.getName(), service.getVersion());
+                Log.debug("Handshake Success {} (Ver. {})", service.getName(), service.getVersion());
                 return;
             }
             Preconditions.checkNotNull(response, "Response is null");
@@ -79,6 +80,7 @@ public class SimpleNegotiator implements RMINegotiator {
                     .map(new Function<RMIServiceInfo, Response>() {
                         @Override
                         public Response apply(RMIServiceInfo rmiServiceInfo) throws Exception {
+                            Log.debug("{} != {}", rmiServiceInfo, service);
                             return Response.from(RMIError.BAD_REQUEST);
                         }
                     });
@@ -93,6 +95,7 @@ public class SimpleNegotiator implements RMINegotiator {
                     .doOnNext(new Consumer<Response>() {
                         @Override
                         public void accept(Response response) throws Exception {
+                            Log.debug("write response {}", response);
                             writer.write(response);
                         }
                     })
@@ -112,7 +115,9 @@ public class SimpleNegotiator implements RMINegotiator {
             if (success) {
                 return;
             }
-        } catch (IOException ignore) { }
+        } catch (IOException e) {
+            Log.error("", e);
+        }
         throw new HandshakeFailException();
     }
 
