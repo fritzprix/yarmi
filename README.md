@@ -1,20 +1,19 @@
 <p align="center"><img src="https://s33.postimg.cc/getb2kc33/LOGO_YARMI_Hzt_500px.png"></p>
 
-yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing server & client based distributed application within a network of small scale
+yarmi is yet-another remote method invocation framework for simple distributed service architecture which provides service discovery mechanism out of the box.
  
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/5c9f40d574c64e629af11f284c447bea)](https://www.codacy.com/app/innocentevil0914/yarmi?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fritzprix/yarmi&amp;utm_campaign=Badge_Grade)
 
 ### Features
-1. Support large blob as method parameter or response     
+1. Simple APIs
+>  discover and request service with just a few API calls
+2. Support large blob as method parameter or response
 > yarmi supports blob exchange between client and server by default with BlobSession which exposes familiar read / write APIs    
-2. Provide service discovery out-of-the-box
->  yarmi contains simple service discovery feature and also support another type of service discovery (e.g. DNS-SD) as module   
-3. Support various transport  
-> yarmi also provides abstraction over transport layer so it can over any kinds of transport like tcp / ip or bluetooth rfcomm.
-4. Zero-cost migration to (from) RESTful application  
-> Provides conceptual similarity to popular RESTful application framework (like service / controller mapping). 
-> and that means not only the migration from / to RESTful implementation is easy
-> but also implementing proxy for any RESTful service in heterogeneous network scenario (like typical IoT application) is also well supported    
+3. Provide service discovery out-of-the-box
+> service discovery is provided out of the box which is not dependent on any other lookup service.
+4. Extensible design
+> yarmi core itself is agnostic to network / messaging / discovery / negotiation implementation.
+
 
 
 ### How-To

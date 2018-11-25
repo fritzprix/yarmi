@@ -223,7 +223,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
             return rmiClient;
         } catch (Exception e) {
-            Log.error(e.getLocalizedMessage());
+            Log.error("", e);
             return null;
         }
     }

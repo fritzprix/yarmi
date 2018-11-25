@@ -20,7 +20,8 @@ public class TcpRMISocket implements RMISocket {
     }
 
     public TcpRMISocket(String host, int port) {
-        remoteAddress = InetSocketAddress.createUnresolved(host, port);
+
+        remoteAddress = new InetSocketAddress(host, port);
         socket = null;
     }
 
