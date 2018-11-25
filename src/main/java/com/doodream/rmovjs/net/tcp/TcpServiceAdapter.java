@@ -6,10 +6,14 @@ import com.doodream.rmovjs.net.BaseServiceAdapter;
 import com.doodream.rmovjs.net.RMISocket;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
 import io.reactivex.Observable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.*;
 
 public class TcpServiceAdapter extends BaseServiceAdapter {
@@ -17,48 +21,56 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
     protected static final Logger Log = LoggerFactory.getLogger(TcpServiceAdapter.class);
 
     private ServerSocket serverSocket;
-    private InetSocketAddress mAddress;
-    public static final String DEFAULT_PORT = "6644";
+    private int port;
+    static final int DEFAULT_PORT = 6644;
 
-    public TcpServiceAdapter(String host, String port) throws UnknownHostException {
-        Log.debug("ServiceAdapter On {}/{}", host, port);
-        int p = Integer.valueOf(port);
-        mAddress = new InetSocketAddress(InetAddress.getByName(host), p);
+    public TcpServiceAdapter() {
+        port = DEFAULT_PORT;
     }
 
-    public TcpServiceAdapter(String port) throws UnknownHostException {
-        this(Inet4Address.getLocalHost().getHostAddress(), port);
-    }
-
-    public TcpServiceAdapter() throws UnknownHostException {
-        this(DEFAULT_PORT);
+    public TcpServiceAdapter(String port) {
+        this.port = Integer.valueOf(port);
     }
 
     @Override
-    public ServiceProxyFactory getProxyFactory(RMIServiceInfo info) {
-        if(!RMIServiceInfo.isComplete(info)) {
+    public ServiceProxyFactory getProxyFactory(final RMIServiceInfo info) {
+        if(!RMIServiceInfo.isValid(info)) {
             throw new IllegalArgumentException("Incomplete service info");
         }
-        String[] params = info.getParams().toArray(new String[0]);
+        final String[] params = info.getParams().toArray(new String[0]);
         return Observable.fromArray(TcpServiceProxyFactory.class.getConstructors())
-                .filter(constructor -> constructor.getParameterCount() == params.length)
-                .map(constructor -> constructor.newInstance(params))
+                .filter(new Predicate<Constructor<?>>() {
+                    @Override
+                    public boolean test(Constructor<?> constructor) throws Exception {
+                        return constructor.getParameterCount() == params.length;
+                    }
+                })
+                .map(new Function<Constructor<?>, Object>() {
+                    @Override
+                    public Object apply(Constructor<?> constructor) throws Exception {
+                        return constructor.newInstance(params);
+                    }
+                })
                 .cast(ServiceProxyFactory.class)
-                .doOnNext(serviceProxyFactory -> serviceProxyFactory.setTargetService(info))
+                .doOnNext(new Consumer<ServiceProxyFactory>() {
+                    @Override
+                    public void accept(ServiceProxyFactory serviceProxyFactory) throws Exception {
+                        serviceProxyFactory.setTargetService(info);
+                    }
+                })
                 .blockingFirst();
     }
 
     @Override
-    protected void onStart() throws IOException {
+    protected void onStart(InetAddress bindAddress) throws IOException {
         serverSocket = new ServerSocket();
-        Log.debug("service address {}", mAddress.getAddress().getHostAddress());
-        serverSocket.bind(mAddress);
-        Log.debug("service started @ {}", mAddress.getAddress().getHostAddress());
+        serverSocket.bind(new InetSocketAddress(bindAddress.getHostAddress(), port));
+        Log.debug("service started @ {} : {}", serverSocket.getLocalSocketAddress(), serverSocket.getInetAddress().getHostAddress());
     }
 
     @Override
     protected void onClose() throws IOException {
-        Log.debug("close() @ {}", mAddress.getAddress());
+        Log.debug("close() @ {}", serverSocket.getInetAddress().getAddress());
         if(serverSocket != null
                 && !serverSocket.isClosed()) {
             serverSocket.close();
@@ -72,7 +84,7 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
 
     @Override
     protected String getProxyConnectionHint(RMIServiceInfo serviceInfo) {
-        return mAddress.getAddress().getHostAddress();
+        return serverSocket.getInetAddress().getHostAddress();
     }
 
     @Override

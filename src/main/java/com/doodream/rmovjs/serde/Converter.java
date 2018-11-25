@@ -2,7 +2,6 @@ package com.doodream.rmovjs.serde;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
 
 /**
@@ -17,11 +16,9 @@ public interface Converter {
 
     Writer writer(OutputStream outputStream);
 
-    byte[] convert(Object src) throws UnsupportedEncodingException;
+    byte[] convert(Object src);
 
-    <T> T invert(byte[] b, Class<T> cls) throws UnsupportedEncodingException;
+    <T> T invert(byte[] b, Class<T> cls);
 
-    <T> T invert(byte[] b, Class<T> rawClass, Class<?> ...parameters);
-
-    <T> T resolve(Object unresolved, Type type);
+    Object resolve(Object unresolved, Type type) throws ClassNotFoundException, IllegalAccessException, InstantiationException;
 }

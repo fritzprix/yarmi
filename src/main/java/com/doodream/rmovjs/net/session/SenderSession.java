@@ -2,6 +2,7 @@ package com.doodream.rmovjs.net.session;
 
 import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
+import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import org.slf4j.Logger;
@@ -11,9 +12,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.OptionalLong;
 import java.util.Random;
-import java.util.function.Consumer;
 
 
 public class SenderSession implements Session, SessionHandler {
@@ -26,6 +25,7 @@ public class SenderSession implements Session, SessionHandler {
     private String key;
     private Consumer<Session> onReady;
     private Runnable onTeardown;
+    private Converter converter;
     private byte[] bufferSource = new byte[BlobSession.CHUNK_MAX_SIZE_IN_BYTE];
     private ByteBuffer writeBuffer;
     private SessionControlMessageWriter scmWriter;
@@ -35,19 +35,15 @@ public class SenderSession implements Session, SessionHandler {
 
     SenderSession(Consumer<Session> onReady) {
         // create unique key for session
-        OptionalLong lo = RANDOM.longs(4).reduce((left, right) -> left + right);
-        if(!lo.isPresent()) {
-            throw new IllegalStateException("fail to generate random");
-        }
 
-        key = Integer.toHexString(String.format("%d%d%d",GLOBAL_KEY++, System.currentTimeMillis(), lo.getAsLong()).hashCode());
+        key = String.format("%8x%8x%8x",GLOBAL_KEY++, System.currentTimeMillis(), RANDOM.nextLong()).trim();
         chunkSeqNumber = 0;
         chunkLruCache = SenderSession.getLruCache(MAX_CNWD_SIZE * 2);
         writeBuffer = ByteBuffer.wrap(bufferSource);
         this.onReady = onReady;
     }
 
-    private static <K,V> Map<K, V> getLruCache(int size) {
+    private static <K,V> Map<K, V> getLruCache(final int size) {
         return new LinkedHashMap<K, V> (size * 4/3, 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry eldest) {
@@ -104,9 +100,12 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     @Override
-    public void handle(SessionControlMessage scm) throws IllegalStateException, IOException {
+    public void handle(SessionControlMessage scm) throws IllegalStateException, IOException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         final SessionCommand command = scm.getCommand();
-        Log.debug("scm <= {} @ {}" , command, scm.getKey());
+        Object param = converter.resolve(scm.getParam(), command.getParamClass());
+        if(Log.isTraceEnabled()) {
+            Log.trace("{} {}", command, param);
+        }
         switch (command) {
             case ACK:
                 // ready-to-receive from receiver
@@ -119,7 +118,7 @@ public class SenderSession implements Session, SessionHandler {
                 onReady.accept(this);
                 break;
             case ERR:
-                SCMErrorParam errorParam = (SCMErrorParam) scm.getParam();
+                SCMErrorParam errorParam = (SCMErrorParam) param;
                 handleErrorMessage(errorParam);
                 break;
             case RESET:
@@ -136,9 +135,10 @@ public class SenderSession implements Session, SessionHandler {
     }
 
     @Override
-    public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+    public void start(Reader reader, Writer writer, Converter converter, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
         this.scmWriter = builder.build(writer);
         this.onTeardown = onTeardown;
+        this.converter = converter;
     }
 
     private void handleErrorMessage(SCMErrorParam errorParam) {

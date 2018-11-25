@@ -1,17 +1,18 @@
 package com.doodream.rmovjs.net.session;
 
+import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.Random;
-import java.util.function.Consumer;
 
 @Data
 public class BlobSession implements SessionHandler {
@@ -29,6 +30,7 @@ public class BlobSession implements SessionHandler {
     // read error start with -2000
     public static final int SIZE_NOT_MATCHED = -2001;
     public static final int INVALID_EOS_CHAR = -2002;
+    public static final BlobSession NULL = new BlobSession(null);
 
     private static int GLOBAL_KEY = 0;
     private static String DEFAULT_TYPE = "application/octet-stream";
@@ -69,18 +71,31 @@ public class BlobSession implements SessionHandler {
      * @param args arguments
      * @return
      */
-    public static Optional<BlobSession> findOne(Object[] args) {
-        return Observable.fromArray(args).filter(o -> o instanceof BlobSession).cast(BlobSession.class).map(Optional::ofNullable).blockingFirst(Optional.empty());
+    public static BlobSession findOne(Object[] args) {
+        return Observable.fromArray(args)
+                .filter(new Predicate<Object>() {
+                    @Override
+                    public boolean test(Object o) throws Exception {
+                        return o instanceof BlobSession;
+                    }
+                })
+                .cast(BlobSession.class)
+                .map(new Function<BlobSession, BlobSession>() {
+                    @Override
+                    public BlobSession apply(BlobSession blobSession) throws Exception {
+                        return blobSession;
+                    }
+                }).blockingFirst(BlobSession.NULL);
     }
 
 
     @Override
-    public void handle(SessionControlMessage scm) throws SessionControlException, IOException {
+    public void handle(SessionControlMessage scm) throws SessionControlException, IOException, IllegalAccessException, ClassNotFoundException, InstantiationException {
         sessionHandler.handle(scm);
     }
 
-    public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
-        sessionHandler.start(reader, writer, builder, onTeardown);
+    public void start(Reader reader, Writer writer, Converter converter, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+        sessionHandler.start(reader, writer, converter, builder, onTeardown);
     }
 
     /**

@@ -2,32 +2,63 @@ package com.doodream.rmovjs.net.session;
 
 import com.doodream.rmovjs.net.session.param.SCMChunkParam;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
+import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ReceiverSession implements Session, SessionHandler {
 
     private static final Logger Log = LoggerFactory.getLogger(ReceiverSession.class);
     private String key;
-    private InputStream chunkInStream;
-    private WritableByteChannel chunkOutChannel;
+//    private InputStream chunkInStream;
+//    private OutputStream chunkOutStream;
+    private final ConcurrentLinkedQueue<byte[]> dataQueue = new ConcurrentLinkedQueue<>();
+    private volatile boolean EOS;
+    private ByteBuffer cBuffer;
 
+    private Converter converter;
     private Runnable onTeardown;
+    private long overallRcvSize;
     private SessionControlMessageWriter scmWriter;
 
     ReceiverSession() {
+        overallRcvSize = 0L;
     }
 
     @Override
-    public int read(byte[] b, int offset, int len) throws IOException {
-        return chunkInStream.read(b, offset, len);
+    public int read(byte[] b, int offset, int len) {
+        if(cBuffer == null) {
+            byte[] data;
+            while((data = dataQueue.poll()) == null) {
+                if(EOS) {
+                    return -1;
+                }
+                synchronized (dataQueue) {
+                    try {
+                        dataQueue.wait(100L);
+                    } catch (InterruptedException e) {
+                        return -1;
+                    }
+                }
+            }
+            cBuffer = ByteBuffer.wrap(data);
+        }
+        final int rsz = cBuffer.remaining();
+        if(rsz >= len) {
+            cBuffer.get(b, offset, len);
+            return len;
+        } else {
+            cBuffer.get(b, offset,rsz);
+            cBuffer = null;
+            int subRsz = read(b, offset + rsz, len - rsz);
+            return subRsz > 0 ? (rsz + subRsz) : rsz;
+        }
     }
 
     @Override
@@ -37,10 +68,7 @@ public class ReceiverSession implements Session, SessionHandler {
 
     @Override
     public void open() throws IOException {
-        final PipedInputStream pipedInputStream = new PipedInputStream();
-        chunkInStream = new BufferedInputStream(pipedInputStream, 64 * 1024);
-        chunkOutChannel = Channels.newChannel(new PipedOutputStream(pipedInputStream));
-
+        EOS = false;
         scmWriter.write(SessionControlMessage.builder()
                 .command(SessionCommand.ACK)
                 .key(key)
@@ -62,24 +90,30 @@ public class ReceiverSession implements Session, SessionHandler {
     }
 
     @Override
-    public void handle(SessionControlMessage scm) throws SessionControlException, IOException {
-        Log.debug("scm <= {} @ {}", scm.getCommand() ,scm.getKey());
+    public void handle(SessionControlMessage scm) throws SessionControlException, IOException, IllegalAccessException, InstantiationException, ClassNotFoundException {
         final SessionCommand command = scm.getCommand();
+        Object param = converter.resolve(scm.getParam(), command.getParamClass());
+        if(Log.isTraceEnabled()) {
+            Log.trace("{}  {}", command, param);
+        }
         switch (command) {
             case CHUNK:
-                SCMChunkParam chunkParam = (SCMChunkParam) scm.getParam();
-                ByteBuffer buffer = ByteBuffer.wrap(chunkParam.getData());
-                chunkOutChannel.write(buffer);
-                if(chunkParam.getType() == SCMChunkParam.TYPE_LAST) {
-                    chunkOutChannel.close();
+                SCMChunkParam chunkParam = (SCMChunkParam) param;
+                synchronized (dataQueue) {
+                    dataQueue.offer(((SCMChunkParam) param).getData());
+                    dataQueue.notifyAll();
+                    if(chunkParam.getType() == SCMChunkParam.TYPE_LAST) {
+                        EOS = true;
+                    }
                 }
+                overallRcvSize += chunkParam.getSizeInBytes();
                 break;
             case RESET:
                 Log.debug("reset from peer");
                 onClose();
                 break;
             case ERR:
-                SCMErrorParam errorParam = (SCMErrorParam) scm.getParam();
+                SCMErrorParam errorParam = (SCMErrorParam) param;
                 throw new SessionControlException(errorParam);
             default:
                 sendErrorMessage(key, SCMErrorParam.buildUnsupportedOperation(command));
@@ -87,16 +121,18 @@ public class ReceiverSession implements Session, SessionHandler {
     }
 
     @Override
-    public void start(Reader reader, Writer writer, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
+    public void start(Reader reader, Writer writer, Converter converter, SessionControlMessageWriter.Builder builder, Runnable onTeardown) {
         this.onTeardown = onTeardown;
         scmWriter = builder.build(writer);
+        this.converter = converter;
     }
 
     private void onClose() throws IOException {
         if(onTeardown != null) {
             onTeardown.run();
         }
-        chunkInStream.close();
+        EOS = true;
+        Log.debug("overall rcv size {}", overallRcvSize);
     }
 
     private void sendErrorMessage(String key, SCMErrorParam errorParam) throws IOException {
