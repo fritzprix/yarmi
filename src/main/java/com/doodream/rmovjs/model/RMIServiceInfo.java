@@ -28,6 +28,10 @@ public class RMIServiceInfo {
     @SerializedName("name")
     private String name;
 
+    @SerializedName("provider")
+    private String provider;
+
+
     @SerializedName("version")
     private String version;
 
@@ -46,6 +50,7 @@ public class RMIServiceInfo {
     @SerializedName("interfaces")
     private List<ControllerInfo> controllerInfos;
 
+
     /**
      *  remoteHint is used to guess connection information (like address or bluetooth device name etc.,)
      *
@@ -63,6 +68,7 @@ public class RMIServiceInfo {
                 .negotiator(service.negotiator())
                 .converter(service.converter())
                 .params(Arrays.asList(service.params()))
+                .provider(service.provider())
                 .name(service.name());
 
         Observable.fromArray(svc.getDeclaredFields())
@@ -150,6 +156,7 @@ public class RMIServiceInfo {
         setControllerInfos(info.getControllerInfos());
         setName(info.getName());
         setNegotiator(info.getNegotiator());
+        setProvider(info.getProvider());
         setVersion(info.getVersion());
     }
 }

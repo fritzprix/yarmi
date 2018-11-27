@@ -22,11 +22,16 @@ import java.lang.annotation.RetentionPolicy;
  */
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Service {
+
     /**
      * the name of service
      * @return name of service
      */
     String name();
+
+
+    String provider() default "";
+
 
     /**
      * class of network adapter implementation upon which service depend.
