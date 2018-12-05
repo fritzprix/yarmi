@@ -14,14 +14,14 @@ import java.net.InetAddress;
  *  {@link ServiceAdapter} provides abstraction layer for network dependency including listed below
  *  1. creating server side endpoint to communicate with client (e.g. {@link java.net.ServerSocket} in case of TCP connection)
  *  2. accepting connection request from the client & managing {@link ClientSocketAdapter} which provides abstraction to the client connection from server side
- *  3. providing {@link ServiceProxyFactory} able to resolve {@link RMIServiceProxy}, which is network peer corresponding to {@link ServiceAdapter}
+ *  3. providing {@link ServiceProxyFactory} able to resolve {@link ServiceProxy}, which is network peer corresponding to {@link ServiceAdapter}
  *  4. handling negotiation protocol between the server and the client
  *
  *  {@link ServiceAdapter}는 서비스의 네트워크 의존성에 대한 추상화 계층을 제공하며 세부적으로 아래와 같은 기능을 포함한다.
  *  1. server와 client간의 통신을 위한 서버측 네트워크 endpoint의 생성 (creating {@link java.net.ServerSocket} and bind it to given address for TCP)
  *  2. client 연결 요청에 대한 처리와 client 네트워크 연결을 서버측에서 추상화하는 {@link ClientSocketAdapter}의 관리
- *  3. client측의 service 기능 호출의 proxy역할을 담당하는 {@link RMIServiceProxy} 생성을 위한 {@link ServiceProxyFactory}의 제공
- *  4. client와 server 사이의 negotiation protocol에 대한 처리 (단, 상세 negotiation 구현은 {@link RMIServiceInfo}의 {@link RMINegotiator}로써 제공됨)
+ *  3. client측의 service 기능 호출의 proxy역할을 담당하는 {@link ServiceProxy} 생성을 위한 {@link ServiceProxyFactory}의 제공
+ *  4. client와 server 사이의 negotiation protocol에 대한 처리 (단, 상세 negotiation 구현은 {@link RMIServiceInfo}의 {@link Negotiator}로써 제공됨)
  */
 public interface ServiceAdapter {
 
@@ -40,10 +40,10 @@ public interface ServiceAdapter {
     String listen(RMIServiceInfo serviceInfo, Converter converter, InetAddress network, Function<Request, Response> requestHandler) throws IOException, IllegalAccessException, InstantiationException;
 
     /**
-     * return {@link ServiceProxyFactory} which is capable of building {@link RMIServiceProxy} able to connect to current service adapter
+     * return {@link ServiceProxyFactory} which is capable of building {@link ServiceProxy} able to connect to current service adapter
      * 현재 {@link ServiceAdapter}에 대응 되는 client측 peer를 생성 할 수 있는 {@link ServiceProxyFactory}를 반환
      * @param info 서비스 정의 instance
-     * @return 현재 {@link ServiceAdapter}와 연결이 가능한 Peer {@link RMIServiceProxy}의 {@link ServiceProxyFactory}
+     * @return 현재 {@link ServiceAdapter}와 연결이 가능한 Peer {@link ServiceProxy}의 {@link ServiceProxyFactory}
      */
     ServiceProxyFactory getProxyFactory(RMIServiceInfo info);
 

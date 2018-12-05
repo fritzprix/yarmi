@@ -11,7 +11,7 @@ import java.lang.reflect.Field;
 public class BasicService {
     private static Logger Log = LoggerFactory.getLogger(BasicService.class);
 
-    @Controller(version = 0,module = HealthCheckControllerImpl.class, path = "/")
+    @Controller(version = 0, module = HealthCheckControllerImpl.class, path = "/")
     public HealthCheckController healthCheckController;
 
     public static Controller getHealthCheckController()  {

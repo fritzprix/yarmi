@@ -2,36 +2,46 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.annotation.server.Service;
-import com.doodream.rmovjs.net.RMIServiceProxy;
+import com.doodream.rmovjs.net.ServiceProxy;
 import com.doodream.rmovjs.net.ServiceAdapter;
-import com.doodream.rmovjs.net.ServiceProxyFactory;
 import com.doodream.rmovjs.server.RMIController;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
-import io.reactivex.functions.Predicate;
 import lombok.*;
 
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"proxyFactoryHint"})
+@EqualsAndHashCode(exclude = {"proxyFactoryHint", "alias"})
 @Data
 public class RMIServiceInfo {
 
+    /**
+     * unique name of service
+     */
     @SerializedName("name")
     private String name;
 
+    /**
+     * unique name of the service provider
+     */
     @SerializedName("provider")
     private String provider;
 
+    /**
+     * user defined alias for the service
+     */
+    @SerializedName("alias")
+    private String alias;
 
+    /**
+     * interface version
+     */
     @SerializedName("version")
     private String version;
 
@@ -72,31 +82,11 @@ public class RMIServiceInfo {
                 .name(service.name());
 
         Observable.fromArray(svc.getDeclaredFields())
-                .filter(new Predicate<Field>() {
-                    @Override
-                    public boolean test(Field field) throws Exception {
-                        return RMIController.isValidController(field);
-                    }
-                })
-                .map(new Function<Field, RMIController>() {
-                    @Override
-                    public RMIController apply(Field field) throws Exception {
-                        return RMIController.create(field);
-                    }
-                })
-                .map(new Function<RMIController, ControllerInfo>() {
-                    @Override
-                    public ControllerInfo apply(RMIController rmiController) throws Exception {
-                        return ControllerInfo.build(rmiController);
-                    }
-                })
+                .filter(field -> RMIController.isValidController(field))
+                .map(field -> RMIController.create(field))
+                .map(rmiController -> ControllerInfo.build(rmiController))
                 .toList()
-                .doOnSuccess(new Consumer<List<ControllerInfo>>() {
-                    @Override
-                    public void accept(List<ControllerInfo> controllerInfos) throws Exception {
-                        builder.controllerInfos(controllerInfos);
-                    }
-                })
+                .doOnSuccess(controllerInfos -> builder.controllerInfos(controllerInfos))
                 .subscribe();
 
         return builder.build();
@@ -107,46 +97,16 @@ public class RMIServiceInfo {
                 (info.getControllerInfos() != null);
     }
 
-    public static RMIServiceProxy toServiceProxy(RMIServiceInfo info) {
+    public static ServiceProxy toServiceProxy(final RMIServiceInfo info) {
         return Single.just(info)
-                .map(new Function<RMIServiceInfo, Class<?>>() {
-                    @Override
-                    public Class<?> apply(RMIServiceInfo rmiServiceInfo) throws Exception {
-                        return rmiServiceInfo.getAdapter();
-                    }
-                })
-                .map(new Function<Class<?>, Object>() {
-                    @Override
-                    public Object apply(Class<?> cls) throws Exception {
-                        return cls.newInstance();
-                    }
-                })
+                .map((Function<RMIServiceInfo, Class<?>>) rmiServiceInfo -> rmiServiceInfo.getAdapter())
+                .map((Function<Class<?>, Object>) cls -> cls.newInstance())
                 .cast(ServiceAdapter.class)
-                .map(new Function<ServiceAdapter, ServiceProxyFactory>() {
-                    @Override
-                    public ServiceProxyFactory apply(ServiceAdapter serviceAdapter) throws Exception {
-                        return serviceAdapter.getProxyFactory(info);
-                    }
-                })
-                .map(new Function<ServiceProxyFactory, RMIServiceProxy>() {
-                    @Override
-                    public RMIServiceProxy apply(ServiceProxyFactory serviceProxyFactory) throws Exception {
-                        return serviceProxyFactory.build();
-                    }
-                })
-                .onErrorReturn(new Function<Throwable, RMIServiceProxy>() {
-                    @Override
-                    public RMIServiceProxy apply(Throwable throwable) throws Exception {
-                        return RMIServiceProxy.NULL_PROXY;
-                    }
-                })
-                .filter(new Predicate<RMIServiceProxy>() {
-                    @Override
-                    public boolean test(RMIServiceProxy proxy) throws Exception {
-                        return !RMIServiceProxy.NULL_PROXY.equals(proxy);
-                    }
-                })
-                .blockingGet(RMIServiceProxy.NULL_PROXY);
+                .map(serviceAdapter -> serviceAdapter.getProxyFactory(info))
+                .map(serviceProxyFactory -> serviceProxyFactory.build())
+                .onErrorReturn(throwable -> ServiceProxy.NULL_PROXY)
+                .filter(proxy -> !ServiceProxy.NULL_PROXY.equals(proxy))
+                .blockingGet(ServiceProxy.NULL_PROXY);
     }
 
     public void copyFrom(RMIServiceInfo info) {
@@ -155,6 +115,7 @@ public class RMIServiceInfo {
         setAdapter(info.getAdapter());
         setControllerInfos(info.getControllerInfos());
         setName(info.getName());
+        setAlias(info.getAlias());
         setNegotiator(info.getNegotiator());
         setProvider(info.getProvider());
         setVersion(info.getVersion());

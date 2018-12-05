@@ -2,6 +2,7 @@ package com.doodream.rmovjs.model;
 
 
 import com.doodream.rmovjs.net.ClientSocketAdapter;
+import com.doodream.rmovjs.net.ServiceProxy;
 import com.doodream.rmovjs.net.session.*;
 import com.doodream.rmovjs.parameter.Param;
 import com.doodream.rmovjs.serde.Writer;
@@ -25,7 +26,7 @@ import java.util.List;
  * Request contains information for client method invocation consisted with below
  * 1. endpoint which uniquely mapped to a method with 1:1 relation.
  * 2. parameters for method invocation
- * 3. optionally it conveys session control message which consumed by {@link com.doodream.rmovjs.net.ServiceAdapter} or {@link com.doodream.rmovjs.net.RMIServiceProxy}
+ * 3. optionally it conveys session control message which consumed by {@link com.doodream.rmovjs.net.ServiceAdapter} or {@link ServiceProxy}
  */
 @Builder
 @AllArgsConstructor

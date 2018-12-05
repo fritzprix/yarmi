@@ -88,6 +88,7 @@ public class RMIService {
                 .adapter(service.adapter())
                 .negotiator(service.negotiator())
                 .converter(service.converter())
+                .provider(service.provider())
                 .params(Arrays.asList(params))
                 .version(Properties.getVersionString())
                 .build();
@@ -197,6 +198,7 @@ public class RMIService {
                 .adapter(service.adapter())
                 .negotiator(service.negotiator())
                 .converter(service.converter())
+                .provider(service.provider())
                 .params(Arrays.asList(service.params()))
                 .version(Properties.getVersionString())
                 .build();

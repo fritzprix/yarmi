@@ -1,7 +1,7 @@
 package com.doodream.rmovjs.annotation.server;
 
 
-import com.doodream.rmovjs.net.RMINegotiator;
+import com.doodream.rmovjs.net.Negotiator;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.SimpleNegotiator;
 import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
@@ -30,7 +30,7 @@ public @interface Service {
     String name();
 
 
-    String provider() default "";
+    String provider();
 
 
     /**
@@ -47,7 +47,7 @@ public @interface Service {
      */
     String[] params() default {};
 
-    Class<? extends RMINegotiator> negotiator() default SimpleNegotiator.class;
+    Class<? extends Negotiator> negotiator() default SimpleNegotiator.class;
 
     Class<? extends Converter> converter() default BsonConverter.class;
 }

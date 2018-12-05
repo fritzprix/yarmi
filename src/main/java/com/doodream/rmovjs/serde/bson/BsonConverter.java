@@ -122,7 +122,6 @@ public class BsonConverter implements Converter {
         }
         final Class cls = clsz;
         final Class unresolvedCls = unresolved.getClass();
-        Log.debug("resolve {} -> {}", unresolvedCls, cls);
 
         if(unresolvedCls.equals(LinkedHashMap.class)) {
             return resolveKvMap((Map<?, ?>) unresolved, cls);
@@ -150,7 +149,7 @@ public class BsonConverter implements Converter {
 
 
         if(unresolvedCls.getSuperclass().equals(Number.class)) {
-
+            // TODO: 18. 12. 5 handle subclass type of Number
         }
 
         try {

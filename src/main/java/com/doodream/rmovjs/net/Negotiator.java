@@ -3,7 +3,7 @@ package com.doodream.rmovjs.net;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.serde.Converter;
 
-public interface RMINegotiator {
+public interface Negotiator {
 
     /**
      * handle handshake between server and client considering the situation when the security level of transport layer should be updated.

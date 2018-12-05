@@ -6,7 +6,7 @@ import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.net.RMIServiceProxy;
+import com.doodream.rmovjs.net.ServiceProxy;
 import com.doodream.rmovjs.sdp.ServiceDiscovery;
 import com.doodream.rmovjs.sdp.ServiceDiscoveryListener;
 import com.google.common.base.Preconditions;
@@ -215,7 +215,7 @@ public class HaRMIClient<T> implements InvocationHandler {
         this.compositeDisposable = compositeDisposable;
     }
 
-    private synchronized void registerProxy(RMIServiceProxy serviceProxy) {
+    private synchronized void registerProxy(ServiceProxy serviceProxy) {
         if (serviceProxy == null) {
             return;
         }
@@ -232,7 +232,7 @@ public class HaRMIClient<T> implements InvocationHandler {
     }
 
 
-    private static Observable<RMIServiceProxy> startDiscovery(ServiceDiscovery discovery, Class svc) {
+    private static Observable<ServiceProxy> startDiscovery(ServiceDiscovery discovery, Class svc) {
         return Observable.create(emitter -> discovery.startDiscovery(svc, false, new ServiceDiscoveryListener() {
 
             @Override

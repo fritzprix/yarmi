@@ -3,7 +3,7 @@ package com.doodream.rmovjs.test.service;
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.annotation.server.Service;
 
-@Service(name = "test-service",
+@Service(name = "test-service",provider = "www.doodream.com",
         params = {"127.0.0.1", "6644"})
 public class TestService {
 
