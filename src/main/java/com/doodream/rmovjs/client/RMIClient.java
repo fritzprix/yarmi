@@ -45,22 +45,28 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
     private Long measuredPing;
     private volatile boolean markToClose;
 
-    private RMIClient(ServiceProxy serviceProxy, long timeout, long pingUpdatePeriod, TimeUnit timeUnit) {
+    private RMIClient(ServiceProxy serviceProxy, long timeout, long pingUpdatePeriod, TimeUnit timeUnit, QosListener listener) {
         this.serviceProxy = serviceProxy;
         markToClose = false;
         measuredPing = Long.MAX_VALUE;
-        this.timeout = timeout;
+        this.timeout = timeUnit.toMillis(timeout);
         ongoingRequestCount = new AtomicInteger(0);
         if(pingUpdatePeriod > 0L) {
             serviceProxy.startQosMeasurement(pingUpdatePeriod, timeout, timeUnit, new QosListener() {
                 @Override
-                public void onQosUpdated(long measuredRttInMill) {
+                public void onQosUpdated(final ServiceProxy proxy, long measuredRttInMill) {
                     measuredPing = measuredRttInMill;
+                    if(listener != null) {
+                        listener.onQosUpdated(proxy, measuredRttInMill);
+                    }
                 }
 
                 @Override
-                public void onError(Throwable throwable) {
+                public void onError(final ServiceProxy proxy, Throwable throwable) {
                     measuredPing = Long.MAX_VALUE;
+                    if(listener != null) {
+                        listener.onError(proxy, throwable);
+                    }
                 }
             });
         }
@@ -78,7 +84,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
     /**
      * check whether there are on-going requests for given RMI call proxy
-     * @param proxy RMI proxy which is create by {@link #create(ServiceProxy, Class, Class)} or {@link #create(ServiceProxy, Class, Class, long, long, TimeUnit)}
+     * @param proxy RMI proxy which is create by {@link #create(ServiceProxy, Class, Class)} or {@link #create(ServiceProxy, Class, Class, long, long, TimeUnit, QosListener)}
      * @return true if there is no on-going request, otherwise false
      */
     public static boolean isClosable(Object proxy) {
@@ -107,7 +113,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
     /**
      * destroy RMI call proxy and release resources
-     * @param proxy RMI call proxy returned by {@link #create(ServiceProxy, Class, Class, long, long, TimeUnit)} or {@link #create(ServiceProxy, Class, Class)}
+     * @param proxy RMI call proxy returned by {@link #create(ServiceProxy, Class, Class, long, long, TimeUnit, QosListener)} or {@link #create(ServiceProxy, Class, Class)}
      * @param force if true, close regardless its on-going request, otherwise, wait until the all the on-going requests is complete
      */
     public static void destroy(Object proxy, boolean force) {
@@ -178,7 +184,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         Observable.fromArray(svc.getDeclaredFields())
                 .filter(field -> field.getAnnotation(Controller.class) != null)
                 .blockingSubscribe(field -> {
-                    Object controller = create(serviceProxy, svc, field.getType(), pingInterval, timeout, timeUnit);
+                    Object controller = create(serviceProxy, svc, field.getType(), pingInterval, timeout, timeUnit, null);
                     field.setAccessible(true);
                     field.set(svcProxy, controller);
                 });
@@ -186,7 +192,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         return (T) svcProxy;
     }
 
-    static <T> RMIClient createClient(ServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl, long pingTimeout, long pingInterval, TimeUnit timeUnit) {
+    static <T> RMIClient createClient(ServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl, long timeout, long pingInterval, TimeUnit timeUnit, QosListener listener) {
         Service service = svc.getAnnotation(Service.class);
         Preconditions.checkNotNull(service);
         if(!serviceProxy.provide(ctrl)) {
@@ -215,7 +221,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
                 serviceProxy.open();
             }
 
-            RMIClient rmiClient = new RMIClient(serviceProxy, pingTimeout, pingInterval, timeUnit);
+            RMIClient rmiClient = new RMIClient(serviceProxy, timeout, pingInterval, timeUnit, listener);
 
             Observable<Endpoint> endpointObservable = Observable.fromIterable(validMethods)
                     .map(method -> Endpoint.create(controller, method));
@@ -239,8 +245,12 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         }
     }
 
-    public static <T> T create(ServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl, long pingTimeout, long pingInterval, TimeUnit timeUnit) {
-        RMIClient rmiClient = createClient(serviceProxy, svc, ctrl, pingTimeout, pingInterval, timeUnit);
+    public static <T> T create(ServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl, long timeout, TimeUnit timeUnit) {
+        return create(serviceProxy, svc, ctrl, timeout, 0L, timeUnit, null);
+    }
+
+    public static <T> T create(ServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl, long timeout, long pingInterval, TimeUnit timeUnit, QosListener qosListener) {
+        RMIClient rmiClient = createClient(serviceProxy, svc, ctrl, timeout, pingInterval, timeUnit, qosListener);
         if(rmiClient == null) {
             return null;
         }
@@ -257,7 +267,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
      */
     @Nullable
     public static <T> T create(ServiceProxy serviceProxy, Class<?> svc, Class<T> ctrl) {
-        return create(serviceProxy, svc, ctrl, 0L, 0L, TimeUnit.MILLISECONDS);
+        return create(serviceProxy, svc, ctrl, 0L, 0L, TimeUnit.MILLISECONDS, null);
     }
 
     @Override

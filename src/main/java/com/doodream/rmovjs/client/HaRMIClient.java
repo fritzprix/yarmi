@@ -6,6 +6,7 @@ import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.RMIServiceInfo;
+import com.doodream.rmovjs.net.QosListener;
 import com.doodream.rmovjs.net.ServiceProxy;
 import com.doodream.rmovjs.sdp.ServiceDiscovery;
 import com.doodream.rmovjs.sdp.ServiceDiscoveryListener;
@@ -220,7 +221,17 @@ public class HaRMIClient<T> implements InvocationHandler {
             return;
         }
         if (discoveredProxySet.add(serviceProxy.who())) {
-            clients.add(RMIClient.createClient(serviceProxy, svc, controller, qosFactor, qosUpdateTime, qosUpdateTimeUnit));
+            clients.add(RMIClient.createClient(serviceProxy, svc, controller, qosFactor, qosUpdateTime, qosUpdateTimeUnit, new QosListener() {
+                @Override
+                public void onQosUpdated(final ServiceProxy proxy, long measuredRttInMill) {
+
+                }
+
+                @Override
+                public void onError(final ServiceProxy proxy, Throwable throwable) {
+
+                }
+            }));
         }
 
         listenerInvoker.submit(() -> {

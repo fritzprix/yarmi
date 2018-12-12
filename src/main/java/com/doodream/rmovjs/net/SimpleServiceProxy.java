@@ -26,6 +26,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Base64;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +59,7 @@ public class SimpleServiceProxy implements ServiceProxy {
 
     private AtomicInteger openSemaphore;
     private AtomicInteger qosUpdateSemaphore;
+    private Set<QosListener> qosSubscription;
     private volatile boolean isOpened;
     private final ConcurrentHashMap<String, BlobSession> sessionRegistry;
     private ConcurrentHashMap<Integer, Request> requestWaitQueue;
@@ -328,25 +332,30 @@ public class SimpleServiceProxy implements ServiceProxy {
     public void startQosMeasurement(long interval, long timeout, TimeUnit timeUnit, QosListener listener) {
         if(!markAsUse(qosUpdateSemaphore)) {
             Log.debug("already QoS measurement ongoing");
+            qosSubscription.add(listener);
             return;
         }
+
+        qosSubscription = new HashSet<>();
         qosUpdateDisposable = Observable.interval(0L, interval, timeUnit)
                 .subscribe((l) -> {
                     long startTime = System.currentTimeMillis();
                     final Response<Long> response = request(HEALTH_CHECK_ENDPOINT, timeUnit.toMillis(timeout));
                     if(response.isSuccessful()) {
-                        listener.onQosUpdated(System.currentTimeMillis() - startTime);
+                        listener.onQosUpdated(this,System.currentTimeMillis() - startTime);
                     } else {
-                        listener.onQosUpdated(Long.MAX_VALUE);
+                        listener.onQosUpdated(this, Long.MAX_VALUE);
                     }
-                }, throwable -> listener.onError(throwable));
+                }, throwable -> listener.onError(this, throwable));
     }
 
     @Override
-    public synchronized void stopQosMeasurement() {
+    public synchronized void stopQosMeasurement(QosListener listener) {
         if(!markAsUnuse(qosUpdateSemaphore)) {
+            qosSubscription.remove(listener);
             return;
         }
+        qosSubscription.clear();
         if(qosUpdateDisposable == null) {
             return;
         }

@@ -45,7 +45,7 @@ public interface ServiceProxy {
 
 
             @Override
-            public void stopQosMeasurement() {
+            public void stopQosMeasurement(QosListener listener) {
                 throw new NotImplementedException();
             }
 
@@ -68,6 +68,6 @@ public interface ServiceProxy {
         void close() throws IOException;
         String who();
         void startQosMeasurement(long interval, long timeout, TimeUnit timeUnit, QosListener listener);
-        void stopQosMeasurement();
+        void stopQosMeasurement(QosListener listener);
         boolean provide(Class controller);
 }
