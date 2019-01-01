@@ -1,19 +1,22 @@
 package com.doodream.rmovjs.net;
 
 import com.doodream.rmovjs.Properties;
+import com.doodream.rmovjs.model.ControllerInfo;
 import com.doodream.rmovjs.model.Endpoint;
+import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
-import javafx.collections.transformation.SortedList;
 import lombok.Data;
 import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,16 +26,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * pooled service proxy that keeps track of multiple service proxies and prioritize proxies along the given policy
  */
-public class ManagedPoolServiceProxy implements ServiceProxy {
-    private static final Logger Log = LoggerFactory.getLogger(ManagedPoolServiceProxy.class);
+public class PooledServiceProxy implements ServiceProxy {
+    private static final Logger Log = LoggerFactory.getLogger(PooledServiceProxy.class);
     // endpoint for health check
 
     private final CompositeDisposable disposables = new CompositeDisposable();
-    private final ArrayBlockingQueue<ServiceProxy> nProxyWaitQueue;
+    private final ArrayBlockingQueue<ServiceProxy> proxyRegistryWaitQueue;
     private final ServicePoolingPolicy policy;
-    private List<ManagedServiceProxy> pooledProxies;
+    private final List<ManagedServiceProxy> pooledProxies;
     private ExecutorService executorService;
     private volatile boolean isOpened;
+    private RMIServiceInfo serviceInfo;
 
     public enum PrioritizePolicy {
         LOWEST_LATECNY_FIRST {
@@ -66,8 +70,8 @@ public class ManagedPoolServiceProxy implements ServiceProxy {
 
     public enum DropPolicy {
         NEVER,
-        CONNECTION_LOST,
-        TIMEOUT
+        LAG,
+        REQUEST_FAIL
     }
 
     @Data
@@ -148,7 +152,12 @@ public class ManagedPoolServiceProxy implements ServiceProxy {
             }
 
             public Builder setTimeout(long timeout) {
-                policy.timeout = timeout;
+                policy.rttThreshold = timeout;
+                return this;
+            }
+
+            public Builder setFailCount(int cnt) {
+                policy.maxFailCount = cnt;
                 return this;
             }
 
@@ -161,27 +170,33 @@ public class ManagedPoolServiceProxy implements ServiceProxy {
         }
 
         private boolean isValid() {
-            if(dropPolicy == DropPolicy.TIMEOUT) {
-                return timeout > 0L;
+            if((dropPolicy == DropPolicy.LAG) && (rttThreshold <= 0L)) {
+                return false;
+            }
+            if((dropPolicy == DropPolicy.REQUEST_FAIL) && (maxFailCount <= 0)) {
+                return false;
             }
             return true;
         }
 
         private PrioritizePolicy prioritizePolicy;
         private DropPolicy dropPolicy;
-        private long timeout = 0L;
+        private int maxFailCount = 0;
+        private long rttThreshold = 0L;
 
     }
 
-    public static ManagedPoolServiceProxy create(ServicePoolingPolicy policy) {
+    public static PooledServiceProxy create(Class service, ServicePoolingPolicy policy) {
         if(!policy.isValid()) {
             throw new IllegalArgumentException("invalid policy");
         }
-        return new ManagedPoolServiceProxy(policy);
+        final RMIServiceInfo serviceInfo = RMIServiceInfo.from(service);
+        return new PooledServiceProxy(serviceInfo, policy);
     }
 
-    private ManagedPoolServiceProxy(ServicePoolingPolicy policy) {
-        nProxyWaitQueue = new ArrayBlockingQueue<>(50);
+    private PooledServiceProxy(RMIServiceInfo serviceInfo, ServicePoolingPolicy policy) {
+        this.serviceInfo = serviceInfo;
+        proxyRegistryWaitQueue = new ArrayBlockingQueue<>(50);
         executorService = Executors.newFixedThreadPool(Properties.getPoolProxyParallelism());
         pooledProxies = new ArrayList<>();
         isOpened = false;
@@ -190,21 +205,26 @@ public class ManagedPoolServiceProxy implements ServiceProxy {
 
     public void pool(final ServiceProxy proxy) {
 
-        // TODO: 18. 12. 13 filter proxy with provide given service & controller
-        executorService.submit(() -> {
-            try {
-                proxy.open();
-                if(nProxyWaitQueue.offer(proxy, 10L,TimeUnit.SECONDS)) {
-                    Log.debug("proxy is pooled successfully");
-                    return;
-                }
-            } catch (InterruptedException ignore) {
-                // ignore exception here
-            } catch (IllegalAccessException | IOException | InstantiationException e) {
-                Log.warn("fail to open proxy");
-            }
-            Log.warn("fail to pooling proxy");
-        });
+        Observable.fromIterable(serviceInfo.getControllerInfos())
+                .map(controllerInfo -> controllerInfo.getStubCls())
+                .map(controller -> proxy.provide(controller))
+                .reduce((aBoolean, aBoolean2) -> aBoolean && aBoolean2)
+                .subscribeOn(Schedulers.io())
+                .toObservable()
+                .blockingSubscribe(valid -> {
+                    try {
+                        proxy.open();
+                        if(proxyRegistryWaitQueue.offer(proxy, 10L,TimeUnit.SECONDS)) {
+                            Log.debug("proxy is pooled successfully");
+                            return;
+                        }
+                    } catch (InterruptedException ignore) {
+                        // ignore exception here
+                    } catch (IllegalAccessException | IOException | InstantiationException e) {
+                        Log.warn("fail to open proxy");
+                    }
+                    Log.warn("fail to pooling proxy");
+                });
     }
 
     @Override
@@ -223,12 +243,25 @@ public class ManagedPoolServiceProxy implements ServiceProxy {
                         @Override
                         public void onQosUpdated(ServiceProxy proxy, long measuredRttInMill) {
                             proxyWrapper.setMeasuredQoS(measuredRttInMill);
+                            switch (policy.dropPolicy) {
+                                case LAG:
+                                    if(policy.rttThreshold < measuredRttInMill) {
+                                        synchronized (pooledProxies) {
+                                            Log.debug("proxy {} will be dropped from ready queue", proxyWrapper.who());
+                                            pooledProxies.remove(proxyWrapper);
+                                        }
+                                    }
+                                    break;
+                                case NEVER:
+                                default:
+                            }
                         }
 
                         @Override
                         public void onError(ServiceProxy proxy, Throwable throwable) {
                             Log.warn("error on proxy {}", proxy.who(), throwable);
                             synchronized (pooledProxies) {
+                                Log.debug("proxy {} will be dropped", proxy.who());
                                 pooledProxies.remove(proxyWrapper);
                             }
                         }
@@ -239,7 +272,7 @@ public class ManagedPoolServiceProxy implements ServiceProxy {
     private Observable<ServiceProxy> handlePoolingRequest() {
         return Observable.create(emitter -> {
             try {
-                final ServiceProxy proxy = nProxyWaitQueue.take();
+                final ServiceProxy proxy = proxyRegistryWaitQueue.take();
                 emitter.onNext(proxy);
             } catch (InterruptedException e) {
                 emitter.onError(e);
@@ -293,7 +326,11 @@ public class ManagedPoolServiceProxy implements ServiceProxy {
 
     @Override
     public boolean provide(Class controller) {
-
+        for (ControllerInfo controllerInfo : serviceInfo.getControllerInfos()) {
+            if(controllerInfo.getStubCls().equals(controller)) {
+                return true;
+            }
+        }
         return false;
     }
 }
