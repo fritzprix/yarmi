@@ -3,6 +3,7 @@ package com.doodream.rmovjs.net;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  *  {@link RMIServiceInfo}를 기반으로 클라이언트측의 서비스 정의 객체를 생성 한다.
@@ -23,6 +24,7 @@ public interface ServiceProxyFactory {
      * @throws IOException
      */
     ServiceProxy build();
+
 
     /**
      *

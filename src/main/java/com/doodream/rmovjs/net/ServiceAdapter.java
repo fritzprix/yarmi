@@ -1,6 +1,7 @@
 package com.doodream.rmovjs.net;
 
 
+import com.doodream.rmovjs.annotation.parameter.AdapterParam;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Request;
 import com.doodream.rmovjs.model.Response;
@@ -9,6 +10,7 @@ import io.reactivex.functions.Function;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Map;
 
 /**
  *  {@link ServiceAdapter} provides abstraction layer for network dependency including listed below
@@ -45,10 +47,12 @@ public interface ServiceAdapter {
      * @param info 서비스 정의 instance
      * @return 현재 {@link ServiceAdapter}와 연결이 가능한 Peer {@link ServiceProxy}의 {@link ServiceProxyFactory}
      */
-    ServiceProxyFactory getProxyFactory(RMIServiceInfo info);
+    ServiceProxyFactory getProxyFactory(RMIServiceInfo info) throws IllegalAccessException, InstantiationException;
 
     /**
      * server 측 network 연결을 해제하고 모든 resource를 반환
      */
+    void configure(Map<String, String> params);
+
     void close();
 }

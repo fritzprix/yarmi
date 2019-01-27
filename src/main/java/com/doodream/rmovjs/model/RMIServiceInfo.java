@@ -12,7 +12,9 @@ import io.reactivex.functions.Function;
 import lombok.*;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Builder
 @NoArgsConstructor
@@ -55,7 +57,7 @@ public class RMIServiceInfo {
     private Class converter;
 
     @SerializedName("params")
-    private List<String> params;
+    private Map<String, String> params;
 
     @SerializedName("interfaces")
     private List<ControllerInfo> controllerInfos;
@@ -73,11 +75,15 @@ public class RMIServiceInfo {
         Service service = svc.getAnnotation(Service.class);
         final RMIServiceInfoBuilder builder = RMIServiceInfo.builder();
 
+        Map<String, String> paramAsMap = Observable.fromArray(service.params())
+                .collectInto(new HashMap<String, String>(), (map, param) -> map.put(param.key(), param.value()))
+                .blockingGet();
+
         builder.version(Properties.getVersionString())
                 .adapter(service.adapter())
                 .negotiator(service.negotiator())
                 .converter(service.converter())
-                .params(Arrays.asList(service.params()))
+                .params(paramAsMap)
                 .provider(service.provider())
                 .name(service.name());
 

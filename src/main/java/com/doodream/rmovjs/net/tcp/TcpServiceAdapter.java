@@ -15,9 +15,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.*;
+import java.util.Map;
 
 public class TcpServiceAdapter extends BaseServiceAdapter {
 
+    public static final String PARAM_HOST = "tcp.host";
+    public static final String PARAM_PORT = "tcp.port";
     protected static final Logger Log = LoggerFactory.getLogger(TcpServiceAdapter.class);
 
     private ServerSocket serverSocket;
@@ -28,38 +31,28 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
         port = DEFAULT_PORT;
     }
 
-    public TcpServiceAdapter(String port) {
-        this.port = Integer.valueOf(port);
-    }
-
     @Override
-    public ServiceProxyFactory getProxyFactory(final RMIServiceInfo info) {
+    public ServiceProxyFactory getProxyFactory(final RMIServiceInfo info) throws IllegalAccessException, InstantiationException {
         if(!RMIServiceInfo.isValid(info)) {
             throw new IllegalArgumentException("Incomplete service info");
         }
-        final String[] params = info.getParams().toArray(new String[0]);
-        return Observable.fromArray(TcpServiceProxyFactory.class.getConstructors())
-                .filter(new Predicate<Constructor<?>>() {
-                    @Override
-                    public boolean test(Constructor<?> constructor) throws Exception {
-                        return constructor.getParameterCount() == params.length;
-                    }
-                })
-                .map(new Function<Constructor<?>, Object>() {
-                    @Override
-                    public Object apply(Constructor<?> constructor) throws Exception {
-                        return constructor.newInstance(params);
-                    }
-                })
-                .cast(ServiceProxyFactory.class)
-                .doOnNext(new Consumer<ServiceProxyFactory>() {
-                    @Override
-                    public void accept(ServiceProxyFactory serviceProxyFactory) throws Exception {
-                        serviceProxyFactory.setTargetService(info);
-                    }
-                })
-                .blockingFirst();
+
+
+        TcpServiceProxyFactory factory = TcpServiceProxyFactory.class.newInstance();
+        factory.setTargetService(info);
+        return factory;
     }
+
+    @Override
+    public void configure(Map<String, String> params) {
+        final String portStr =  params.get(PARAM_PORT);
+        if(portStr == null) {
+            port = DEFAULT_PORT;
+        } else {
+            port = Integer.valueOf(portStr);
+        }
+    }
+
 
     @Override
     protected void onStart(InetAddress bindAddress) throws IOException {
