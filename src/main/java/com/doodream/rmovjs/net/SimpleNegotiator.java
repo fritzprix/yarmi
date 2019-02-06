@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-public class SimpleNegotiator implements RMINegotiator {
+public class SimpleNegotiator implements Negotiator {
     private static final Logger Log = LoggerFactory.getLogger(SimpleNegotiator.class);
 
     @Override
@@ -57,60 +57,24 @@ public class SimpleNegotiator implements RMINegotiator {
             Observable<RMIServiceInfo> handshakeRequestSingle = Observable.just(reader.read(RMIServiceInfo.class));
 
             Observable<Response> serviceInfoMatchedObservable = handshakeRequestSingle
-                    .filter(new Predicate<RMIServiceInfo>() {
-                        @Override
-                        public boolean test(RMIServiceInfo info) throws Exception {
-                            return info.hashCode() == service.hashCode();
-                        }
-                    })
-                    .map(new Function<RMIServiceInfo, Response>() {
-                        @Override
-                        public Response apply(RMIServiceInfo rmiServiceInfo) throws Exception {
-                            return Response.success("OK");
-                        }
-                    });
+                    .filter(info -> info.hashCode() == service.hashCode())
+                    .map(rmiServiceInfo -> Response.success("OK"));
 
             Observable<Response> serviceInfoMismatchObservable = handshakeRequestSingle
-                    .filter(new Predicate<RMIServiceInfo>() {
-                        @Override
-                        public boolean test(RMIServiceInfo info) throws Exception {
-                            return info.hashCode() != service.hashCode();
-                        }
-                    })
-                    .map(new Function<RMIServiceInfo, Response>() {
-                        @Override
-                        public Response apply(RMIServiceInfo rmiServiceInfo) throws Exception {
-                            Log.debug("{} != {}", rmiServiceInfo, service);
-                            return Response.from(RMIError.BAD_REQUEST);
-                        }
+                    .filter(info -> info.hashCode() != service.hashCode())
+                    .map(rmiServiceInfo -> {
+                        Log.debug("{} != {}", rmiServiceInfo, service);
+                        return Response.from(RMIError.BAD_REQUEST);
                     });
 
             boolean success = serviceInfoMatchedObservable.mergeWith(serviceInfoMismatchObservable)
-                    .doOnNext(new Consumer<Response>() {
-                        @Override
-                        public void accept(Response response) throws Exception {
-                            Log.trace("Handshake Response : ({}) {}", response.getCode(), response.getBody());
-                        }
+                    .doOnNext(response -> Log.trace("Handshake Response : ({}) {}", response.getCode(), response.getBody()))
+                    .doOnNext(response -> {
+                        Log.debug("write response {}", response);
+                        writer.write(response);
                     })
-                    .doOnNext(new Consumer<Response>() {
-                        @Override
-                        public void accept(Response response) throws Exception {
-                            Log.debug("write response {}", response);
-                            writer.write(response);
-                        }
-                    })
-                    .map(new Function<Response, Boolean>() {
-                        @Override
-                        public Boolean apply(Response response) throws Exception {
-                            return response.isSuccessful();
-                        }
-                    })
-                    .filter(new Predicate<Boolean>() {
-                        @Override
-                        public boolean test(Boolean aBoolean) throws Exception {
-                            return aBoolean;
-                        }
-                    })
+                    .map(response -> response.isSuccessful())
+                    .filter(aBoolean -> aBoolean)
                     .blockingSingle(false);
             if (success) {
                 return;

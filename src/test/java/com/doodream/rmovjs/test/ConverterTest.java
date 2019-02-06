@@ -9,6 +9,7 @@ import com.doodream.rmovjs.serde.bson.BsonConverter;
 import com.doodream.rmovjs.serde.json.JsonConverter;
 import com.doodream.rmovjs.test.service.User;
 import com.doodream.rmovjs.util.Types;
+import io.reactivex.Observable;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -62,6 +63,15 @@ public class ConverterTest {
             Assert.assertTrue(testGenericObject(converter));
             Assert.assertTrue(testComplexGeneric(converter));
         }
+    }
+
+    @Test
+    public void testef() {
+        Observable.just(Void.class)
+                .doOnNext(cls -> System.out.println(cls.getTypeName()))
+                .cast(Type.class)
+                .doOnNext(type -> System.out.println(type.getTypeName()))
+                .blockingSingle();
     }
 
     private <T> boolean testPrimitiveType(Converter converter, T v, Class<?> cls) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {

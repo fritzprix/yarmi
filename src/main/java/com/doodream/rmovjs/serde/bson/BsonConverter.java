@@ -113,16 +113,15 @@ public class BsonConverter implements Converter {
         Class clsz;
         try {
             if (type instanceof ParameterizedType) {
-                clsz = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
+                clsz = Class.forName(Types.getTypeName(((ParameterizedType) type).getRawType()));
             } else {
-                clsz = Class.forName(type.getTypeName());
+                clsz = Class.forName(Types.getTypeName(type));
             }
         } catch (ClassNotFoundException e) {
             return unresolved;
         }
         final Class cls = clsz;
         final Class unresolvedCls = unresolved.getClass();
-        Log.debug("resolve {} -> {}", unresolvedCls, cls);
 
         if(unresolvedCls.equals(LinkedHashMap.class)) {
             return resolveKvMap((Map<?, ?>) unresolved, cls);
@@ -150,7 +149,7 @@ public class BsonConverter implements Converter {
 
 
         if(unresolvedCls.getSuperclass().equals(Number.class)) {
-
+            // TODO: 18. 12. 5 handle subclass type of Number
         }
 
         try {
@@ -170,24 +169,17 @@ public class BsonConverter implements Converter {
     }
 
     private Object resolveKvMap(final Map<?, ?> map, Class cls) throws IllegalAccessException, InstantiationException {
-        final Object resolved = cls.newInstance();
+        final Object object = cls.newInstance();
         Observable.fromArray(cls.getDeclaredFields())
-                .filter(new Predicate<Field>() {
-                    @Override
-                    public boolean test(Field field) throws Exception {
-                        return map.containsKey(field.getName());
-                    }
-                })
-                .doOnNext(new Consumer<Field>() {
-                    @Override
-                    public void accept(Field field) throws Exception {
-                        field.setAccessible(true);
-                        field.set(resolved, map.get(field.getName()));
-                    }
-                })
-                .blockingSubscribe();
+                .filter(field -> map.containsKey(field.getName()))
+                .blockingSubscribe(field -> {
+                    final Type fieldType = field.getGenericType();
+                    Object resolvedField = resolve(map.get(field.getName()), fieldType);
+                    field.setAccessible(true);
+                    field.set(object, resolvedField);
+                });
 
-        return resolved;
+        return object;
     }
 
 }

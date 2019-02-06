@@ -97,12 +97,7 @@ public class RMIController {
                 });
 
         Single<HashMap<String, Endpoint>> endpointLookupSingle = endpointObservable
-                .collectInto(new HashMap<String, Endpoint>(), new BiConsumer<HashMap<String, Endpoint>, Endpoint>() {
-                    @Override
-                    public void accept(HashMap<String, Endpoint> stringEndpointHashMap, Endpoint endpoint) throws Exception {
-                        RMIController.collectMethod(stringEndpointHashMap, endpoint);
-                    }
-                });
+                .collectInto(new HashMap<>(), (stringEndpointHashMap, endpoint) -> RMIController.collectMethod(stringEndpointHashMap, endpoint));
 
         return Observable.just(RMIController.builder())
                 .map(new Function<RMIControllerBuilder, RMIControllerBuilder>() {
