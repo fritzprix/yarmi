@@ -130,14 +130,14 @@ public class Response<T> {
      */
     public void resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         if(type instanceof ParameterizedType) {
-            Class rawCls = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
+            Class rawCls = Class.forName(Types.getTypeName(((ParameterizedType) type).getRawType()));
             if(Types.isCastable(body, rawCls)) {
                 // ex > Bson4Jackson parsed as collections like ArrayList<String>
                 // however, if there is recursive type parameters like ArrayList<ArrayList<String>>
                 return;
             }
         } else {
-            Class rawCls = Class.forName(type.getTypeName());
+            Class rawCls = Class.forName(Types.getTypeName(type));
             if(Types.isCastable(body, rawCls)) {
                 return;
             }
