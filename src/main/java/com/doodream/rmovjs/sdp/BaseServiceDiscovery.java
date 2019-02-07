@@ -3,12 +3,10 @@ package com.doodream.rmovjs.sdp;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
-import io.reactivex.*;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.Action;
-import io.reactivex.functions.Consumer;
-import io.reactivex.functions.Function;
-import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
 import lombok.NonNull;
 import org.slf4j.Logger;
@@ -92,69 +90,39 @@ public abstract class BaseServiceDiscovery implements ServiceDiscovery {
         listener.onDiscoveryStarted();
 
         disposableMap.put(service, Observable.create(serviceInfoSource)
-                .doOnNext(new Consumer<RMIServiceInfo>() {
-                    @Override
-                    public void accept(RMIServiceInfo svcInfo) throws Exception {
-                        Log.trace("received info : {}", svcInfo);
+                .onErrorReturn(throwable -> RMIServiceInfo.builder().build())
+                .filter(discovered -> {
+                    Log.trace("received info : {}", discovered);
+                    if(!once) {
+                        return true;
                     }
+                    return discoveryCache.add(discovered);
                 })
-                .onErrorReturn(new Function<Throwable, RMIServiceInfo>() {
-                    @Override
-                    public RMIServiceInfo apply(Throwable throwable) throws Exception {
-                        return RMIServiceInfo.builder().build();
-                    }
-                })
-                .filter(new Predicate<RMIServiceInfo>() {
-                    @Override
-                    public boolean test(RMIServiceInfo discovered) throws Exception {
-                        if(!once) {
-                            return true;
-                        }
-                        return discoveryCache.add(discovered);
-                    }
-                })
-                .filter(new Predicate<RMIServiceInfo>() {
-                    @Override
-                    public boolean test(RMIServiceInfo rmiServiceInfo) throws Exception {
-                        return info.equals(rmiServiceInfo);
-                    }
-                })
-                .doOnNext(new Consumer<RMIServiceInfo>() {
-                    @Override
-                    public void accept(RMIServiceInfo discovered) throws Exception {
-                        Log.debug("Discovered New Service : {} @ {}", discovered.getName(), discovered.getProxyFactoryHint());
-                        info.copyFrom(discovered);
-                    }
+                .filter(rmiServiceInfo -> info.equals(rmiServiceInfo))
+                .doOnNext(discovered -> {
+                    Log.debug("Discovered New Service : {} @ {}", discovered.getName(), discovered.getProxyFactoryHint());
+                    info.copyFrom(discovered);
                 })
                 .timeout(timeout, unit)
-                .doOnDispose(new Action() {
-                    @Override
-                    public void run() throws Exception {
-                        onStopDiscovery();
-                        disposableMap.remove(service);
-                        listener.onDiscoveryFinished();
-                    }
+                .doOnDispose(() -> {
+                    onStopDiscovery();
+                    disposableMap.remove(service);
+                    listener.onDiscoveryFinished();
                 })
                 .subscribeOn(Schedulers.io())
-                .subscribe(listener::onDiscovered, new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Exception {
-                        if(throwable instanceof TimeoutException) {
-                            Log.debug("Discovery Timeout");
-                        } else {
-                            Log.warn("{}", throwable);
-                        }
-                        onStopDiscovery();
-                        disposableMap.remove(service);
-                        listener.onDiscoveryFinished();
+                .subscribe(rmiServiceInfo -> listener.onDiscovered(rmiServiceInfo), throwable -> {
+                    if (throwable instanceof TimeoutException) {
+                        Log.debug("Discovery Timeout");
+                    } else {
+                        Log.warn("{}", throwable);
                     }
-                }, new Action() {
-                    @Override
-                    public void run() throws Exception {
-                        onStopDiscovery();
-                        disposableMap.remove(service);
-                        listener.onDiscoveryFinished();
-                    }
+                    onStopDiscovery();
+                    disposableMap.remove(service);
+                    listener.onDiscoveryFinished();
+                }, () -> {
+                    onStopDiscovery();
+                    disposableMap.remove(service);
+                    listener.onDiscoveryFinished();
                 }));
     }
 

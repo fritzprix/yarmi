@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.model;
 
+import com.doodream.rmovjs.net.SimpleServiceProxy;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionCommand;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
@@ -21,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.Collection;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -123,21 +123,21 @@ public class Response<T> {
     /**
      * response is generic container and conveys no type information in itself, which means any deserializer
      * would be not able to handle deserialization of the body field, which is generic, properly.
-     * this method is called when response is received from the server by {@link com.doodream.rmovjs.net.BaseServiceProxy}
+     * this method is called when response is received from the server by {@link SimpleServiceProxy}
      *
      * @param converter converter implementation
      * @param type {@link Type} for body content
      */
     public void resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         if(type instanceof ParameterizedType) {
-            Class rawCls = Class.forName(((ParameterizedType) type).getRawType().getTypeName());
+            Class rawCls = Class.forName(Types.getTypeName(((ParameterizedType) type).getRawType()));
             if(Types.isCastable(body, rawCls)) {
                 // ex > Bson4Jackson parsed as collections like ArrayList<String>
                 // however, if there is recursive type parameters like ArrayList<ArrayList<String>>
                 return;
             }
         } else {
-            Class rawCls = Class.forName(type.getTypeName());
+            Class rawCls = Class.forName(Types.getTypeName(type));
             if(Types.isCastable(body, rawCls)) {
                 return;
             }

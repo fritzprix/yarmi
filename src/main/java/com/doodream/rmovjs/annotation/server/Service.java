@@ -1,7 +1,8 @@
 package com.doodream.rmovjs.annotation.server;
 
 
-import com.doodream.rmovjs.net.RMINegotiator;
+import com.doodream.rmovjs.annotation.parameter.AdapterParam;
+import com.doodream.rmovjs.net.Negotiator;
 import com.doodream.rmovjs.net.ServiceAdapter;
 import com.doodream.rmovjs.net.SimpleNegotiator;
 import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
@@ -22,11 +23,16 @@ import java.lang.annotation.RetentionPolicy;
  */
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Service {
+
     /**
      * the name of service
      * @return name of service
      */
     String name();
+
+
+    String provider();
+
 
     /**
      * class of network adapter implementation upon which service depend.
@@ -40,9 +46,9 @@ public @interface Service {
      * the order of parameters will be kept in the process of ser-der.
      * @return parameters to adapter constructor
      */
-    String[] params() default {};
+    AdapterParam[] params() default {};
 
-    Class<? extends RMINegotiator> negotiator() default SimpleNegotiator.class;
+    Class<? extends Negotiator> negotiator() default SimpleNegotiator.class;
 
     Class<? extends Converter> converter() default BsonConverter.class;
 }

@@ -12,6 +12,8 @@ import java.util.regex.Pattern;
 
 public class Types {
     private static final Logger Log = LoggerFactory.getLogger(Types.class);
+    private static final String CLASS_PREFIX = "class ";
+    private static final String INTERFACE_PREFIX = "interface ";
     private static Pattern INTERNAL_TYPE_SELECTOR_PATTERN = Pattern.compile("([^\\<\\>]+)\\<([\\s\\S]+)\\>");
 
     public static Type[] unwrapType(String typeName) throws ClassNotFoundException, IllegalArgumentException {
@@ -27,22 +29,23 @@ public class Types {
                     matcher = INTERNAL_TYPE_SELECTOR_PATTERN.matcher(s);
                     if(matcher.matches()) {
                         final Type rawClass = Class.forName(matcher.group(1));
-                        types.add(new ParameterizedType() {
-                            @Override
-                            public Type[] getActualTypeArguments() {
-                                return parameters;
-                            }
-
-                            @Override
-                            public Type getRawType() {
-                                return rawClass;
-                            }
-
-                            @Override
-                            public Type getOwnerType() {
-                                return null;
-                            }
-                        });
+                        types.add(getType((Class<?>) rawClass, parameters));
+//                        types.add(new ParameterizedType() {
+//                            @Override
+//                            public Type[] getActualTypeArguments() {
+//                                return parameters;
+//                            }
+//
+//                            @Override
+//                            public Type getRawType() {
+//                                return rawClass;
+//                            }
+//
+//                            @Override
+//                            public Type getOwnerType() {
+//                                return null;
+//                            }
+//                        });
                     }
                 } catch (IllegalArgumentException e) {
                     types.add(Class.forName(s));
@@ -134,5 +137,16 @@ public class Types {
                 return null;
             }
         };
+    }
+
+    public static String getTypeName(Type type) {
+        final String clsName = type.toString();
+        if(clsName.startsWith(CLASS_PREFIX)) {
+            return clsName.replace(CLASS_PREFIX,"");
+        }
+        if(clsName.startsWith(INTERFACE_PREFIX)) {
+            return clsName.replace(INTERFACE_PREFIX, "");
+        }
+        return clsName;
     }
 }
