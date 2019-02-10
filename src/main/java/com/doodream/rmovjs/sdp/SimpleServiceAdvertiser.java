@@ -7,17 +7,12 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.*;
 import io.reactivex.schedulers.Schedulers;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -53,6 +48,13 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
         final MulticastSocket socket = new MulticastSocket(BROADCAST_PORT);
         socket.setInterface(inf);
         socket.setTimeToLive(2);
+
+        compositeDisposable.add(tickObservable
+                .map(l -> info)
+                .map(i -> buildLocalPacket(i, converter))
+                .doOnNext(packet -> sendToLocalHost(packet))
+                .subscribeOn(Schedulers.io())
+                .subscribe());
 
 
         Observable<DatagramPacket> packetObservable = tickObservable
@@ -101,6 +103,17 @@ public class SimpleServiceAdvertiser implements ServiceAdvertiser {
         Log.error(throwable.getLocalizedMessage());
     }
 
+
+    private DatagramPacket buildLocalPacket(RMIServiceInfo i, Converter converter) throws UnsupportedEncodingException, UnknownHostException {
+        byte[] infoByteString = converter.convert(i);
+        return new DatagramPacket(infoByteString, infoByteString.length, new InetSocketAddress(BROADCAST_PORT));
+    }
+
+    private void sendToLocalHost(DatagramPacket datagramPacket) throws IOException {
+        DatagramSocket socket = new DatagramSocket();
+        socket.send(datagramPacket);
+        socket.close();
+    }
 
     private DatagramPacket buildMulticastPacket(RMIServiceInfo info, Converter converter) throws UnsupportedEncodingException, UnknownHostException {
         byte[] infoByteString = converter.convert(info);

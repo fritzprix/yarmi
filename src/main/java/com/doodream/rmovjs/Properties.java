@@ -26,4 +26,8 @@ public class Properties {
     public static String getVersionString() {
         return PROPERTIES.getProperty("version", "0.0.1");
     }
+
+    public static Integer getPoolProxyParallelism() {
+        return Integer.valueOf(PROPERTIES.getProperty("proxy.pool.parallelism", "10"));
+    }
 }

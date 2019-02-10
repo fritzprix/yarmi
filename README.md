@@ -158,7 +158,7 @@ public static class SimpleClient {
     
                 @Override
                 public void onDiscoveryFinished() {
-                    // pick RMIServiceProxy and create client
+                    ServiceProxy
                     if(discoveredService == null) {
                         return;
                     }

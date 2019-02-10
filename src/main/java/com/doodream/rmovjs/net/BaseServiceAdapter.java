@@ -20,10 +20,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InterfaceAddress;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 
 public abstract class BaseServiceAdapter implements ServiceAdapter {
 
@@ -36,7 +32,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
         if(listen) {
             throw new IllegalStateException("service already listening");
         }
-        final RMINegotiator negotiator = (RMINegotiator) serviceInfo.getNegotiator().newInstance();
+        final Negotiator negotiator = (Negotiator) serviceInfo.getNegotiator().newInstance();
         Preconditions.checkNotNull(negotiator, "fail to resolve %s", serviceInfo.getNegotiator());
         Preconditions.checkNotNull(converter, "fail to resolve %s", serviceInfo.getConverter());
         Preconditions.checkNotNull(network, "no network interface given");

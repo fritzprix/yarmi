@@ -3,12 +3,15 @@ package com.doodream.rmovjs.net;
 import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.Response;
+import com.doodream.rmovjs.net.session.NotImplementedException;
+import io.reactivex.disposables.Disposable;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-public interface RMIServiceProxy {
-        RMIServiceProxy NULL_PROXY = new RMIServiceProxy() {
+public interface ServiceProxy {
+        ServiceProxy NULL_PROXY = new ServiceProxy() {
+            private Disposable measurementDisposable;
             @Override
             public void open() {
                 // NO OP
@@ -29,29 +32,21 @@ public interface RMIServiceProxy {
                 // NO OP
             }
 
-            @Override
-            public void startPeriodicQosUpdate(long timeout, long interval, TimeUnit timeUnit) {
-                // NO OP
-            }
-
-            @Override
-            public void stopPeriodicQosUpdate() {
-                // NO OP
-            }
-
-            @Override
-            public Long getQosUpdate(long timeout) {
-                return Long.MAX_VALUE;
-            }
-
-            @Override
-            public Long getQosMeasured() {
-                return Long.MAX_VALUE;
-            }
 
             @Override
             public String who() {
                 return Integer.toHexString(hashCode());
+            }
+
+            @Override
+            public void startQosMeasurement(long interval, long timeout, TimeUnit timeUnit, QosListener listener) {
+                throw new NotImplementedException();
+            }
+
+
+            @Override
+            public void stopQosMeasurement(QosListener listener) {
+                throw new NotImplementedException();
             }
 
             @Override
@@ -71,10 +66,8 @@ public interface RMIServiceProxy {
         boolean isOpen();
         Response request(Endpoint endpoint, long timeoutMilliSec, Object ...args) throws IOException;
         void close() throws IOException;
-        void startPeriodicQosUpdate(long timeout, long interval, TimeUnit timeUnit);
-        void stopPeriodicQosUpdate();
-        Long getQosUpdate(long timeout);
-        Long getQosMeasured();
         String who();
+        void startQosMeasurement(long interval, long timeout, TimeUnit timeUnit, QosListener listener);
+        void stopQosMeasurement(QosListener listener);
         boolean provide(Class controller);
 }
