@@ -41,9 +41,36 @@ yarmi is yet-another remote method invocation framework for simple distributed s
         <dependency>
             <groupId>com.doodream</groupId>
             <artifactId>yarmi-core</artifactId>
-            <version>0.0.5</version>
+            <version>0.0.6</version>
         </dependency>
 </dependencies>
+```
+
+
+#### Using Gradle
+1. Add Repository
+```groovy
+allprojects {
+    repositories {
+        ...
+        maven {
+            url 'https://raw.githubusercontent.com/fritzprix/yarmi/releases'
+        }
+        maven {
+            url 'https://raw.githubusercontent.com/fritzprix/yarmi/snapshots'
+        }
+        ...
+    }
+}
+```
+2. Add Dependency
+```groovy
+dependencies {
+...
+    implementation 'com.doodream:yarmi-core:0.0.6'
+    annotationProcessor 'org.projectlombok:lombok:1.16.18'
+...
+}
 ```
 
 #### Build Service (Server)
@@ -115,7 +142,7 @@ public class UserIDControllerImpl implements UserIDPController {
 ``` 
 3. Declare your service with route configuration
 ```java
-@Service(name = "test-service",
+@Service(name = "test-service",provider = "com.example",
         params = {"6644"})
 public class TestService {
 
