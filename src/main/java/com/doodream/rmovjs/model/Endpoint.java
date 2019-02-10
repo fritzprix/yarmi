@@ -104,7 +104,7 @@ public class Endpoint {
                 .doOnNext(param -> param.setOrder(order.getAndIncrement()))
                 .toList().blockingGet();
 
-        final String methodLookupKey = String.format("%x%x%x", method.hashCode(), controller.path().hashCode(), paramUnique.hashCode()).toUpperCase();
+        final String methodLookupKey = String.format("%x%x%x", rmiMethod.name().hashCode(), controller.path().hashCode(), paramUnique.hashCode()).toUpperCase();
         Type retType;
         try {
             retType = Types.unwrapType(method.getGenericReturnType().toString())[0];
