@@ -41,7 +41,7 @@ yarmi is yet-another remote method invocation framework for simple distributed s
         <dependency>
             <groupId>com.doodream</groupId>
             <artifactId>yarmi-core</artifactId>
-            <version>0.0.6</version>
+            <version>0.0.7</version>
         </dependency>
 </dependencies>
 ```
@@ -67,7 +67,7 @@ allprojects {
 ```groovy
 dependencies {
 ...
-    implementation 'com.doodream:yarmi-core:0.0.6'
+    implementation 'com.doodream:yarmi-core:0.0.7'
     annotationProcessor 'org.projectlombok:lombok:1.16.18'
 ...
 }
@@ -142,8 +142,11 @@ public class UserIDControllerImpl implements UserIDPController {
 ``` 
 3. Declare your service with route configuration
 ```java
-@Service(name = "test-service",provider = "com.example",
-        params = {"6644"})
+@Service(name = "test-service",
+         provider = "com.example",
+         params = {
+            @AdapterParam(key=TcpServiceAdapter.PARAM_PORT, value = "6644")
+         })
 public class TestService {
 
     @Controller(path = "/user", version = 1, module = UserIDControllerImpl.class)
@@ -185,7 +188,6 @@ public static class SimpleClient {
     
                 @Override
                 public void onDiscoveryFinished() {
-                    ServiceProxy
                     if(discoveredService == null) {
                         return;
                     }
