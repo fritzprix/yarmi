@@ -123,8 +123,6 @@ public class Response<T> {
             Class rawCls = Class.forName(Types.getTypeName(type));
             if(Types.isCastable(body, rawCls)) {
                 return;
-            } else {
-                Log.error("fail to handle {} {}", getBody(), type);
             }
         }
 

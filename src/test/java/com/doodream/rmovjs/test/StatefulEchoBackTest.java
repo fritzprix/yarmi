@@ -4,22 +4,20 @@ import com.doodream.rmovjs.client.RMIClient;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.ServiceProxy;
+import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.sdp.SilentServiceAdvertiser;
 import com.doodream.rmovjs.server.RMIService;
 import com.doodream.rmovjs.test.service.*;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.*;
+import org.junit.runners.MethodSorters;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-public class EchoBackTest {
-
-    private static final Logger Log = LoggerFactory.getLogger(EchoBackTest.class);
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
+// some test cases are affected by test order
+public class StatefulEchoBackTest {
 
     private static final SilentServiceAdvertiser serviceAdvertiser = new SilentServiceAdvertiser();
     private static RMIService service;
@@ -232,6 +230,40 @@ public class EchoBackTest {
 
         RMIClient.destroy(client);
     }
+
+    @Test
+    public void K_uploadBlobTest() throws Exception {
+        byte[] zeroFill = new byte[1 << 18];
+        Arrays.fill(zeroFill, (byte) 0xA);
+        BlobSession session = new BlobSession((ses) -> {
+            try {
+                ses.write(zeroFill, zeroFill.length);
+            } catch (IOException ignored) {
+
+            }
+            finally {
+                try {
+                    ses.close();
+                } catch (IOException ignored) {
+
+                }
+            }
+        });
+
+        final Object client = buildNewClient();
+        final EchoBackController controller = (EchoBackController) client;
+        final Response<Long> response = controller.sendBlob(session);
+        Assert.assertNotNull(response);
+        Assert.assertTrue(response.isSuccessful());
+
+        Assert.assertEquals(Long.valueOf(0L), response.getBody());
+        Assert.assertFalse(response.hasScm());
+        Assert.assertFalse(response.isHasSessionSwitch());
+        Assert.assertEquals(Response.SUCCESS, response.getCode());
+
+        RMIClient.destroy(client);
+    }
+
 
     private Object buildNewClient() {
         final ServiceProxy proxy = RMIServiceInfo.toServiceProxy(serviceAdvertiser.getServiceInfo());

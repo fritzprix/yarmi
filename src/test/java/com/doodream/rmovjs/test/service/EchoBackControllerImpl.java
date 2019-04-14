@@ -2,12 +2,18 @@ package com.doodream.rmovjs.test.service;
 
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.session.BlobSession;
+import com.doodream.rmovjs.net.session.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 public class EchoBackControllerImpl implements EchoBackController {
+    private static final Logger Log = LoggerFactory.getLogger(EchoBackControllerImpl.class);
+    private volatile long binarySize = 0L;
 
     @Override
     public Response<String> sendMessage(String msg) {
@@ -61,6 +67,33 @@ public class EchoBackControllerImpl implements EchoBackController {
 
     @Override
     public Response<Long> sendBlob(BlobSession data) {
-        return null;
+        Session session = null;
+        Log.debug("send blob");
+        try {
+            session = data.open();
+            byte[] rbuf = new byte[1 << 16];
+            int sz;
+            binarySize = 0;
+            while((sz = session.read(rbuf,0, rbuf.length)) > 0) {
+                binarySize += sz;
+                Log.debug("sz {} / {}", sz, binarySize);
+
+            }
+        } catch (IOException ignored) { } finally {
+            if(session != null) {
+                try {
+                    session.close();
+                } catch (IOException ignored) { }
+            }
+        }
+        return Response.success(0L);
     }
+
+    @Override
+    public Response<Long> getBlobSize(Long id) {
+        Log.debug("val : {}", binarySize);
+        return Response.success(binarySize);
+    }
+
+
 }

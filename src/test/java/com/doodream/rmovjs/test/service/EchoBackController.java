@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.test.service;
 
+import com.doodream.rmovjs.annotation.method.Get;
 import com.doodream.rmovjs.annotation.method.Put;
 import com.doodream.rmovjs.annotation.parameter.Body;
 import com.doodream.rmovjs.annotation.parameter.Query;
@@ -45,5 +46,8 @@ public interface EchoBackController {
 
     @Put("/send/data")
     Response<Long> sendBlob(@Body(name = "data") BlobSession data);
+
+    @Get("/data/size")
+    Response<Long> getBlobSize(@Query(name = "id") Long id);
 
 }

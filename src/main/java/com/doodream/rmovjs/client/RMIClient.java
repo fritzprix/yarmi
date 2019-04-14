@@ -157,8 +157,8 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         }
 
         final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
-        Set<Method> validMethods = Observable.fromIterable(controllerMap.keySet())
-                .flatMap(cls -> extractRMIMethods(cls))
+        Set<Method> validMethods = Observable.fromIterable(controllerMap.entrySet())
+                .flatMap(entry -> extractRMIMethods(entry.getKey()))
                 .collectInto(new HashSet<Method>(), (methods, method) -> methods.add(method))
                 .blockingGet();
 
