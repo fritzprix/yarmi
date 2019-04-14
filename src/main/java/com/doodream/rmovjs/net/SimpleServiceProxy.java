@@ -63,7 +63,7 @@ public class SimpleServiceProxy implements ServiceProxy {
     private volatile boolean isOpened;
     private final ConcurrentHashMap<String, BlobSession> sessionRegistry;
     private ConcurrentHashMap<Integer, Request> requestWaitQueue;
-    private CompositeDisposable compositeDisposable;
+    private final CompositeDisposable compositeDisposable;
     private Disposable qosUpdateDisposable;
     private AtomicInteger requestId;
     private RMIServiceInfo serviceInfo;
@@ -276,13 +276,18 @@ public class SimpleServiceProxy implements ServiceProxy {
      */
     private synchronized void actualClose() throws IOException {
         isOpened = false;
-        if(!qosUpdateDisposable.isDisposed()) {
-            qosUpdateDisposable.dispose();
+        if(qosUpdateDisposable != null) {
+            if (!qosUpdateDisposable.isDisposed()) {
+                qosUpdateDisposable.dispose();
+            }
         }
-        if(!compositeDisposable.isDisposed()) {
-            compositeDisposable.dispose();
+
+        if(compositeDisposable != null) {
+            if (!compositeDisposable.isDisposed()) {
+                compositeDisposable.dispose();
+            }
+            compositeDisposable.clear();
         }
-        compositeDisposable.clear();
         if(!socket.isClosed()) {
             socket.close();
         }

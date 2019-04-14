@@ -27,10 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.*;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class BsonConverter implements Converter {
     private static final Logger Log = LoggerFactory.getLogger(BsonConverter.class);
@@ -110,6 +107,13 @@ public class BsonConverter implements Converter {
         if(unresolved == null) {
             return null;
         }
+        if(type.equals(Class.class) && (unresolved instanceof String)) {
+            try {
+                return Class.forName((String) unresolved);
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
         Class clsz;
         try {
             if (type instanceof ParameterizedType) {
@@ -123,21 +127,32 @@ public class BsonConverter implements Converter {
         final Class cls = clsz;
         final Class unresolvedCls = unresolved.getClass();
 
-        if(unresolvedCls.equals(LinkedHashMap.class)) {
-            return resolveKvMap((Map<?, ?>) unresolved, cls);
-        }
-
-        if(unresolvedCls.equals(ArrayList.class)) {
+        if(cls.isInterface()) {
             Type[] typeArguments = ((ParameterizedType) type).getActualTypeArguments();
-            if(typeArguments == null || (typeArguments.length == 0)) {
+            if (typeArguments == null || (typeArguments.length == 0)) {
                 return unresolved;
             }
-            ArrayList unresolvedList = (ArrayList) unresolved;
-            return Observable.<ArrayList>fromIterable(unresolvedList).map(new Function() {
-                @Override
-                public Object apply(Object o) throws Exception {
-                    return resolve(o, typeArguments[0]);
-                }}).toList().blockingGet();
+
+            if (cls.equals(List.class)) {
+                ArrayList unresolvedList = (ArrayList) unresolved;
+                return Observable.<ArrayList>fromIterable(unresolvedList).map(o -> resolve(o, typeArguments[0]))
+                        .toList().blockingGet();
+            } else if (cls.equals(Map.class)) {
+                HashMap<?, Object> unresolvedMap = (HashMap) unresolved;
+                Observable.fromIterable(unresolvedMap.entrySet())
+                        .map(entry -> {
+                            entry.setValue(resolve(entry.getValue(), typeArguments[1]));
+                            return entry;
+                        }).blockingSubscribe();
+                return unresolvedMap;
+            } else {
+                Log.warn("fail to handle {} {}", unresolved, cls);
+                return unresolved;
+            }
+        } else {
+            if(unresolvedCls.equals(LinkedHashMap.class)) {
+                return resolveKvMap((Map<?, ?>) unresolved, cls);
+            }
         }
 
         if(cls.equals(unresolvedCls) ||
@@ -166,6 +181,22 @@ public class BsonConverter implements Converter {
         }
         return unresolved;
 
+    }
+
+    private Object handleInterface(Object unresolved, Class cls) {
+        try {
+            if (cls.equals(Map.class)) {
+                Constructor constructor = HashMap.class.getConstructor(Map.class);
+                return constructor.newInstance(unresolved);
+            } else if(cls.equals(Set.class)) {
+                Constructor constructor = HashSet.class.getConstructor(Collection.class);
+                return constructor.newInstance(unresolved);
+            }
+        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException | InstantiationException e) {
+            Log.error("", e);
+        }
+        Log.warn("fail to handle {} {}", unresolved, cls);
+        return unresolved;
     }
 
     private Object resolveKvMap(final Map<?, ?> map, Class cls) throws IllegalAccessException, InstantiationException {
