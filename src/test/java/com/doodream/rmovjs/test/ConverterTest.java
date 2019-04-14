@@ -1,12 +1,15 @@
 package com.doodream.rmovjs.test;
 
 
+import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.doodream.rmovjs.serde.bson.BsonConverter;
 import com.doodream.rmovjs.serde.json.JsonConverter;
+import com.doodream.rmovjs.server.RMIService;
+import com.doodream.rmovjs.test.service.TestService;
 import com.doodream.rmovjs.test.service.User;
 import com.doodream.rmovjs.util.Types;
 import io.reactivex.Observable;
@@ -59,10 +62,16 @@ public class ConverterTest {
             Assert.assertTrue(testNumericObject(converter, 100L));
             Assert.assertTrue(testNumericObject(converter, 100));
             Assert.assertTrue(testNumericObject(converter, 1.3));
+            Assert.assertTrue(testServiceInfoObject(converter, RMIServiceInfo.from(TestService.class)));
             Assert.assertTrue(testSimpleObject(converter));
             Assert.assertTrue(testGenericObject(converter));
             Assert.assertTrue(testComplexGeneric(converter));
         }
+    }
+
+    private boolean testServiceInfoObject(Converter converter, RMIServiceInfo from) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
+        RMIServiceInfo serviceInfo = testObjectTransfer(converter, from, RMIServiceInfo.class);
+        return from.equals(serviceInfo);
     }
 
     @Test

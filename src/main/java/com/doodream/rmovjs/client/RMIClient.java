@@ -42,20 +42,20 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
     private ServiceProxy serviceProxy;
     private AtomicInteger ongoingRequestCount;
     private long timeout;
-    private Long measuredPing;
+    private Long responseTime;
     private volatile boolean markToClose;
 
     private RMIClient(ServiceProxy serviceProxy, long timeout, long pingUpdatePeriod, TimeUnit timeUnit, QosListener listener) {
         this.serviceProxy = serviceProxy;
         markToClose = false;
-        measuredPing = Long.MAX_VALUE;
+        responseTime = Long.MAX_VALUE;
         this.timeout = timeUnit.toMillis(timeout);
         ongoingRequestCount = new AtomicInteger(0);
         if(pingUpdatePeriod > 0L) {
             serviceProxy.startQosMeasurement(pingUpdatePeriod, timeout, timeUnit, new QosListener() {
                 @Override
                 public void onQosUpdated(final ServiceProxy proxy, long measuredRttInMill) {
-                    measuredPing = measuredRttInMill;
+                    responseTime = measuredRttInMill;
                     if(listener != null) {
                         listener.onQosUpdated(proxy, measuredRttInMill);
                     }
@@ -63,7 +63,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
                 @Override
                 public void onError(final ServiceProxy proxy, Throwable throwable) {
-                    measuredPing = Long.MAX_VALUE;
+                    responseTime = Long.MAX_VALUE;
                     if(listener != null) {
                         listener.onError(proxy, throwable);
                     }
@@ -79,7 +79,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
      */
     public static long getMeasuredQoS(Object proxy) {
         return forEachClient(proxy)
-                .blockingFirst().getMeasuredPing();
+                .blockingFirst().getResponseDelay();
     }
 
     /**
@@ -343,11 +343,11 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
     @Override
     public int compareTo(@NotNull RMIClient o) {
-        return Math.toIntExact(getMeasuredPing() - o.getMeasuredPing());
+        return Math.toIntExact(getResponseDelay() - o.getResponseDelay());
     }
 
-    private long getMeasuredPing() {
-        return measuredPing;
+    private long getResponseDelay() {
+        return responseTime;
     }
 
     String who() {
