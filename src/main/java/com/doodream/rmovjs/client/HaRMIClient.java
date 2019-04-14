@@ -221,7 +221,7 @@ public class HaRMIClient<T> implements InvocationHandler {
             return;
         }
         if (discoveredProxySet.add(serviceProxy.who())) {
-            clients.add(RMIClient.createClient(serviceProxy, svc, controller, qosFactor, qosUpdateTime, qosUpdateTimeUnit, new QosListener() {
+            clients.add(RMIClient.createClient(serviceProxy, svc, new Class[]{ controller }, qosFactor, qosUpdateTime, qosUpdateTimeUnit, new QosListener() {
                 @Override
                 public void onQosUpdated(final ServiceProxy proxy, long measuredRttInMill) {
 

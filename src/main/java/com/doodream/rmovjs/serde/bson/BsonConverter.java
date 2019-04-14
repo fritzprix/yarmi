@@ -11,14 +11,10 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import de.undercouch.bson4jackson.BsonFactory;
 import de.undercouch.bson4jackson.BsonGenerator;
 import de.undercouch.bson4jackson.BsonParser;
 import io.reactivex.Observable;
-import io.reactivex.functions.Consumer;
-import io.reactivex.functions.Function;
-import io.reactivex.functions.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BsonConverter implements Converter {
     private static final Logger Log = LoggerFactory.getLogger(BsonConverter.class);
@@ -145,6 +142,13 @@ public class BsonConverter implements Converter {
                             return entry;
                         }).blockingSubscribe();
                 return unresolvedMap;
+            } else if (cls.equals(Set.class)) {
+                HashSet<Object> unresolvedSet = new HashSet<>((List<Object>)unresolved);
+                final Set<Object> resolvedSet = Collections.newSetFromMap(new ConcurrentHashMap<>());
+                Observable.fromIterable(unresolvedSet)
+                        .map(v -> resolve(v, typeArguments[0]))
+                        .blockingSubscribe(v -> resolvedSet.add(v));
+                return resolvedSet;
             } else {
                 Log.warn("fail to handle {} {}", unresolved, cls);
                 return unresolved;

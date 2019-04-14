@@ -2,8 +2,8 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.annotation.server.Service;
-import com.doodream.rmovjs.net.ServiceProxy;
 import com.doodream.rmovjs.net.ServiceAdapter;
+import com.doodream.rmovjs.net.ServiceProxy;
 import com.doodream.rmovjs.server.RMIController;
 import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
@@ -11,7 +11,6 @@ import io.reactivex.Single;
 import io.reactivex.functions.Function;
 import lombok.*;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
