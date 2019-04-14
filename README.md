@@ -3,7 +3,7 @@
 yarmi is yet-another remote method invocation framework for simple distributed service architecture which provides service discovery mechanism out of the box.
  
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/5c9f40d574c64e629af11f284c447bea)](https://www.codacy.com/app/innocentevil0914/yarmi?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fritzprix/yarmi&amp;utm_campaign=Badge_Grade)
-
+![Travis Badge](https://travis-ci.com/fritzprix/yarmi.svg?branch=master)
 ### Features
 1. Simple APIs
 >  discover and request service with just a few API calls
