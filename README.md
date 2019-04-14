@@ -3,7 +3,7 @@
 yarmi is yet-another remote method invocation framework for simple distributed service architecture which provides service discovery mechanism out of the box.
  
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/5c9f40d574c64e629af11f284c447bea)](https://www.codacy.com/app/innocentevil0914/yarmi?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fritzprix/yarmi&amp;utm_campaign=Badge_Grade)
-
+![Travis Badge](https://travis-ci.com/fritzprix/yarmi.svg?branch=master)
 ### Features
 1. Simple APIs
 >  discover and request service with just a few API calls
@@ -41,7 +41,7 @@ yarmi is yet-another remote method invocation framework for simple distributed s
         <dependency>
             <groupId>com.doodream</groupId>
             <artifactId>yarmi-core</artifactId>
-            <version>0.0.6</version>
+            <version>0.0.7</version>
         </dependency>
 </dependencies>
 ```
@@ -67,7 +67,7 @@ allprojects {
 ```groovy
 dependencies {
 ...
-    implementation 'com.doodream:yarmi-core:0.0.6'
+    implementation 'com.doodream:yarmi-core:0.0.7'
     annotationProcessor 'org.projectlombok:lombok:1.16.18'
 ...
 }
@@ -142,8 +142,11 @@ public class UserIDControllerImpl implements UserIDPController {
 ``` 
 3. Declare your service with route configuration
 ```java
-@Service(name = "test-service",provider = "com.example",
-        params = {"6644"})
+@Service(name = "test-service",
+         provider = "com.example",
+         params = {
+            @AdapterParam(key=TcpServiceAdapter.PARAM_PORT, value = "6644")
+         })
 public class TestService {
 
     @Controller(path = "/user", version = 1, module = UserIDControllerImpl.class)
@@ -185,7 +188,6 @@ public static class SimpleClient {
     
                 @Override
                 public void onDiscoveryFinished() {
-                    ServiceProxy
                     if(discoveredService == null) {
                         return;
                     }

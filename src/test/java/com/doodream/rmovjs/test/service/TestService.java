@@ -5,7 +5,9 @@ import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.annotation.server.Service;
 import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
 
-@Service(name = "test-service",provider = "www.doodream.com",
+@Service(
+        name = "test-service",
+        provider = "www.doodream.com",
         params = {
             @AdapterParam(key= TcpServiceAdapter.PARAM_PORT, value = "6644")
         })
