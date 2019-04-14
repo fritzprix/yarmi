@@ -23,8 +23,8 @@
       <snapshotVersion>
         <classifier>jar-with-dependencies</classifier>
         <extension>jar</extension>
-        <value>0.1.0-20190414.134156-2</value>
-        <updated>20190414134156</updated>
+        <value>0.1.0-20190414.135838-3</value>
+        <updated>20190414135838</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>
