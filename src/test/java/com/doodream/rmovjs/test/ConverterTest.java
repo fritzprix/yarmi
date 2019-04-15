@@ -39,7 +39,7 @@ public class ConverterTest {
         );
     }
 
-    @Test
+//    @Test
     public void testNetworkInterface() throws SocketException {
         List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
         Assert.assertNotNull(interfaces);
@@ -53,7 +53,7 @@ public class ConverterTest {
         }
     }
 
-    @Test
+//    @Test
     public void converterSerDeserTest() throws ClassNotFoundException, IOException, InstantiationException, IllegalAccessException {
         for (Converter converter : converters) {
             Assert.assertTrue(testPrimitiveType(converter, 1.3, double.class));
@@ -74,7 +74,7 @@ public class ConverterTest {
         return from.equals(serviceInfo);
     }
 
-    @Test
+//    @Test
     public void testef() {
         Observable.just(Void.class)
                 .doOnNext(cls -> System.out.println(cls.getTypeName()))

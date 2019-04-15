@@ -1,6 +1,5 @@
 package com.doodream.rmovjs.parameter;
 
-import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.util.Types;
 import com.google.gson.Gson;

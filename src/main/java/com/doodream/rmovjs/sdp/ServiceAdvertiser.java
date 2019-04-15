@@ -1,7 +1,6 @@
 package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.serde.Converter;
 
 import java.io.IOException;
 import java.net.InetAddress;

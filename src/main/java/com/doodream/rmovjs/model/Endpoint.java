@@ -13,10 +13,6 @@ import com.doodream.rmovjs.util.Types;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import io.reactivex.functions.BiFunction;
-import io.reactivex.functions.Consumer;
-import io.reactivex.functions.Function;
-import io.reactivex.functions.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,7 +26,6 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
