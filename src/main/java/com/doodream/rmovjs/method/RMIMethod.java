@@ -1,9 +1,6 @@
 package com.doodream.rmovjs.method;
 
-import com.doodream.rmovjs.annotation.method.Delete;
-import com.doodream.rmovjs.annotation.method.Get;
-import com.doodream.rmovjs.annotation.method.Post;
-import com.doodream.rmovjs.annotation.method.Put;
+import com.doodream.rmovjs.annotation.method.*;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -16,7 +13,8 @@ public enum RMIMethod {
     GET(Get.class),
     POST(Post.class),
     PUT(Put.class),
-    DELETE(Delete.class);
+    DELETE(Delete.class),
+    EXPOSED_METHOD(RMIExpose.class);
 
     private final Class methodCls;
 
@@ -34,6 +32,8 @@ public enum RMIMethod {
             return GET;
         } else if (DELETE.isTypeOf(methodAnnotation)) {
             return DELETE;
+        } else if (EXPOSED_METHOD.isTypeOf(methodAnnotation)) {
+            return EXPOSED_METHOD;
         }
         throw new IllegalArgumentException("No Matched RMIMethod");
     }
@@ -41,12 +41,10 @@ public enum RMIMethod {
     private boolean isTypeOf(Annotation annotation) {
         switch (this) {
             case DELETE:
-                return methodCls.getName().equalsIgnoreCase(annotation.annotationType().getName());
             case GET:
-                return methodCls.getName().equalsIgnoreCase(annotation.annotationType().getName());
             case POST:
-                return methodCls.getName().equalsIgnoreCase(annotation.annotationType().getName());
             case PUT:
+            case EXPOSED_METHOD:
                 return methodCls.getName().equalsIgnoreCase(annotation.annotationType().getName());
         }
         return false;
@@ -71,6 +69,8 @@ public enum RMIMethod {
             case DELETE:
                 Delete delete = method.getAnnotation(Delete.class);
                 return delete.value();
+            case EXPOSED_METHOD:
+                return "";
             default:
                 throw new IllegalArgumentException("Invalid method");
         }
@@ -80,6 +80,7 @@ public enum RMIMethod {
         return (method.getAnnotation(Get.class) != null) ||
                 (method.getAnnotation(Post.class) != null) ||
                 (method.getAnnotation(Put.class) != null) ||
+                (method.getAnnotation(RMIExpose.class) != null) ||
                 (method.getAnnotation(Delete.class) != null);
     }
 }

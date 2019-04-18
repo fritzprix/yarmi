@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
 
@@ -71,6 +72,9 @@ public class Param<T> {
     public Object resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         if(Types.isCastable(value, type)) {
             return value;
+        }
+        if(Types.isPrimitive(type)) {
+            return Types.primitive(value, type);
         }
         return converter.resolve(value, type);
     }
