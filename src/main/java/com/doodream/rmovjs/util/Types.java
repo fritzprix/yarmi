@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.util;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,5 +149,33 @@ public class Types {
             return clsName.replace(INTERFACE_PREFIX, "");
         }
         return clsName;
+    }
+
+    public static boolean isPrimitive(Type type) {
+        switch (type.getTypeName()) {
+            case "float":
+            case "int":
+            case "double":
+            case "long":
+            case "boolean":
+                return true;
+        }
+        return false;
+    }
+
+    public static <T> Object primitive(T value, Type type) {
+        switch (type.getTypeName()) {
+            case "float":
+                return Float.parseFloat(value.toString());
+            case "int":
+                return Integer.parseInt(value.toString());
+            case "double":
+                return Double.parseDouble(value.toString());
+            case "long":
+                return Long.parseLong(value.toString());
+            case "boolean":
+                return Boolean.parseBoolean(value.toString());
+        }
+        return value;
     }
 }

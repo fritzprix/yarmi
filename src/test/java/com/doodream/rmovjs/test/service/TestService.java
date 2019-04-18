@@ -16,7 +16,12 @@ public class TestService {
     @Controller(path = "/user", version = 1, module = UserIDControllerImpl.class)
     UserIDPController userIDPController;
 
-    @Controller(path = "/message", version = 1, module = EchoBackControllerImpl.class)
-    EchoBackController messageController;
+    @Controller(path = "/echo/object", version = 1, module = EchoBackControllerImpl.class)
+    EchoBackController echoBackController;
+
+    @Controller(path = "/echo/primitive", version = 1, module = PrimitiveEchoBackControllerImpl.class)
+    PrimitiveEchoBackController primitiveEchoBackController;
+
+
 }
 

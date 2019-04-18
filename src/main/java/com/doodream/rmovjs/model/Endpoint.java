@@ -1,10 +1,7 @@
 package com.doodream.rmovjs.model;
 
 
-import com.doodream.rmovjs.annotation.method.Delete;
-import com.doodream.rmovjs.annotation.method.Get;
-import com.doodream.rmovjs.annotation.method.Post;
-import com.doodream.rmovjs.annotation.method.Put;
+import com.doodream.rmovjs.annotation.method.*;
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.net.session.BlobSession;
@@ -120,6 +117,7 @@ public class Endpoint {
     private static boolean verifyMethod(Annotation annotation) {
         Class cls = annotation.annotationType();
         return (cls == Get.class)
+                || (cls == RMIExpose.class)
                 || (cls == Post.class)
                 || (cls == Put.class)
                 || (cls == Delete.class);
