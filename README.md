@@ -198,9 +198,11 @@ public static class SimpleClient {
                             return;
                         }
                         try {
-                                UserIDPController userCtr = RMIClient.create(serviceProxy, TestService.class, UserIDPController.class);
-                                // will be create client-side proxy 
-                                // and use it just like simple method call
+                                Object client = RMIClient.create(serviceProxy, TestService.class, UserIDPController.class);
+                                // will be create client-side proxy
+                                 
+                                // and use it just like local instance
+                                UserIDPController userCtr = (UserIDPController) client;
                                 
                                 User user = new User();
                                 user.setName("David");
