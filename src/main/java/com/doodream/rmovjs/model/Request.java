@@ -1,6 +1,7 @@
 package com.doodream.rmovjs.model;
 
 
+import com.doodream.rmovjs.annotation.RMIException;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.ServiceProxy;
 import com.doodream.rmovjs.net.session.BlobSession;
@@ -39,6 +40,7 @@ public class Request {
     private static final Logger Log = LoggerFactory.getLogger(Request.class);
 
     private transient ClientSocketAdapter client;
+
     private transient Response response;
 
     @SerializedName("session")
@@ -72,6 +74,27 @@ public class Request {
                         .build());
             }
         };
+    }
+
+    public synchronized void setResponse(Response response) {
+        this.response = response;
+        notifyAll();
+    }
+
+    public synchronized Response getResponse(long timeout) throws InterruptedException {
+        if(response != null) {
+            return response;
+        }
+
+        if(timeout > 0) {
+            wait(timeout);
+        } else {
+            wait();
+        }
+        if(response == null) {
+            throw new RMIException(RMIError.TIMEOUT.getResponse());
+        }
+        return response;
     }
 
     public boolean hasScm() {

@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.serde.json;
 
+import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.net.session.SessionCommand;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.serde.Converter;
@@ -12,6 +13,7 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.*;
 
 public class JsonConverter implements Converter {
 
@@ -90,6 +92,7 @@ public class JsonConverter implements Converter {
             })
             .create();
 
+    private ExecutorService executorService = Executors.newWorkStealingPool(Properties.getMaxIOParallelism());
 
 
     @Override
@@ -115,6 +118,19 @@ public class JsonConverter implements Converter {
             public void write(Object src) throws IOException {
                 outputStream.write(convert(src));
             }
+
+            @Override
+            public void write(Object src, long timeout, TimeUnit unit) throws TimeoutException, ExecutionException, InterruptedException {
+                final Future<Boolean> writeTask = executorService.submit(() -> {
+                    try {
+                        outputStream.write(convert(src));
+                        return true;
+                    } catch (IOException e) {
+                        return false;
+                    }
+                });
+                writeTask.get(timeout, unit);
+            }
         };
     }
 
@@ -136,9 +152,4 @@ public class JsonConverter implements Converter {
         }
         return GSON.fromJson(GSON.toJson(unresolved), type);
     }
-
-    public static String toJson(Object src) {
-        return GSON.toJson(src);
-    }
-
 }

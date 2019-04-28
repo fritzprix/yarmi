@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.serde.bson;
 
+import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
@@ -15,6 +16,8 @@ import de.undercouch.bson4jackson.BsonFactory;
 import de.undercouch.bson4jackson.BsonGenerator;
 import de.undercouch.bson4jackson.BsonParser;
 import io.reactivex.Observable;
+import io.reactivex.Scheduler;
+import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,13 +27,15 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.*;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 public class BsonConverter implements Converter {
     private static final Logger Log = LoggerFactory.getLogger(BsonConverter.class);
 
     private ObjectMapper objectMapper;
     private BsonFactory bsonFactory;
+    private ExecutorService executorService = Executors.newWorkStealingPool(Properties.getMaxIOParallelism());
+
     public BsonConverter() {
 
         bsonFactory = new BsonFactory();
@@ -43,6 +48,16 @@ public class BsonConverter implements Converter {
                 .disable(MapperFeature.AUTO_DETECT_IS_GETTERS, MapperFeature.AUTO_DETECT_GETTERS)
                 .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
     }
+
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+        if(executorService.isShutdown() || executorService.isTerminated()) {
+            return;
+        }
+        executorService.shutdown();
+    }
+
     @Override
     public Reader reader(final InputStream inputStream) {
         try {
@@ -65,11 +80,26 @@ public class BsonConverter implements Converter {
     public Writer writer(final OutputStream outputStream) {
         try {
             return new Writer() {
+
                 private BsonGenerator bsonGenerator = bsonFactory.createGenerator(outputStream);
 
                 @Override
                 public synchronized void write(Object src) throws IOException {
                     bsonGenerator.writeObject(src);
+                }
+
+                // => max due time is managed by client policy, instead of I/O configuration
+                @Override
+                public synchronized void write(Object src, long timeout, TimeUnit unit) throws TimeoutException, InterruptedException, ExecutionException {
+                    final Future<Boolean> writeTask = executorService.submit(() -> {
+                        try {
+                            bsonGenerator.writeObject(src);
+                            return true;
+                        } catch (IOException e) {
+                            return false;
+                        }
+                    });
+                    writeTask.get(timeout, unit);
                 }
             };
         } catch (IOException e) {
@@ -185,22 +215,6 @@ public class BsonConverter implements Converter {
         }
         return unresolved;
 
-    }
-
-    private Object handleInterface(Object unresolved, Class cls) {
-        try {
-            if (cls.equals(Map.class)) {
-                Constructor constructor = HashMap.class.getConstructor(Map.class);
-                return constructor.newInstance(unresolved);
-            } else if(cls.equals(Set.class)) {
-                Constructor constructor = HashSet.class.getConstructor(Collection.class);
-                return constructor.newInstance(unresolved);
-            }
-        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException | InstantiationException e) {
-            Log.error("", e);
-        }
-        Log.warn("fail to handle {} {}", unresolved, cls);
-        return unresolved;
     }
 
     private Object resolveKvMap(final Map<?, ?> map, Class cls) throws IllegalAccessException, InstantiationException {

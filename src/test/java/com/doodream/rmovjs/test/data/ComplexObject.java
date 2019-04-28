@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.test.service;
+package com.doodream.rmovjs.test.data;
 
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;

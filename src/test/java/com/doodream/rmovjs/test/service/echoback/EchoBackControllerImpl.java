@@ -1,8 +1,10 @@
-package com.doodream.rmovjs.test.service;
+package com.doodream.rmovjs.test.service.echoback;
 
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.Session;
+import com.doodream.rmovjs.test.data.ComplexObject;
+import com.doodream.rmovjs.test.data.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.test.service;
+package com.doodream.rmovjs.test.data;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

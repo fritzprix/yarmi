@@ -27,7 +27,7 @@ public class Properties {
         return PROPERTIES.getProperty("version", "0.0.1");
     }
 
-    public static Integer getPoolProxyParallelism() {
-        return Integer.valueOf(PROPERTIES.getProperty("proxy.pool.parallelism", "10"));
+    public static Integer getMaxIOParallelism() {
+        return Integer.valueOf(PROPERTIES.getProperty("io.thread.pool.size", "4"));
     }
 }

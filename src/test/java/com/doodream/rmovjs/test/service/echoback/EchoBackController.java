@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.test.service;
+package com.doodream.rmovjs.test.service.echoback;
 
 import com.doodream.rmovjs.annotation.method.Get;
 import com.doodream.rmovjs.annotation.method.Put;
@@ -6,6 +6,8 @@ import com.doodream.rmovjs.annotation.parameter.Body;
 import com.doodream.rmovjs.annotation.parameter.Query;
 import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.session.BlobSession;
+import com.doodream.rmovjs.test.data.ComplexObject;
+import com.doodream.rmovjs.test.data.User;
 import lombok.NonNull;
 
 import java.util.List;
