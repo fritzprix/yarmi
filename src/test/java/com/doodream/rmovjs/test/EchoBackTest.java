@@ -134,20 +134,15 @@ public class EchoBackTest {
         Assert.assertFalse(response.hasScm());
         Assert.assertFalse(response.isHasSessionSwitch());
         Assert.assertEquals(Response.SUCCESS, response.getCode());
-//        RMIClient.destroy(client);
+        RMIClient.destroy(client);
     }
 
     @Test(expected = RMIException.class)
     public void testRequestTimeout() throws Exception {
         Object client = buildNewClient();
         DelayedResponseController controller = (DelayedResponseController) client;
-        try {
-            controller.getDelayedResponse(2000L);
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            RMIClient.destroy(client);
-        }
+        controller.getDelayedResponse(2000L);
+        RMIClient.destroy(client);
     }
 
     @Test
@@ -170,7 +165,7 @@ public class EchoBackTest {
         Assert.assertEquals(Response.SUCCESS, response.getCode());
 
 
-//        RMIClient.destroy(client);
+        RMIClient.destroy(client);
     }
 
     @Test
@@ -190,7 +185,7 @@ public class EchoBackTest {
         Assert.assertFalse(response.isHasSessionSwitch());
         Assert.assertEquals(Response.SUCCESS, response.getCode());
 
-//        RMIClient.destroy(client);
+        RMIClient.destroy(client);
     }
 
     @Test
@@ -252,7 +247,7 @@ public class EchoBackTest {
         RMIClient.destroy(client);
     }
 
-//    @Test
+    @Test
     public void K_uploadBlobTest() throws Exception {
         byte[] zeroFill = new byte[1 << 18];
         Arrays.fill(zeroFill, (byte) 0xA);
@@ -345,24 +340,25 @@ public class EchoBackTest {
         Assert.assertFalse(response.isHasSessionSwitch());
         RMIClient.destroy(client);
     }
-
-    @Test
-    public void testMethodCallBooleanParameter() throws Exception {
-        Object client = buildNewClient();
-        PrimitiveEchoBackController controller = (PrimitiveEchoBackController) client;
-        Response<Boolean> response = controller.echoBackBoolean(true);
-
-        Assert.assertNotNull(response);
-        Assert.assertTrue(response.isSuccessful());
-        Assert.assertEquals(true, response.getBody());
-
-        Assert.assertFalse(response.hasScm());
-        Assert.assertFalse(response.isHasSessionSwitch());
-        RMIClient.destroy(client);
-    }
+//
+//    @Test
+//    public void testMethodCallBooleanParameter() throws Exception {
+//        Object client = buildNewClient();
+//        PrimitiveEchoBackController controller = (PrimitiveEchoBackController) client;
+//        Response<Boolean> response = controller.echoBackBoolean(true);
+//
+//        Assert.assertNotNull(response);
+//        Assert.assertTrue(response.isSuccessful());
+//        Assert.assertEquals(true, response.getBody());
+//
+//        Assert.assertFalse(response.hasScm());
+//        Assert.assertFalse(response.isHasSessionSwitch());
+//        RMIClient.destroy(client);
+//    }
 
 
     private Object buildNewClient() {
+        System.out.println("build client");
 
         return RMIClient.create(proxy, EchoBackService.class, new Class[]{
                 DelayedResponseController.class,

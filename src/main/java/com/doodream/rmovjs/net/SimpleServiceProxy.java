@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.net;
 
+import com.doodream.rmovjs.annotation.RMIException;
 import com.doodream.rmovjs.model.*;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.net.session.SessionCommand;
@@ -63,13 +64,13 @@ public class SimpleServiceProxy implements ServiceProxy {
 
         Negotiator negotiator = (Negotiator) serviceInfo.getNegotiator().newInstance();
         converter = (Converter) serviceInfo.getConverter().newInstance();
-
+        Log.debug("opening proxy...");
         socket.open();
         reader = converter.reader(socket.getInputStream());
         writer = converter.writer(socket.getOutputStream());
         negotiator.handshake(socket, serviceInfo, converter, true);
 
-        Log.trace("open proxy for {} : success", serviceInfo.getName());
+        Log.debug("open proxy for {} : success", serviceInfo.getName());
         isValid = true;
 
         compositeDisposable.add(Observable.<Response>create(emitter -> {
@@ -92,7 +93,7 @@ public class SimpleServiceProxy implements ServiceProxy {
             }
         }).subscribeOn(mListener)
           .subscribe(response -> {
-            Request request = requestWaitQueue.get(response.getNonce());
+            final Request request = requestWaitQueue.get(response.getNonce());
             if (request == null) {
                 Log.warn("no mapped request exists : {}", response);
                 return;
@@ -136,11 +137,9 @@ public class SimpleServiceProxy implements ServiceProxy {
                         } else {
                             writer.write(req);
                         }
-
-
                         return req.getResponse(timeout);
 
-                    } catch (TimeoutException | InterruptedException e) {
+                    } catch (RMIException | InterruptedException e) {
                         return RMIError.TIMEOUT.getResponse();
                     }
                 })

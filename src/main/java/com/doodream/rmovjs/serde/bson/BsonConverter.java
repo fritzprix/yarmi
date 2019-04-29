@@ -63,7 +63,7 @@ public class BsonConverter implements Converter {
         try {
             return new Reader() {
 
-                private BsonParser parser = bsonFactory.createParser(new BufferedInputStream(inputStream));
+                private final BsonParser parser = bsonFactory.createParser(new BufferedInputStream(inputStream));
 
                 @Override
                 public synchronized <T> T read(Class<T> cls) throws IOException {
@@ -81,7 +81,7 @@ public class BsonConverter implements Converter {
         try {
             return new Writer() {
 
-                private BsonGenerator bsonGenerator = bsonFactory.createGenerator(outputStream);
+                private final BsonGenerator bsonGenerator = bsonFactory.createGenerator(outputStream);
 
                 @Override
                 public synchronized void write(Object src) throws IOException {

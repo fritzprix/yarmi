@@ -77,6 +77,7 @@ public class Request {
     }
 
     public synchronized void setResponse(Response response) {
+        Log.debug("notify waiting thread for response {}", nonce);
         this.response = response;
         notifyAll();
     }
@@ -85,15 +86,16 @@ public class Request {
         if(response != null) {
             return response;
         }
-
+        Log.debug("wait for response {} with timeout {}", nonce, timeout);
         if(timeout > 0) {
             wait(timeout);
         } else {
             wait();
         }
         if(response == null) {
-            throw new RMIException(RMIError.TIMEOUT.getResponse());
+            return RMIError.TIMEOUT.getResponse();
         }
+        Log.debug("wake from waiting response {} @ {}", nonce, response);
         return response;
     }
 

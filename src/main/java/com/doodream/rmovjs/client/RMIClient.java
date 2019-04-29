@@ -12,8 +12,6 @@ import com.doodream.rmovjs.net.ServiceProxy;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -213,7 +211,6 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
      * @param ctrl controller definition as interface
      * @return call proxy instance for controller
      */
-    @Nullable
     public static Object create(ServiceProxy serviceProxy, Class<?> svc, Class<?>[] ctrl) {
         return create(serviceProxy, svc, ctrl, 0L);
     }
@@ -255,7 +252,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
             try {
                 synchronized (ongoingRequestCount) {
                     while (!isClosable()) {
-                        ongoingRequestCount.wait(10L);
+                        ongoingRequestCount.wait();
                         // wait until proxy is closable
                     }
                 }
@@ -288,7 +285,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
     }
 
     @Override
-    public int compareTo(@NotNull RMIClient o) {
+    public int compareTo(RMIClient o) {
         return Math.toIntExact(getResponseDelay() - o.getResponseDelay());
     }
 

@@ -49,12 +49,6 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                         return acceptClient();
                     }
                 })
-                .doOnNext(new Consumer<RMISocket>() {
-                    @Override
-                    public void accept(RMISocket socket) throws Exception {
-                        Log.debug("{} connected", socket.getRemoteName());
-                    }
-                })
                 .repeatUntil(new BooleanSupplier() {
                     @Override
                     public boolean getAsBoolean() throws Exception {
@@ -63,8 +57,9 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                 })
                 .map(new Function<RMISocket, RMISocket>() {
                     @Override
-                    public RMISocket apply(RMISocket rmiSocket) throws Exception {
-                        return negotiator.handshake(rmiSocket, serviceInfo, converter, false);
+                    public RMISocket apply(RMISocket socket) throws Exception {
+                        Log.debug("{} connected", socket.getRemoteName());
+                        return negotiator.handshake(socket, serviceInfo, converter, false);
                     }
                 })
                 .map(new Function<RMISocket, ClientSocketAdapter>() {
@@ -90,7 +85,6 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     }
 
     private void onHandshakeSuccess(final ClientSocketAdapter adapter, final Function<Request, Response> handleRequest) {
-
         compositeDisposable.add(adapter.listen()
                 .groupBy(new Function<Request, Boolean>() {
                     @Override
