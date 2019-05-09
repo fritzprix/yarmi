@@ -141,6 +141,8 @@ public class SimpleServiceProxy implements ServiceProxy {
 
                     } catch (RMIException | InterruptedException e) {
                         return RMIError.TIMEOUT.getResponse();
+                    } finally {
+                        requestWaitQueue.remove(req.getNonce());
                     }
                 })
                 .doOnNext(response -> {

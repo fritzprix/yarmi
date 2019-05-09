@@ -118,7 +118,6 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
             Observable.fromIterable(controllers)
                     .blockingSubscribe(field -> {
                         if(controllerSet.contains(field.getType())) {
-                            Log.debug("matched controller {}", field.getType().getSimpleName());
                             controllerMap.put(field.getType(), field.getAnnotation(Controller.class));
                         }
                     });

@@ -235,6 +235,7 @@ public class RMIService {
 
         if(controller != null) {
             try {
+                Log.trace("handle request ({}) @ service", request.getNonce());
                 response = controller.handleRequest(request, converter);
                 if (response == null) {
                     response = Response.from(RMIError.NOT_IMPLEMENTED);

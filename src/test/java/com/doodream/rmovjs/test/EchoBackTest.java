@@ -358,7 +358,6 @@ public class EchoBackTest {
 
 
     private Object buildNewClient() {
-        System.out.println("build client");
 
         return RMIClient.create(proxy, EchoBackService.class, new Class[]{
                 DelayedResponseController.class,

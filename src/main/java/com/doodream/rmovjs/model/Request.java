@@ -77,25 +77,26 @@ public class Request {
     }
 
     public synchronized void setResponse(Response response) {
-        Log.debug("notify waiting thread for response {}", nonce);
+        Log.trace("notify waiting thread for response ({}) : {}", nonce, response.getBody());
         this.response = response;
-        notifyAll();
+        this.notifyAll();
     }
 
     public synchronized Response getResponse(long timeout) throws InterruptedException {
         if(response != null) {
             return response;
         }
-        Log.debug("wait for response {} with timeout {}", nonce, timeout);
+        Log.trace("wait for response ({}) with timeout {}", nonce, timeout);
         if(timeout > 0) {
-            wait(timeout);
+            this.wait(timeout);
         } else {
-            wait();
+            this.wait();
         }
         if(response == null) {
+            Log.error("unexpected null result @ ({})", nonce);
             return RMIError.TIMEOUT.getResponse();
         }
-        Log.debug("wake from waiting response {} @ {}", nonce, response);
+        Log.trace("wake from waiting response ({}) @ {}", nonce, response.getBody());
         return response;
     }
 

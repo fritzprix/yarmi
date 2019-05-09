@@ -22,17 +22,25 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public abstract class BaseServiceAdapter implements ServiceAdapter {
 
     protected static final Logger Log = LoggerFactory.getLogger(BaseServiceAdapter.class);
-    private CompositeDisposable compositeDisposable = new CompositeDisposable();
+    private final ExecutorService executorService = Executors.newWorkStealingPool();
+    private final CompositeDisposable compositeDisposable = new CompositeDisposable();
     private volatile boolean listen = false;
 
     @Override
     public String listen(final RMIServiceInfo serviceInfo, final Converter converter, final InetAddress network, @NonNull final Function<Request, Response> handleRequest) throws IllegalAccessException, InstantiationException, IOException {
         if(listen) {
             throw new IllegalStateException("service already listening");
+        }
+        if(executorService.isTerminated() || executorService.isShutdown()) {
+            throw new IllegalStateException("stopped service can't be used again");
         }
         final Negotiator negotiator = (Negotiator) serviceInfo.getNegotiator().newInstance();
         Preconditions.checkNotNull(negotiator, "fail to resolve %s", serviceInfo.getNegotiator());
@@ -68,7 +76,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                         return new ClientSocketAdapter(rmiSocket, converter);
                     }
                 })
-                .subscribeOn(Schedulers.newThread())
+                .subscribeOn(Schedulers.from(executorService))
                 .subscribe(new Consumer<ClientSocketAdapter>() {
                     @Override
                     public void accept(ClientSocketAdapter clientSocketAdapter) throws Exception {
@@ -86,58 +94,32 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
 
     private void onHandshakeSuccess(final ClientSocketAdapter adapter, final Function<Request, Response> handleRequest) {
         compositeDisposable.add(adapter.listen()
-                .groupBy(new Function<Request, Boolean>() {
-                    @Override
-                    public Boolean apply(Request request) throws Exception {
-                        return Request.isValid(request);
-                    }
-                })
-                .flatMap(new Function<GroupedObservable<Boolean, Request>, ObservableSource<Request>>() {
-                    @Override
-                    public ObservableSource<Request> apply(final GroupedObservable<Boolean, Request> booleanRequestGroupedObservable) throws Exception {
-                        return Observable.create(new ObservableOnSubscribe<Request>() {
-                            @Override
-                            public void subscribe(final ObservableEmitter<Request> emitter) throws Exception {
-                                if(booleanRequestGroupedObservable.getKey()) {
-                                    emitter.setDisposable(booleanRequestGroupedObservable.subscribe(new Consumer<Request>() {
-                                                @Override
-                                                public void accept(Request request) throws Exception {
-                                                    emitter.onNext(request);
-                                                }
-                                            }));
-                                } else {
-                                    // bad request handle added
-                                    emitter.setDisposable(booleanRequestGroupedObservable.subscribe(new Consumer<Request>() {
-                                        @Override
-                                        public void accept(Request request) throws Exception {
-                                            adapter.write(Response.from(RMIError.BAD_REQUEST));
-                                        }
-                                    }));
-                                }
-                            }
-                        });
-                    }
-                })
-                .observeOn(Schedulers.io())
-                .subscribe(new Consumer<Request>() {
-                    @Override
-                    public void accept(Request request) throws Exception {
+                .subscribeOn(Schedulers.computation())
+                .subscribe(request -> {
+            if(Request.isValid(request)) {
+                executorService.submit(() -> {
+                    try {
                         if(Log.isTraceEnabled()) {
                             Log.trace("Request <= {}", request);
                         }
                         request.setClient(adapter);
-                        final Response response = handleRequest.apply(request);
-                        if(Log.isTraceEnabled()) {
-                            Log.trace("Response => {}", response);
+                        try {
+                            final Response response = handleRequest.apply(request);
+                            if (Log.isTraceEnabled()) {
+                                Log.trace("Response => {}", response);
+                            }
+                            adapter.write(response);
+                        } catch (Exception e) {
+                            adapter.write(RMIError.INTERNAL_SERVER_ERROR.getResponse());
                         }
-                        adapter.write(response);
+                    } catch (Exception e) {
+                        onError(e);
                     }
-                }, new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Exception {
-                        onError(throwable);
-                    }
-                }));
+                });
+            } else {
+                adapter.write(Response.from(RMIError.BAD_REQUEST));
+            }
+        }));
     }
 
     private void onError(Throwable throwable) {
@@ -157,6 +139,8 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
         }
         compositeDisposable.dispose();
         compositeDisposable.clear();
+
+        executorService.shutdown();
     }
 
 
