@@ -12,6 +12,7 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.*;
 
 public class JsonConverter implements Converter {
 
@@ -90,6 +91,7 @@ public class JsonConverter implements Converter {
             })
             .create();
 
+    private final ExecutorService executorService = Executors.newWorkStealingPool();
 
 
     @Override
@@ -105,6 +107,25 @@ public class JsonConverter implements Converter {
                 line = line.trim();
                 return invert(StandardCharsets.UTF_8.encode(line).array(), cls);
             }
+
+            @Override
+            public <T> T read(Class<T> cls, long timeout, TimeUnit timeUnit) throws IOException, TimeoutException {
+                Future<T> future = executorService.submit(() -> {
+                    String line = reader.readLine();
+                    if(line == null) {
+                        return null;
+                    }
+                    line = line.trim();
+                    return invert(StandardCharsets.UTF_8.encode(line).array(), cls);
+                });
+                try {
+                    return future.get(timeout, timeUnit);
+                } catch (InterruptedException e) {
+                    throw new TimeoutException(e.getMessage());
+                } catch (ExecutionException e) {
+                    throw new IOException(e);
+                }
+            }
         };
     }
 
@@ -114,6 +135,23 @@ public class JsonConverter implements Converter {
             @Override
             public void write(Object src) throws IOException {
                 outputStream.write(convert(src));
+            }
+
+            @Override
+            public void write(Object src, long timeout, TimeUnit unit) throws TimeoutException {
+                final Future<Boolean> writeTask = executorService.submit(() -> {
+                    try {
+                        outputStream.write(convert(src));
+                        return true;
+                    } catch (IOException e) {
+                        return false;
+                    }
+                });
+                try {
+                    writeTask.get(timeout, unit);
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new TimeoutException(e.getMessage());
+                }
             }
         };
     }
@@ -136,9 +174,4 @@ public class JsonConverter implements Converter {
         }
         return GSON.fromJson(GSON.toJson(unresolved), type);
     }
-
-    public static String toJson(Object src) {
-        return GSON.toJson(src);
-    }
-
 }

@@ -1,6 +1,8 @@
 package com.doodream.rmovjs.serde;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  *  object writer used to transfer Object to peer
@@ -8,4 +10,5 @@ import java.io.IOException;
  */
 public interface Writer {
     void write(Object src) throws IOException;
+    void write(Object src, long timeout, TimeUnit unit) throws TimeoutException;
 }

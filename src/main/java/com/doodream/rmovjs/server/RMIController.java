@@ -194,6 +194,7 @@ public class RMIController {
                     }
                 })
                 .toList().blockingGet();
+        Log.trace("invoke request handler {} for ({})", endpoint.getJMethod().getName(), request.getNonce());
 
         return (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());
     }

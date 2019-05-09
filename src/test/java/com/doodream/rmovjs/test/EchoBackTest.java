@@ -1,5 +1,6 @@
 package com.doodream.rmovjs.test;
 
+import com.doodream.rmovjs.annotation.RMIException;
 import com.doodream.rmovjs.client.RMIClient;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
@@ -7,7 +8,12 @@ import com.doodream.rmovjs.net.ServiceProxy;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.sdp.SilentServiceAdvertiser;
 import com.doodream.rmovjs.server.RMIService;
-import com.doodream.rmovjs.test.service.*;
+import com.doodream.rmovjs.test.data.ComplexObject;
+import com.doodream.rmovjs.test.data.User;
+import com.doodream.rmovjs.test.service.echoback.DelayedResponseController;
+import com.doodream.rmovjs.test.service.echoback.EchoBackController;
+import com.doodream.rmovjs.test.service.echoback.PrimitiveEchoBackController;
+import com.doodream.rmovjs.test.service.echoback.EchoBackService;
 import org.junit.*;
 import org.junit.runners.MethodSorters;
 
@@ -17,15 +23,18 @@ import java.util.concurrent.TimeUnit;
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 // some test cases are affected by test order
-public class StatefulEchoBackTest {
+public class EchoBackTest {
 
     private static final SilentServiceAdvertiser serviceAdvertiser = new SilentServiceAdvertiser();
     private static RMIService service;
+    private static ServiceProxy proxy;
 
     @BeforeClass
-    public static void startServer() throws Exception{
-        service = RMIService.create(TestService.class, serviceAdvertiser);
+    public static void startServer() throws Exception {
+        service = RMIService.create(EchoBackService.class, serviceAdvertiser);
         service.listen(false);
+        proxy = RMIServiceInfo.toServiceProxy(serviceAdvertiser.getServiceInfo());
+
 
     }
 
@@ -40,7 +49,6 @@ public class StatefulEchoBackTest {
         Object client = buildNewClient();
         EchoBackController messageController = (EchoBackController) client;
 
-
         Response response = messageController.sendMessage(msg);
         Assert.assertNotNull(response);
         Assert.assertTrue(response.isSuccessful());
@@ -48,7 +56,6 @@ public class StatefulEchoBackTest {
         Assert.assertFalse(response.hasScm());
         Assert.assertFalse(response.isHasSessionSwitch());
         Assert.assertEquals(Response.SUCCESS, response.getCode());
-
         RMIClient.destroy(client);
     }
 
@@ -130,6 +137,14 @@ public class StatefulEchoBackTest {
         RMIClient.destroy(client);
     }
 
+    @Test(expected = RMIException.class)
+    public void testRequestTimeout() throws Exception {
+        Object client = buildNewClient();
+        DelayedResponseController controller = (DelayedResponseController) client;
+        controller.getDelayedResponse(2000L);
+        RMIClient.destroy(client);
+    }
+
     @Test
     public void F_userSetEchoBack() throws Exception {
         final Set<User> users = new HashSet<>();
@@ -148,6 +163,7 @@ public class StatefulEchoBackTest {
         Assert.assertFalse(response.hasScm());
         Assert.assertFalse(response.isHasSessionSwitch());
         Assert.assertEquals(Response.SUCCESS, response.getCode());
+
 
         RMIClient.destroy(client);
     }
@@ -240,8 +256,7 @@ public class StatefulEchoBackTest {
                 ses.write(zeroFill, zeroFill.length);
             } catch (IOException ignored) {
 
-            }
-            finally {
+            } finally {
                 try {
                     ses.close();
                 } catch (IOException ignored) {
@@ -265,12 +280,89 @@ public class StatefulEchoBackTest {
     }
 
 
+    @Test
+    public void testMethodCallIntegerParameter() throws Exception {
+        Object client = buildNewClient();
+        PrimitiveEchoBackController controller = (PrimitiveEchoBackController) client;
+        Response<Integer> response = controller.echoBackInteger(1);
+
+        Assert.assertNotNull(response);
+        Assert.assertTrue(response.isSuccessful());
+        Assert.assertEquals(1, response.getBody().intValue());
+
+        Assert.assertFalse(response.hasScm());
+        Assert.assertFalse(response.isHasSessionSwitch());
+        RMIClient.destroy(client);
+    }
+
+
+    @Test
+    public void testMethodCallFloatParameter() throws Exception {
+        Object client = buildNewClient();
+        PrimitiveEchoBackController controller = (PrimitiveEchoBackController) client;
+        Response<Float> response = controller.echoBackFloat(1.f);
+
+        Assert.assertNotNull(response);
+        Assert.assertTrue(response.isSuccessful());
+        Assert.assertEquals(0, response.getBody().compareTo(1.f));
+
+        Assert.assertFalse(response.hasScm());
+        Assert.assertFalse(response.isHasSessionSwitch());
+        RMIClient.destroy(client);
+    }
+
+    @Test
+    public void testMethodCallDoubleParameter() throws Exception {
+        Object client = buildNewClient();
+        PrimitiveEchoBackController controller = (PrimitiveEchoBackController) client;
+        Response<Double> response = controller.echoBackDouble(1.0);
+
+        Assert.assertNotNull(response);
+        Assert.assertTrue(response.isSuccessful());
+        Assert.assertEquals(0, response.getBody().compareTo(1.0));
+
+        Assert.assertFalse(response.hasScm());
+        Assert.assertFalse(response.isHasSessionSwitch());
+        RMIClient.destroy(client);
+    }
+
+    @Test
+    public void testMethodCallLongParameter() throws Exception {
+        Object client = buildNewClient();
+        PrimitiveEchoBackController controller = (PrimitiveEchoBackController) client;
+        Response<Long> response = controller.echoBackLong(1L);
+
+        Assert.assertNotNull(response);
+        Assert.assertTrue(response.isSuccessful());
+        Assert.assertEquals(0, response.getBody().compareTo(1L));
+
+        Assert.assertFalse(response.hasScm());
+        Assert.assertFalse(response.isHasSessionSwitch());
+        RMIClient.destroy(client);
+    }
+//
+//    @Test
+//    public void testMethodCallBooleanParameter() throws Exception {
+//        Object client = buildNewClient();
+//        PrimitiveEchoBackController controller = (PrimitiveEchoBackController) client;
+//        Response<Boolean> response = controller.echoBackBoolean(true);
+//
+//        Assert.assertNotNull(response);
+//        Assert.assertTrue(response.isSuccessful());
+//        Assert.assertEquals(true, response.getBody());
+//
+//        Assert.assertFalse(response.hasScm());
+//        Assert.assertFalse(response.isHasSessionSwitch());
+//        RMIClient.destroy(client);
+//    }
+
+
     private Object buildNewClient() {
-        final ServiceProxy proxy = RMIServiceInfo.toServiceProxy(serviceAdvertiser.getServiceInfo());
-        Assert.assertNotNull(proxy);
-        return RMIClient.create(proxy, TestService.class, new Class[]{
-                UserIDPController.class,
-                EchoBackController.class
-        }, 10000L, TimeUnit.MILLISECONDS);
+
+        return RMIClient.create(proxy, EchoBackService.class, new Class[]{
+                DelayedResponseController.class,
+                EchoBackController.class,
+                PrimitiveEchoBackController.class
+        }, 1000L, TimeUnit.MILLISECONDS);
     }
 }

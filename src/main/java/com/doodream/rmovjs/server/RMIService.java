@@ -90,20 +90,6 @@ public class RMIService {
         Preconditions.checkNotNull(converter, "converter is not declared");
         final RMIServiceBuilder builder = RMIService.builder();
 
-        Observable<RMIController> basicControllerObservable = Observable.fromArray(BasicService.class.getDeclaredFields())
-                .filter(new Predicate<Field>() {
-                    @Override
-                    public boolean test(Field field) throws Exception {
-                        return RMIController.isValidController(field);
-                    }
-                })
-                .map(new Function<Field, RMIController>() {
-                    @Override
-                    public RMIController apply(Field field) throws Exception {
-                        return RMIController.create(field);
-                    }
-                })
-                .cache();
 
         Observable<RMIController> controllerObservable = Observable.fromArray(cls.getDeclaredFields())
                 .filter(new Predicate<Field>() {
@@ -135,8 +121,6 @@ public class RMIService {
                     }
                 })
                 .subscribe();
-
-        controllerObservable = controllerObservable.mergeWith(basicControllerObservable);
 
 
         controllerObservable.collectInto(new HashMap<String, RMIController>(), new BiConsumer<HashMap<String, RMIController>, RMIController>() {
@@ -251,6 +235,7 @@ public class RMIService {
 
         if(controller != null) {
             try {
+                Log.trace("handle request ({}) @ service", request.getNonce());
                 response = controller.handleRequest(request, converter);
                 if (response == null) {
                     response = Response.from(RMIError.NOT_IMPLEMENTED);

@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.test.service;
+package com.doodream.rmovjs.test.service.echoback;
 
 import com.doodream.rmovjs.model.Response;
 

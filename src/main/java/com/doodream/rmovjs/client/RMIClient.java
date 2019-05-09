@@ -8,13 +8,10 @@ import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.net.QosListener;
 import com.doodream.rmovjs.net.ServiceProxy;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,45 +36,17 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
     private Map<Method, Endpoint> methodMap;
     private ServiceProxy serviceProxy;
-    private AtomicInteger ongoingRequestCount;
+    private final AtomicInteger ongoingRequestCount;
     private long timeout;
     private Long responseTime;
     private volatile boolean markToClose;
 
-    private RMIClient(ServiceProxy serviceProxy, long timeout, long pingUpdatePeriod, TimeUnit timeUnit, QosListener listener) {
+    private RMIClient(ServiceProxy serviceProxy, long timeout) {
         this.serviceProxy = serviceProxy;
         markToClose = false;
         responseTime = Long.MAX_VALUE;
-        this.timeout = timeUnit.toMillis(timeout);
+        this.timeout = timeout;
         ongoingRequestCount = new AtomicInteger(0);
-        if(pingUpdatePeriod > 0L) {
-            serviceProxy.startQosMeasurement(pingUpdatePeriod, timeout, timeUnit, new QosListener() {
-                @Override
-                public void onQosUpdated(final ServiceProxy proxy, long measuredRttInMill) {
-                    responseTime = measuredRttInMill;
-                    if(listener != null) {
-                        listener.onQosUpdated(proxy, measuredRttInMill);
-                    }
-                }
-
-                @Override
-                public void onError(final ServiceProxy proxy, Throwable throwable) {
-                    responseTime = Long.MAX_VALUE;
-                    if(listener != null) {
-                        listener.onError(proxy, throwable);
-                    }
-                }
-            });
-        }
-    }
-
-    /**
-     * return QoS value measured updated last
-     * @param proxy proxy object
-     * @return QoS value (defined latency in millisecond from request to response)
-     */
-    public static long getMeasuredQoS(Object proxy) {
-        return access(proxy).getResponseDelay();
     }
 
     /**
@@ -121,12 +90,16 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         client.close(force);
     }
 
-
+    /**
+     *
+     * @param proxy
+     * @throws IOException
+     */
     public static void destroy(Object proxy) throws IOException {
         destroy(proxy, false);
     }
 
-    static RMIClient createClient(ServiceProxy serviceProxy, Class<?> svc, Class<?>[] ctrl, long timeout, long pingInterval, TimeUnit timeUnit, QosListener listener) {
+    static RMIClient createClient(ServiceProxy serviceProxy, Class<?> svc, Class<?>[] ctrl, long timeoutInMills) {
         Service service = svc.getAnnotation(Service.class);
         Preconditions.checkNotNull(service);
         final ConcurrentHashMap<Class<?>, Controller> controllerMap  = new ConcurrentHashMap<>();
@@ -136,7 +109,6 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
                 .filter(field -> serviceProxy.provide(field.getType()))
                 .collectInto(new HashSet<Field>(), (fields, field) -> fields.add(field))
                 .blockingGet();
-
         if(ctrl == null) {
             // all the controllers declared are added to call proxy, if ctrl is given as null
             Observable.fromIterable(controllers)
@@ -146,7 +118,6 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
             Observable.fromIterable(controllers)
                     .blockingSubscribe(field -> {
                         if(controllerSet.contains(field.getType())) {
-                            Log.debug("matched controller {}", field.getType().getSimpleName());
                             controllerMap.put(field.getType(), field.getAnnotation(Controller.class));
                         }
                     });
@@ -166,12 +137,11 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         Preconditions.checkArgument(validMethods.size() > 0);
 
         try {
-            if (!serviceProxy.isOpen()) {
-                // ServiceProxy is opened only once
-                serviceProxy.open();
+            if(serviceProxy.open()) {
+                Log.debug("{} is newly opened", serviceProxy.who());
             }
 
-            RMIClient rmiClient = new RMIClient(serviceProxy, timeout, pingInterval, timeUnit, listener);
+            RMIClient rmiClient = new RMIClient(serviceProxy, timeoutInMills);
 
             Observable<Endpoint> endpointObservable = Observable.fromIterable(validMethods)
                     .map(method -> Endpoint.create(controllerMap.get(method.getDeclaringClass()), method));
@@ -204,12 +174,29 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         return field.getAnnotation(Controller.class) != null;
     }
 
+    /**
+     *
+     * @param serviceProxy
+     * @param svc
+     * @param ctrl
+     * @param timeout
+     * @param timeUnit
+     * @return
+     */
     public static Object create(ServiceProxy serviceProxy, Class<?> svc, Class<?>[] ctrl, long timeout, TimeUnit timeUnit) {
-        return create(serviceProxy, svc, ctrl, timeout, 0L, timeUnit, null);
+        return create(serviceProxy, svc, ctrl, timeout);
     }
 
-    public static Object create(ServiceProxy serviceProxy, Class<?> svc, Class<?>[] ctrl, long timeout, long pingInterval, TimeUnit timeUnit, QosListener qosListener) {
-        RMIClient rmiClient = createClient(serviceProxy, svc, ctrl, timeout, pingInterval, timeUnit, qosListener);
+    /**
+     *
+     * @param serviceProxy
+     * @param svc
+     * @param ctrl
+     * @param timeoutInMills
+     * @return
+     */
+    public static Object create(ServiceProxy serviceProxy, Class<?> svc, Class<?>[] ctrl, long timeoutInMills) {
+        RMIClient rmiClient = createClient(serviceProxy, svc, ctrl, timeoutInMills);
         if(rmiClient == null) {
             return null;
         }
@@ -223,21 +210,13 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
      * @param ctrl controller definition as interface
      * @return call proxy instance for controller
      */
-    @Nullable
     public static Object create(ServiceProxy serviceProxy, Class<?> svc, Class<?>[] ctrl) {
-        return create(serviceProxy, svc, ctrl, 0L, 0L, TimeUnit.MILLISECONDS, null);
+        return create(serviceProxy, svc, ctrl, 0L);
     }
 
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
-        try {
-            close(true);
-        } catch (IOException ignore) {
-
-        } finally {
-            super.finalize();
-        }
     }
 
     /**
@@ -270,14 +249,16 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         markToClose = true;
         if(!force) {
             try {
-                while (!isClosable()) {
-                    // wait until proxy is closable
-                    Thread.sleep(10L);
+                synchronized (ongoingRequestCount) {
+                    while (!isClosable()) {
+                        ongoingRequestCount.wait();
+                        // wait until proxy is closable
+                    }
                 }
             } catch (InterruptedException ignored) { }
-        }
 
-        serviceProxy.close();
+        }
+        serviceProxy.close(force);
     }
 
     @Override
@@ -292,7 +273,10 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         }
         ongoingRequestCount.getAndIncrement();
         Response response = serviceProxy.request(endpoint, timeout, args);
-        ongoingRequestCount.decrementAndGet();
+        synchronized (ongoingRequestCount) {
+            ongoingRequestCount.decrementAndGet();
+            ongoingRequestCount.notifyAll();
+        }
         if(response.isSuccessful()) {
             return response;
         }
@@ -300,7 +284,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
     }
 
     @Override
-    public int compareTo(@NotNull RMIClient o) {
+    public int compareTo(RMIClient o) {
         return Math.toIntExact(getResponseDelay() - o.getResponseDelay());
     }
 

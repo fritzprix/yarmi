@@ -8,11 +8,9 @@ import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.doodream.rmovjs.serde.bson.BsonConverter;
 import com.doodream.rmovjs.serde.json.JsonConverter;
-import com.doodream.rmovjs.server.RMIService;
-import com.doodream.rmovjs.test.service.TestService;
-import com.doodream.rmovjs.test.service.User;
+import com.doodream.rmovjs.test.service.echoback.EchoBackService;
+import com.doodream.rmovjs.test.data.User;
 import com.doodream.rmovjs.util.Types;
-import io.reactivex.Observable;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -21,9 +19,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.net.InterfaceAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.util.*;
 
 public class ConverterTest {
@@ -39,21 +34,8 @@ public class ConverterTest {
         );
     }
 
-//    @Test
-    public void testNetworkInterface() throws SocketException {
-        List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
-        Assert.assertNotNull(interfaces);
-        for (NetworkInterface ifc : interfaces) {
-            List<InterfaceAddress> addresses = ifc.getInterfaceAddresses();
-            for (InterfaceAddress address : addresses) {
 
-                System.out.printf("%s : %s(%d)\n", ifc.getDisplayName(), address.getAddress(), address.getNetworkPrefixLength());
-                System.out.printf("Broadcast : %s\n", address.getBroadcast());
-            }
-        }
-    }
-
-//    @Test
+    @Test
     public void converterSerDeserTest() throws ClassNotFoundException, IOException, InstantiationException, IllegalAccessException {
         for (Converter converter : converters) {
             Assert.assertTrue(testPrimitiveType(converter, 1.3, double.class));
@@ -62,7 +44,7 @@ public class ConverterTest {
             Assert.assertTrue(testNumericObject(converter, 100L));
             Assert.assertTrue(testNumericObject(converter, 100));
             Assert.assertTrue(testNumericObject(converter, 1.3));
-            Assert.assertTrue(testServiceInfoObject(converter, RMIServiceInfo.from(TestService.class)));
+            Assert.assertTrue(testServiceInfoObject(converter, RMIServiceInfo.from(EchoBackService.class)));
             Assert.assertTrue(testSimpleObject(converter));
             Assert.assertTrue(testGenericObject(converter));
             Assert.assertTrue(testComplexGeneric(converter));
@@ -74,14 +56,6 @@ public class ConverterTest {
         return from.equals(serviceInfo);
     }
 
-//    @Test
-    public void testef() {
-        Observable.just(Void.class)
-                .doOnNext(cls -> System.out.println(cls.getTypeName()))
-                .cast(Type.class)
-                .doOnNext(type -> System.out.println(type.getTypeName()))
-                .blockingSingle();
-    }
 
     private <T> boolean testPrimitiveType(Converter converter, T v, Class<?> cls) throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
         Object resolved = converter.resolve(v, cls);

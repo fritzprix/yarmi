@@ -1,4 +1,4 @@
-package com.doodream.rmovjs.test.service;
+package com.doodream.rmovjs.test.service.echoback;
 
 import com.doodream.rmovjs.annotation.parameter.AdapterParam;
 import com.doodream.rmovjs.annotation.server.Controller;
@@ -11,10 +11,7 @@ import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
         params = {
             @AdapterParam(key= TcpServiceAdapter.PARAM_PORT, value = "6644")
         })
-public class TestService {
-
-    @Controller(path = "/user", version = 1, module = UserIDControllerImpl.class)
-    UserIDPController userIDPController;
+public class EchoBackService {
 
     @Controller(path = "/echo/object", version = 1, module = EchoBackControllerImpl.class)
     EchoBackController echoBackController;
@@ -22,6 +19,8 @@ public class TestService {
     @Controller(path = "/echo/primitive", version = 1, module = PrimitiveEchoBackControllerImpl.class)
     PrimitiveEchoBackController primitiveEchoBackController;
 
+    @Controller(path = "/delayed/response", version = 1, module = DelayedResponseControllerImpl.class)
+    DelayedResponseController delayedResponseController;
 
 }
 
