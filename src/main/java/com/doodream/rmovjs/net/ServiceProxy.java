@@ -3,11 +3,9 @@ package com.doodream.rmovjs.net;
 import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.net.session.NotImplementedException;
 import io.reactivex.disposables.Disposable;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 public interface ServiceProxy {
         ServiceProxy NULL_PROXY = new ServiceProxy() {

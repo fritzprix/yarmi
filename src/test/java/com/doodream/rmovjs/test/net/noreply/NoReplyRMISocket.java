@@ -11,13 +11,16 @@ public class NoReplyRMISocket implements RMISocket {
     private volatile boolean isOpened;
     @Override
     public InputStream getInputStream() throws IOException {
+
         return new InputStream() {
             @Override
             public int read() throws IOException {
                 synchronized (NoReplyRMISocket.this) {
                     try {
-                        NoReplyRMISocket.this.wait(10000L);
-                    } catch (InterruptedException ignored) { }
+                        NoReplyRMISocket.this.wait();
+                    } catch (InterruptedException e) {
+                        throw new IOException("interrupted : ", e);
+                    }
                 }
                 return 0;
             }
@@ -31,8 +34,10 @@ public class NoReplyRMISocket implements RMISocket {
             public void write(int b) throws IOException {
                 synchronized (NoReplyRMISocket.this) {
                     try {
-                        NoReplyRMISocket.this.wait(10000L);
-                    } catch (InterruptedException ignored) { }
+                        NoReplyRMISocket.this.wait();
+                    } catch (InterruptedException e) {
+                        throw new IOException("Interrupted", e);
+                    }
                 }
             }
         };

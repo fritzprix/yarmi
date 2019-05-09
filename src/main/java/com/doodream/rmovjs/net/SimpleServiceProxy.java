@@ -139,7 +139,7 @@ public class SimpleServiceProxy implements ServiceProxy {
                         }
                         return req.getResponse(timeout);
 
-                    } catch (RMIException | InterruptedException e) {
+                    } catch (RMIException | TimeoutException e) {
                         return RMIError.TIMEOUT.getResponse();
                     } finally {
                         requestWaitQueue.remove(req.getNonce());
@@ -213,7 +213,6 @@ public class SimpleServiceProxy implements ServiceProxy {
     private void onError(Throwable throwable) throws Exception {
         Log.error("proxy closed {}({}) : {}", socket.getRemoteName(), serviceInfo.getName(), throwable.getMessage());
         close(true);
-        throw new Exception(throwable);
     }
 
     public synchronized void close(boolean force) throws IOException {
@@ -234,12 +233,10 @@ public class SimpleServiceProxy implements ServiceProxy {
     private void actualClose() throws IOException {
         isValid = false;
         Log.debug("actual close {}", serviceInfo);
-        if(compositeDisposable != null) {
-            if (!compositeDisposable.isDisposed()) {
-                compositeDisposable.dispose();
-            }
-            compositeDisposable.clear();
+        if (!compositeDisposable.isDisposed()) {
+            compositeDisposable.dispose();
         }
+        compositeDisposable.clear();
         if(!socket.isClosed()) {
             socket.close();
         }
@@ -250,33 +247,6 @@ public class SimpleServiceProxy implements ServiceProxy {
                 // wake blocked threads from wait queue
         }
         Log.debug("proxy for {} closed", serviceInfo.getName());
-    }
-
-
-
-    /**
-     * check whether the resource has been used previously or not
-     * @param semaphore {@link AtomicInteger} to be used as semaphore for resource
-     * @return true, if the resource has been unused previously, otherwise false
-     */
-    private boolean markAsUse(AtomicInteger semaphore) {
-        Log.debug("mark as use");
-        return !(semaphore.getAndIncrement() > 0);
-    }
-
-    /**
-     * check whether the resource is still used or not
-     * @param semaphore {@link AtomicInteger} to be used as semaphore for resource
-     * @return true, resource becomes unused, otherwise false
-     */
-    private boolean markAsUnuse(AtomicInteger semaphore) {
-        return (semaphore.decrementAndGet() == 0);
-//        return !(semaphore.updateAndGet(v -> {
-//            if(v > 0) {
-//                return --v;
-//            }
-//            return v;
-//        }) > 0);
     }
 
     @Override

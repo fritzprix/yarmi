@@ -1,6 +1,5 @@
 package com.doodream.rmovjs.serde.json;
 
-import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.net.session.SessionCommand;
 import com.doodream.rmovjs.net.session.SessionControlMessage;
 import com.doodream.rmovjs.serde.Converter;
@@ -92,7 +91,7 @@ public class JsonConverter implements Converter {
             })
             .create();
 
-    private ExecutorService executorService = Executors.newWorkStealingPool(Properties.getMaxIOParallelism());
+    private final ExecutorService executorService = Executors.newWorkStealingPool();
 
 
     @Override
@@ -108,6 +107,25 @@ public class JsonConverter implements Converter {
                 line = line.trim();
                 return invert(StandardCharsets.UTF_8.encode(line).array(), cls);
             }
+
+            @Override
+            public <T> T read(Class<T> cls, long timeout, TimeUnit timeUnit) throws IOException, TimeoutException {
+                Future<T> future = executorService.submit(() -> {
+                    String line = reader.readLine();
+                    if(line == null) {
+                        return null;
+                    }
+                    line = line.trim();
+                    return invert(StandardCharsets.UTF_8.encode(line).array(), cls);
+                });
+                try {
+                    return future.get(timeout, timeUnit);
+                } catch (InterruptedException e) {
+                    throw new TimeoutException(e.getMessage());
+                } catch (ExecutionException e) {
+                    throw new IOException(e);
+                }
+            }
         };
     }
 
@@ -120,7 +138,7 @@ public class JsonConverter implements Converter {
             }
 
             @Override
-            public void write(Object src, long timeout, TimeUnit unit) throws TimeoutException, ExecutionException, InterruptedException {
+            public void write(Object src, long timeout, TimeUnit unit) throws TimeoutException {
                 final Future<Boolean> writeTask = executorService.submit(() -> {
                     try {
                         outputStream.write(convert(src));
@@ -129,7 +147,11 @@ public class JsonConverter implements Converter {
                         return false;
                     }
                 });
-                writeTask.get(timeout, unit);
+                try {
+                    writeTask.get(timeout, unit);
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new TimeoutException(e.getMessage());
+                }
             }
         };
     }

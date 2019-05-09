@@ -1,7 +1,6 @@
 package com.doodream.rmovjs.model;
 
 
-import com.doodream.rmovjs.annotation.RMIException;
 import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.ServiceProxy;
 import com.doodream.rmovjs.net.session.BlobSession;
@@ -24,6 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Request contains information for client method invocation consisted with below
@@ -82,22 +82,26 @@ public class Request {
         this.notifyAll();
     }
 
-    public synchronized Response getResponse(long timeout) throws InterruptedException {
+    public synchronized Response getResponse(long timeout) throws TimeoutException {
         if(response != null) {
             return response;
         }
         Log.trace("wait for response ({}) with timeout {}", nonce, timeout);
-        if(timeout > 0) {
-            this.wait(timeout);
-        } else {
-            this.wait();
+        try {
+            if (timeout > 0) {
+                this.wait(timeout);
+            } else {
+                this.wait();
+            }
+            if (response == null) {
+                Log.error("unexpected null result @ ({})", nonce);
+                return RMIError.TIMEOUT.getResponse();
+            }
+            Log.trace("wake from waiting response ({}) @ {}", nonce, response.getBody());
+            return response;
+        } catch (InterruptedException e) {
+            throw new TimeoutException(e.getMessage());
         }
-        if(response == null) {
-            Log.error("unexpected null result @ ({})", nonce);
-            return RMIError.TIMEOUT.getResponse();
-        }
-        Log.trace("wake from waiting response ({}) @ {}", nonce, response.getBody());
-        return response;
     }
 
     public boolean hasScm() {

@@ -1,6 +1,5 @@
 package com.doodream.rmovjs.serde.bson;
 
-import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
@@ -16,8 +15,6 @@ import de.undercouch.bson4jackson.BsonFactory;
 import de.undercouch.bson4jackson.BsonGenerator;
 import de.undercouch.bson4jackson.BsonParser;
 import io.reactivex.Observable;
-import io.reactivex.Scheduler;
-import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +31,7 @@ public class BsonConverter implements Converter {
 
     private ObjectMapper objectMapper;
     private BsonFactory bsonFactory;
-    private ExecutorService executorService = Executors.newWorkStealingPool(Properties.getMaxIOParallelism());
+    private final ExecutorService executorService = Executors.newWorkStealingPool();
 
     public BsonConverter() {
 
@@ -48,6 +45,7 @@ public class BsonConverter implements Converter {
                 .disable(MapperFeature.AUTO_DETECT_IS_GETTERS, MapperFeature.AUTO_DETECT_GETTERS)
                 .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
     }
+
 
     @Override
     protected void finalize() throws Throwable {
@@ -68,6 +66,20 @@ public class BsonConverter implements Converter {
                 @Override
                 public synchronized <T> T read(Class<T> cls) throws IOException {
                     return parser.readValueAs(cls);
+                }
+
+                @Override
+                public synchronized <T> T read(Class<T> cls, long timeout, TimeUnit timeUnit) throws IOException, TimeoutException {
+                    Future<T> result = executorService.submit(() -> {
+                        return parser.readValueAs(cls);
+                    });
+                    try {
+                        return result.get(timeout, timeUnit);
+                    } catch (InterruptedException e) {
+                        throw new TimeoutException(e.getMessage());
+                    } catch (ExecutionException e) {
+                        throw new IOException(e);
+                    }
                 }
             };
         } catch (IOException e) {
@@ -90,7 +102,7 @@ public class BsonConverter implements Converter {
 
                 // => max due time is managed by client policy, instead of I/O configuration
                 @Override
-                public synchronized void write(Object src, long timeout, TimeUnit unit) throws TimeoutException, InterruptedException, ExecutionException {
+                public synchronized void write(Object src, long timeout, TimeUnit unit) throws TimeoutException {
                     final Future<Boolean> writeTask = executorService.submit(() -> {
                         try {
                             bsonGenerator.writeObject(src);
@@ -99,7 +111,11 @@ public class BsonConverter implements Converter {
                             return false;
                         }
                     });
-                    writeTask.get(timeout, unit);
+                    try {
+                        writeTask.get(timeout, unit);
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new TimeoutException(e.getMessage());
+                    }
                 }
             };
         } catch (IOException e) {

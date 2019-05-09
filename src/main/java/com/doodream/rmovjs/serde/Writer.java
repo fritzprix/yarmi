@@ -1,7 +1,6 @@
 package com.doodream.rmovjs.serde;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -11,5 +10,5 @@ import java.util.concurrent.TimeoutException;
  */
 public interface Writer {
     void write(Object src) throws IOException;
-    void write(Object src, long timeout, TimeUnit unit) throws TimeoutException, ExecutionException, InterruptedException;
+    void write(Object src, long timeout, TimeUnit unit) throws TimeoutException;
 }
