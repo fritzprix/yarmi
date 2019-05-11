@@ -13,7 +13,6 @@ import com.doodream.rmovjs.serde.Converter;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import io.reactivex.functions.BiConsumer;
 import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
@@ -195,6 +194,7 @@ public class RMIController {
                     }
                 })
                 .toList().blockingGet();
+        Log.trace("invoke request handler {} for ({})", endpoint.getJMethod().getName(), request.getNonce());
 
         return (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());
     }

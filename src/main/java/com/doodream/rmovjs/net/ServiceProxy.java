@@ -3,24 +3,19 @@ package com.doodream.rmovjs.net;
 import com.doodream.rmovjs.model.Endpoint;
 import com.doodream.rmovjs.model.RMIError;
 import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.net.session.NotImplementedException;
 import io.reactivex.disposables.Disposable;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 public interface ServiceProxy {
         ServiceProxy NULL_PROXY = new ServiceProxy() {
             private Disposable measurementDisposable;
             @Override
-            public void open() {
+            public boolean open() {
                 // NO OP
-            }
-
-            @Override
-            public boolean isOpen() {
                 return false;
             }
+
 
             @Override
             public Response request(Endpoint endpoint, long timeoutInMilliSec, Object ...args) {
@@ -28,25 +23,13 @@ public interface ServiceProxy {
             }
 
             @Override
-            public void close() {
+            public void close(boolean force) {
                 // NO OP
             }
-
 
             @Override
             public String who() {
                 return Integer.toHexString(hashCode());
-            }
-
-            @Override
-            public void startQosMeasurement(long interval, long timeout, TimeUnit timeUnit, QosListener listener) {
-                throw new NotImplementedException();
-            }
-
-
-            @Override
-            public void stopQosMeasurement(QosListener listener) {
-                throw new NotImplementedException();
             }
 
             @Override
@@ -62,12 +45,9 @@ public interface ServiceProxy {
          * @throws IllegalAccessException
          * @throws InstantiationException
          */
-        void open() throws IOException, IllegalAccessException, InstantiationException;
-        boolean isOpen();
+        boolean open() throws IOException, IllegalAccessException, InstantiationException;
         Response request(Endpoint endpoint, long timeoutMilliSec, Object ...args) throws IOException;
-        void close() throws IOException;
+        void close(boolean force) throws IOException;
         String who();
-        void startQosMeasurement(long interval, long timeout, TimeUnit timeUnit, QosListener listener);
-        void stopQosMeasurement(QosListener listener);
         boolean provide(Class controller);
 }

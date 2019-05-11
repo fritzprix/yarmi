@@ -8,7 +8,6 @@ import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.net.session.param.SCMErrorParam;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.serde.Writer;
-import com.doodream.rmovjs.serde.json.JsonConverter;
 import com.doodream.rmovjs.util.Types;
 import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
@@ -83,15 +82,6 @@ public class Response<T> {
                 .build();
     }
 
-    public static Response success(String msg) {
-        ResponseBody body = new ResponseBody(msg);
-        return Response.builder()
-                .code(SUCCESS)
-                .isSuccessful(true)
-                .body(JsonConverter.toJson(body))
-                .build();
-    }
-
     public static Response from(RMIError error) {
         return error.getResponse();
     }
@@ -129,19 +119,13 @@ public class Response<T> {
      * @param type {@link Type} for body content
      */
     public void resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
-        if(type instanceof ParameterizedType) {
-            Class rawCls = Class.forName(Types.getTypeName(((ParameterizedType) type).getRawType()));
-            if(Types.isCastable(body, rawCls)) {
-                // ex > Bson4Jackson parsed as collections like ArrayList<String>
-                // however, if there is recursive type parameters like ArrayList<ArrayList<String>>
-                return;
-            }
-        } else {
+        if(!(type instanceof ParameterizedType)) {
             Class rawCls = Class.forName(Types.getTypeName(type));
             if(Types.isCastable(body, rawCls)) {
                 return;
             }
         }
+
         setBody((T) converter.resolve(getBody(), type));
     }
 

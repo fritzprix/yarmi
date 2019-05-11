@@ -1,6 +1,5 @@
 package com.doodream.rmovjs.parameter;
 
-import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.serde.Converter;
 import com.doodream.rmovjs.util.Types;
 import com.google.gson.Gson;
@@ -72,6 +71,9 @@ public class Param<T> {
     public Object resolve(Converter converter, Type type) throws IllegalAccessException, InstantiationException, ClassNotFoundException {
         if(Types.isCastable(value, type)) {
             return value;
+        }
+        if(Types.isPrimitive(type)) {
+            return Types.primitive(value, type);
         }
         return converter.resolve(value, type);
     }

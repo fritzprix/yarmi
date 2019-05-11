@@ -1,9 +1,9 @@
 package com.doodream.rmovjs.net.tcp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.net.SimpleServiceProxy;
 import com.doodream.rmovjs.net.ServiceProxy;
 import com.doodream.rmovjs.net.ServiceProxyFactory;
+import com.doodream.rmovjs.net.SimpleServiceProxy;
 
 import java.util.Map;
 

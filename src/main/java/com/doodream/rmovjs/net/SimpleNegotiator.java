@@ -8,16 +8,16 @@ import com.doodream.rmovjs.serde.Reader;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
-import io.reactivex.functions.Consumer;
-import io.reactivex.functions.Function;
-import io.reactivex.functions.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class SimpleNegotiator implements Negotiator {
     private static final Logger Log = LoggerFactory.getLogger(SimpleNegotiator.class);
+    private static final long MAX_TIMEOUT = 10L;
 
     @Override
     public RMISocket handshake(RMISocket socket, RMIServiceInfo service, Converter converter, boolean isClient) throws HandshakeFailException {
@@ -38,9 +38,9 @@ public class SimpleNegotiator implements Negotiator {
 
     private void handshakeFromClient(final RMIServiceInfo service, Reader reader, Writer writer) throws HandshakeFailException {
         try {
-            writer.write(service);
+            writer.write(service, MAX_TIMEOUT, TimeUnit.SECONDS);
             Log.debug("write {}", service);
-            Response response = reader.read(Response.class);
+            Response response = reader.read(Response.class,MAX_TIMEOUT, TimeUnit.SECONDS);
             if ((response != null) &&
                     response.isSuccessful()) {
                 Log.debug("Handshake Success {} (Ver. {})", service.getName(), service.getVersion());
@@ -48,14 +48,19 @@ public class SimpleNegotiator implements Negotiator {
             }
             Preconditions.checkNotNull(response, "Response is null");
             Log.error("Handshake Fail ({}) {}",response.getCode(), response.getBody());
-        } catch (IOException ignore) { }
+        } catch (IOException e) {
+            Log.error("error on read : {}", e.getMessage());
+        } catch (TimeoutException e) {
+            Log.error("timeout on read : {}", e.getMessage());
+        }
         throw new HandshakeFailException();
     }
 
     private void handshakeFromServer(final RMIServiceInfo service, Reader reader, final Writer writer) throws HandshakeFailException {
         try {
-            Observable<RMIServiceInfo> handshakeRequestSingle = Observable.just(reader.read(RMIServiceInfo.class));
+            final RMIServiceInfo serviceInfo = reader.read(RMIServiceInfo.class, MAX_TIMEOUT, TimeUnit.SECONDS);
 
+            Observable<RMIServiceInfo> handshakeRequestSingle = Observable.just(serviceInfo);
             Observable<Response> serviceInfoMatchedObservable = handshakeRequestSingle
                     .filter(info -> info.hashCode() == service.hashCode())
                     .map(rmiServiceInfo -> Response.success("OK"));
@@ -71,7 +76,7 @@ public class SimpleNegotiator implements Negotiator {
                     .doOnNext(response -> Log.trace("Handshake Response : ({}) {}", response.getCode(), response.getBody()))
                     .doOnNext(response -> {
                         Log.debug("write response {}", response);
-                        writer.write(response);
+                        writer.write(response, MAX_TIMEOUT, TimeUnit.SECONDS);
                     })
                     .map(response -> response.isSuccessful())
                     .filter(aBoolean -> aBoolean)
@@ -80,7 +85,9 @@ public class SimpleNegotiator implements Negotiator {
                 return;
             }
         } catch (IOException e) {
-            Log.error("", e);
+            Log.error("error on handshake : {}", e.getMessage());
+        } catch (TimeoutException e) {
+            Log.error("timeout on handshake : {}", e.getMessage());
         }
         throw new HandshakeFailException();
     }
