@@ -3,7 +3,9 @@ package com.doodream.rmovjs.model;
 
 import com.doodream.rmovjs.net.ClientSocketAdapter;
 import com.doodream.rmovjs.net.ServiceProxy;
-import com.doodream.rmovjs.net.session.*;
+import com.doodream.rmovjs.net.session.BlobSession;
+import com.doodream.rmovjs.net.session.SessionControlMessage;
+import com.doodream.rmovjs.net.session.SessionControlMessageWriter;
 import com.doodream.rmovjs.parameter.Param;
 import com.doodream.rmovjs.serde.Writer;
 import com.google.gson.annotations.SerializedName;
@@ -21,6 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Request contains information for client method invocation consisted with below
@@ -37,6 +40,7 @@ public class Request {
     private static final Logger Log = LoggerFactory.getLogger(Request.class);
 
     private transient ClientSocketAdapter client;
+
     private transient Response response;
 
     @SerializedName("session")
@@ -70,6 +74,34 @@ public class Request {
                         .build());
             }
         };
+    }
+
+    public synchronized void setResponse(Response response) {
+        Log.trace("notify waiting thread for response ({}) : {}", nonce, response.getBody());
+        this.response = response;
+        this.notifyAll();
+    }
+
+    public synchronized Response getResponse(long timeout) throws TimeoutException {
+        if(response != null) {
+            return response;
+        }
+        Log.trace("wait for response ({}) with timeout {}", nonce, timeout);
+        try {
+            if (timeout > 0) {
+                this.wait(timeout);
+            } else {
+                this.wait();
+            }
+            if (response == null) {
+                Log.error("unexpected null result @ ({})", nonce);
+                return RMIError.TIMEOUT.getResponse();
+            }
+            Log.trace("wake from waiting response ({}) @ {}", nonce, response.getBody());
+            return response;
+        } catch (InterruptedException e) {
+            throw new TimeoutException(e.getMessage());
+        }
     }
 
     public boolean hasScm() {

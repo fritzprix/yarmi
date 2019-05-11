@@ -1,10 +1,7 @@
 package com.doodream.rmovjs.model;
 
 
-import com.doodream.rmovjs.annotation.method.Delete;
-import com.doodream.rmovjs.annotation.method.Get;
-import com.doodream.rmovjs.annotation.method.Post;
-import com.doodream.rmovjs.annotation.method.Put;
+import com.doodream.rmovjs.annotation.method.*;
 import com.doodream.rmovjs.annotation.server.Controller;
 import com.doodream.rmovjs.method.RMIMethod;
 import com.doodream.rmovjs.net.session.BlobSession;
@@ -13,10 +10,6 @@ import com.doodream.rmovjs.util.Types;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import io.reactivex.functions.BiFunction;
-import io.reactivex.functions.Consumer;
-import io.reactivex.functions.Function;
-import io.reactivex.functions.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,7 +23,6 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -125,6 +117,7 @@ public class Endpoint {
     private static boolean verifyMethod(Annotation annotation) {
         Class cls = annotation.annotationType();
         return (cls == Get.class)
+                || (cls == RMIExpose.class)
                 || (cls == Post.class)
                 || (cls == Put.class)
                 || (cls == Delete.class);
