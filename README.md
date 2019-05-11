@@ -41,7 +41,7 @@ yarmi is yet-another remote method invocation framework for simple distributed s
         <dependency>
             <groupId>com.doodream</groupId>
             <artifactId>yarmi-core</artifactId>
-            <version>0.0.7</version>
+            <version>0.1.0</version>
         </dependency>
 </dependencies>
 ```
@@ -67,56 +67,50 @@ allprojects {
 ```groovy
 dependencies {
 ...
-    implementation 'com.doodream:yarmi-core:0.0.7'
+    implementation 'com.doodream:yarmi-core:0.1.0'
     annotationProcessor 'org.projectlombok:lombok:1.16.18'
 ...
 }
 ```
 
 #### Build Service (Server)
-1. Declare controller stub in a very similar way doing with Spring REST Controller
+1. Declare controller stubs with RMIExpose annotation 
 ```java
 public interface UserIDPController {
 
-    @Get("/{id}")
+    @RMIExpose
     Response<User> getUser(@Path(name = "id") Long userId);
 
-    @Get("/list")
+    @RMIExpose
     Response<User> getUsers();
 
-    @Post("/new")
+    @RMIExpose
     Response<User> createUser(@Body(name = "user") User user);
     
-    @Post("/new/thumbnail")
+    @RMIExpose
     Response<Long> postThumbnail(@Body(name = "th_nail") BlobSession blob, Long userId);
 
 } 
 ```     
-2. Implement Controller Stub    
+2. Implement Controller 
 ```java
 public class UserIDControllerImpl implements UserIDPController {
 
-    private HashMap<Long, User> userTable = new HashMap<>();
 
     @Override
     public Response<User> getUser(Long userId) {
-        User user = userTable.get(userId);
-        if(user == null) {
-            return null;
-        }
+        ...
         return Response.success(user, User.class);
     }
 
     @Override
     public Response<User> getUsers() {
-        return null;
+        ...
     }
 
     @Override
     public Response<User> createUser(User user) {
-        int id = user.hashCode();
-        userTable.put((long) id, user);
-        user.id = (long) id;
+        ...
         return Response.success(user, User.class);
     }
     
@@ -161,7 +155,6 @@ public static class SimpleServer {
     public static void main (String[] args) {
         RMIService service = RMIService.create(TestService.class, new SimpleServiceAdvertiser());
         service.listen(true);
-        // listen will block, you can change the blocking behaviour with the argument
     }
 }
 ```
@@ -209,28 +202,6 @@ public static class SimpleClient {
         
                                 Response<User> response = userCtr.createUser(user);
                                 assert response.isSuccessful();
-                                user = response.getBody();
-                                
-                                response = userCtr.getUser(user.getId());
-                                assert response.isSuccessful();
-                                response.getBody();
-                                
-                                // example : upload file as thumbnail images
-                                FileInputStream fis = new FileInputStream("./thumbnail.jpg");
-                                byte[] buffer = new byte[2048];
-                                BlobSession session = new BlobSession(ses -> {
-                                    int rsz;
-                                    try {
-                                        while((rsz = fis.read(buffer)) > 0) {
-                                            ses.write(buffer, rsz);
-                                        }
-                                        ses.close();
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    }
-                                });
-                                Response<Long> thumbResponse = controller.postThumbnail(session, 1L);
-                                assert thumbResponse.isSuccessful();
                                 
                             } catch (IllegalAccessException | InstantiationException | IOException e) {
                                 e.printStackTrace();

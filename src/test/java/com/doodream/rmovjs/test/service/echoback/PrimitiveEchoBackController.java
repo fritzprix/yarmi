@@ -5,6 +5,7 @@ import com.doodream.rmovjs.annotation.parameter.Query;
 import com.doodream.rmovjs.model.Response;
 
 public interface PrimitiveEchoBackController {
+
     @RMIExpose
     Response<Integer> echoBackInteger(@Query(name = "value") int v);
     @RMIExpose

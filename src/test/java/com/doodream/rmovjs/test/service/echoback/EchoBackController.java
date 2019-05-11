@@ -2,6 +2,7 @@ package com.doodream.rmovjs.test.service.echoback;
 
 import com.doodream.rmovjs.annotation.method.Get;
 import com.doodream.rmovjs.annotation.method.Put;
+import com.doodream.rmovjs.annotation.method.RMIExpose;
 import com.doodream.rmovjs.annotation.parameter.Body;
 import com.doodream.rmovjs.annotation.parameter.Query;
 import com.doodream.rmovjs.model.Response;
@@ -16,40 +17,40 @@ import java.util.Set;
 
 public interface EchoBackController {
 
-    @Put("/send/message")
+    @RMIExpose
     Response<String> sendMessage(@Query(name = "content") @NonNull String msg);
 
-    @Put("/send/user")
+    @RMIExpose
     Response<User> sendJavaObject(@Query(name = "user") @NonNull User user);
 
-    @Put("/send/generic/map")
+    @RMIExpose
     Response<Map<String, String>> sendMap(@Query(name = "map") @NonNull Map<String, String> map);
 
-    @Put("/send/generic/list")
+    @RMIExpose
     Response<List<String>> sendList(@Query(name = "list") @NonNull List<String> list);
 
-    @Put("/send/generic/set")
+    @RMIExpose
     Response<Set<String>> sendSet(@Query(name = "set") @NonNull Set<String> set);
 
-    @Put("/send/list/user")
+    @RMIExpose
     Response<List<User>> sendUserList(@Query(name = "users") List<User> users);
 
-    @Put("/send/set/user")
+    @RMIExpose
     Response<Set<User>> sendUserSet(@Query(name = "users") Set<User> users);
 
-    @Put("/send/map/user")
+    @RMIExpose
     Response<Map<String, User>> sendUserMap(@Query(name = "users") Map<String, User> users);
 
-    @Put("/send/complex")
+    @RMIExpose
     Response<ComplexObject> sendComplexObject(@Query(name = "complex") ComplexObject object);
 
-    @Put("/send/list/complex")
+    @RMIExpose
     Response<List<ComplexObject>> sendComplexObjectList(@Query(name = "complexes") List<ComplexObject> objects);
 
-    @Put("/send/data")
+    @RMIExpose
     Response<Long> sendBlob(@Body(name = "data") BlobSession data);
 
-    @Get("/data/size")
+    @RMIExpose
     Response<Long> getBlobSize(@Query(name = "id") Long id);
 
 }
