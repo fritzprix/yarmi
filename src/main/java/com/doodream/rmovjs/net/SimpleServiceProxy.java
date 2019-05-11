@@ -64,7 +64,6 @@ public class SimpleServiceProxy implements ServiceProxy {
 
         Negotiator negotiator = (Negotiator) serviceInfo.getNegotiator().newInstance();
         converter = (Converter) serviceInfo.getConverter().newInstance();
-        Log.debug("opening proxy...");
         socket.open();
         reader = converter.reader(socket.getInputStream());
         writer = converter.writer(socket.getOutputStream());
