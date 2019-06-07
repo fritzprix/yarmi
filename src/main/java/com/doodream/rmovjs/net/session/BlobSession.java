@@ -7,14 +7,12 @@ import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
-import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Random;
 
-@Data
 public class BlobSession implements SessionHandler {
 
     private static final Logger Log = LoggerFactory.getLogger(BlobSession.class);
@@ -117,5 +115,9 @@ public class BlobSession implements SessionHandler {
 
     public void init() {
         ((ReceiverSession) session).setSessionKey(key);
+    }
+
+    public String getKey() {
+        return key;
     }
 }

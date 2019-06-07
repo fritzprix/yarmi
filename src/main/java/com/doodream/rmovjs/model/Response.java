@@ -11,10 +11,6 @@ import com.doodream.rmovjs.serde.Writer;
 import com.doodream.rmovjs.util.Types;
 import com.google.common.base.Preconditions;
 import com.google.gson.annotations.SerializedName;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,10 +21,6 @@ import java.lang.reflect.Type;
 /**
  * Created by innocentevil on 18. 5. 4.
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class Response<T> {
     private static Logger Log = LoggerFactory.getLogger(Response.class);
     public static final int SUCCESS = 200;
@@ -42,6 +34,45 @@ public class Response<T> {
     @SerializedName("scm")
     private SessionControlMessage scm;
 
+    public boolean hasSessionSwitch() {
+        return hasSessionSwitch;
+    }
+
+
+    public static class Builder<T> {
+
+        private final Response<T> response = new Response<>();
+
+        public Builder<T> isSuccessful(boolean success) {
+            response.isSuccessful = success;
+            return this;
+        }
+
+        public Builder<T> body(T body) {
+            response.body = body;
+            return this;
+        }
+
+        public Builder<T> code(int code) {
+            response.code = code;
+            return this;
+        }
+
+        public Builder<T> hasSessionSwitch(boolean hasSessionSwitch) {
+            response.hasSessionSwitch = hasSessionSwitch;
+            return this;
+        }
+
+        public Builder<T> scm(SessionControlMessage scm) {
+            response.scm = scm;
+            return this;
+        }
+
+        public Response<T> build() {
+            return response;
+        }
+    }
+
     public static <T> Response<T> success(T body) {
         return Response.<T>builder()
                 .body(body)
@@ -49,6 +80,10 @@ public class Response<T> {
                 .hasSessionSwitch(body instanceof BlobSession)
                 .isSuccessful(true)
                 .build();
+    }
+
+    private static <T> Builder<T> builder() {
+        return new Builder<>();
     }
 
     public T getBody() {
@@ -68,7 +103,7 @@ public class Response<T> {
     }
 
     public static Response error(SessionControlMessage scm, String msg, SCMErrorParam.ErrorType type) {
-        SessionControlMessage controlMessage = SessionControlMessage.<SCMErrorParam>builder()
+        SessionControlMessage<SCMErrorParam> controlMessage = SessionControlMessage.<SCMErrorParam>builder()
                 .key(scm.getKey())
                 .command(SessionCommand.ERR)
                 .param(SCMErrorParam.build(scm.getCommand(), msg, type))
@@ -100,6 +135,30 @@ public class Response<T> {
                 writer.write(Response.builder().scm(controlMessage).build());
             }
         };
+    }
+
+    public void setNonce(int nonce) {
+        this.nonce = nonce;
+    }
+
+    public void setEndpoint(String endpoint) {
+        this.endpoint = endpoint;
+    }
+
+    public SessionControlMessage getScm() {
+        return scm;
+    }
+
+    public int getNonce() {
+        return nonce;
+    }
+
+    public boolean isSuccessful() {
+        return isSuccessful;
+    }
+
+    public int getCode() {
+        return code;
     }
 
     /**

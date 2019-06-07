@@ -10,14 +10,11 @@ import com.doodream.rmovjs.util.Types;
 import com.google.common.base.Preconditions;
 import io.reactivex.Observable;
 import io.reactivex.Single;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -29,10 +26,6 @@ import java.util.regex.Pattern;
  * Created by innocentevil on 18. 5. 4.
  */
 
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-@Data
 public class Endpoint {
     private static final Logger Log = LoggerFactory.getLogger(Endpoint.class);
     private static final String DUPLICATE_PATH_SEPARATOR = "\\/{2,}";
@@ -45,6 +38,47 @@ public class Endpoint {
     transient Method jMethod;
     transient Type unwrappedRetType;
     transient BlobSession session;
+
+    private Endpoint() { }
+
+
+    private static class Builder {
+        private final Endpoint endpoint = new Endpoint();
+
+        public Builder method(RMIMethod rmiMethod) {
+            endpoint.method = rmiMethod;
+            return this;
+        }
+
+        public Builder params(List<Param> params) {
+            endpoint.params = params;
+            return this;
+        }
+
+        public Builder jMethod(Method method) {
+            endpoint.jMethod = method;
+            return this;
+        }
+
+        public Builder unwrappedRetType(Type retType) {
+            endpoint.unwrappedRetType = retType;
+            return this;
+        }
+
+        public Builder unique(String unique) {
+            endpoint.unique = unique;
+            return this;
+        }
+
+        public Builder path(String path) {
+            endpoint.path = path;
+            return this;
+        }
+
+        public Endpoint build() {
+            return endpoint;
+        }
+    }
 
     public static Endpoint create(Controller controller, Method method) {
 
@@ -113,6 +147,44 @@ public class Endpoint {
                 .path(path)
                 .build();
     }
+
+    private static Builder builder() {
+        return new Builder();
+    }
+
+    public String getUnique() {
+        return unique;
+    }
+
+    public List<Param> getParams() {
+        return params;
+    }
+
+    public Method getJMethod() {
+        return jMethod;
+    }
+
+    public BlobSession getSession() {
+        return session;
+    }
+
+    public Type getUnwrappedRetType() {
+        return unwrappedRetType;
+    }
+
+    public void setMethod(RMIMethod method) {
+        this.method = method;
+    }
+
+
+    public void setParams(List<Param> params) {
+        this.params = params;
+    }
+
+    public void setSession(BlobSession session) {
+        this.session = session;
+    }
+
 
     private static boolean verifyMethod(Annotation annotation) {
         Class cls = annotation.annotationType();

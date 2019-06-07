@@ -11,6 +11,7 @@ import com.doodream.rmovjs.serde.json.JsonConverter;
 import com.doodream.rmovjs.test.service.echoback.EchoBackService;
 import com.doodream.rmovjs.test.data.User;
 import com.doodream.rmovjs.util.Types;
+import com.google.gson.Gson;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

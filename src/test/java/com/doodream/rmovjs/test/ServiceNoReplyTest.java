@@ -4,7 +4,6 @@ import com.doodream.rmovjs.annotation.RMIException;
 import com.doodream.rmovjs.client.RMIClient;
 import com.doodream.rmovjs.model.RMIServiceInfo;
 import com.doodream.rmovjs.net.ServiceProxy;
-import com.doodream.rmovjs.sdp.SilentServiceAdvertiser;
 import com.doodream.rmovjs.server.RMIService;
 import com.doodream.rmovjs.test.service.echoback.EchoBackController;
 import com.doodream.rmovjs.test.service.noreply.NoReplyService;
@@ -14,18 +13,16 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 public class ServiceNoReplyTest {
 
-    private final static SilentServiceAdvertiser serviceAdvertiser = new SilentServiceAdvertiser();
     private static RMIService service;
 
     @BeforeClass
     public static void startServer() throws Exception {
-        service = RMIService.create(NoReplyService.class, serviceAdvertiser);
-        service.listen(false);
+        service = RMIService.create(NoReplyService.class);
+        service.listen();
     }
 
     @AfterClass
@@ -42,11 +39,15 @@ public class ServiceNoReplyTest {
     }
 
     private Object buildNewClient() {
-        final ServiceProxy proxy = RMIServiceInfo.toServiceProxy(serviceAdvertiser.getServiceInfo());
-        Assert.assertNotNull(proxy);
-
-        return RMIClient.create(proxy, NoReplyService.class, new Class[]{
-                EchoBackController.class,
-        }, 1000L, TimeUnit.MILLISECONDS);
+        try {
+            final ServiceProxy proxy = RMIServiceInfo.toServiceProxy(service.getServiceInfo());
+            Assert.assertNotNull(proxy);
+            return RMIClient.create(proxy, NoReplyService.class, new Class[]{
+                    EchoBackController.class,
+            }, 1000L, TimeUnit.MILLISECONDS);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
     }
 }

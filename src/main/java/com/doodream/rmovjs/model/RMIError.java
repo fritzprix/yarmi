@@ -7,6 +7,7 @@ public enum RMIError {
     NOT_FOUND(404, Response.error(404, "Not Found")),
     NOT_IMPLEMENTED(501, Response.error(501,"Not implemented method")),
     FORBIDDEN(403, Response.error(403, "ServiceInfo is not matched")),
+    DUPLICATE(405, Response.error(405, "Duplicate Request")),
     BAD_REQUEST(400, Response.error(400, "Bad Request")),
     UNHANDLED(400, Response.error(400, "Request Not Handled")),
     INTERNAL_SERVER_ERROR(500, Response.error(500,"Internal Server Error")),

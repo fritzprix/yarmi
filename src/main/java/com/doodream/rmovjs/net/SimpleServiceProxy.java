@@ -150,7 +150,7 @@ public class SimpleServiceProxy implements ServiceProxy {
                     }
                 })
                 .map(response -> {
-                    if (response.isHasSessionSwitch()) {
+                    if (response.hasSessionSwitch()) {
                         return handleBlobResponse(response);
                     } else {
                         return response;

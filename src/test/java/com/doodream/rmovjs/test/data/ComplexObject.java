@@ -1,18 +1,41 @@
 package com.doodream.rmovjs.test.data;
 
 import com.google.gson.annotations.SerializedName;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.util.*;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class ComplexObject {
+
+    public static class Builder {
+        final ComplexObject complexObject = new ComplexObject();
+        private Builder() {
+
+        }
+
+        public Builder user(User user) {
+            complexObject.user = user;
+            return this;
+        }
+
+        public Builder addressBook(Map<String, User> addressBook) {
+            complexObject.addressBook = addressBook;
+            return this;
+        }
+
+        public ComplexObject build() {
+            return complexObject;
+        }
+
+        public Builder objects(List<ComplexObject> complexObjects) {
+            complexObject.objects = complexObjects;
+            return this;
+        }
+
+        public Builder friend(Set<User> users) {
+            complexObject.friend = users;
+            return this;
+        }
+    }
 
     @SerializedName("user")
     private User user;
@@ -59,5 +82,19 @@ public class ComplexObject {
                         .build())
                 .friend(users)
                 .build();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(user, addressBook, friend, objects);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return hashCode() == obj.hashCode();
+    }
+
+    private static Builder builder() {
+        return new Builder();
     }
 }

@@ -16,10 +16,6 @@ import io.reactivex.Single;
 import io.reactivex.functions.BiFunction;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,10 +25,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.*;
 
-@AllArgsConstructor
-@Builder
-@NoArgsConstructor
-@Data
 public class RMIController {
 
     private static final Logger Log = LoggerFactory.getLogger(RMIController.class);
@@ -41,6 +33,39 @@ public class RMIController {
     private Class stub;
     private Object impl;
 
+    static class Builder {
+        private final RMIController controller = new RMIController();
+
+        public Builder impl(Object impl) {
+            controller.impl = impl;
+            return this;
+        }
+
+        public Builder controller(Controller controller) {
+            this.controller.controller = controller;
+            return this;
+        }
+
+        public Builder stub(Class cls) {
+            controller.stub = cls;
+            return this;
+        }
+
+        public Builder endpointMap(HashMap<String, Endpoint> endpointMap) {
+            controller.endpointMap = endpointMap;
+            return this;
+        }
+
+        public RMIController build() {
+            return controller;
+        }
+    }
+
+    static Builder builder() {
+        return new Builder();
+    }
+
+
     /**
      * create {@link RMIController} by analyzing fields of {@link RMIService}
      * @param field field of {@link RMIController}
@@ -48,7 +73,7 @@ public class RMIController {
      * @throws IllegalAccessException if no arg constructor is not aacessible
      * @throws InstantiationException fail to resolve implementation class of controller
      */
-    static public RMIController create(Field field) throws IllegalAccessException, InstantiationException {
+    public static RMIController create(Field field) throws IllegalAccessException, InstantiationException {
         return create(field, new Object[0]);
     }
 
@@ -99,27 +124,29 @@ public class RMIController {
                 .collectInto(new HashMap<>(), (stringEndpointHashMap, endpoint) -> RMIController.collectMethod(stringEndpointHashMap, endpoint));
 
         return Observable.just(RMIController.builder())
-                .map(new Function<RMIControllerBuilder, RMIControllerBuilder>() {
+                .map(new Function<Builder, Builder>() {
                     @Override
-                    public RMIControllerBuilder apply(RMIControllerBuilder builder) throws Exception {
+                    public Builder apply(Builder builder) throws Exception {
                         return builder.impl(impl).controller(controller).stub(cls);
                     }
                 })
-                .zipWith(endpointLookupSingle.toObservable(), new BiFunction<RMIControllerBuilder, HashMap<String, Endpoint>, RMIControllerBuilder>() {
+                .zipWith(endpointLookupSingle.toObservable(), new BiFunction<Builder, HashMap<String, Endpoint>, Builder>() {
                     @Override
-                    public RMIControllerBuilder apply(RMIControllerBuilder builder, HashMap<String, Endpoint> stringEndpointHashMap) throws Exception {
+                    public Builder apply(Builder builder, HashMap<String, Endpoint> stringEndpointHashMap) throws Exception {
                         return builder.endpointMap(stringEndpointHashMap);
                     }
                 })
-                .map(new Function<RMIControllerBuilder, RMIController>() {
+                .map(new Function<Builder, RMIController>() {
+
                     @Override
-                    public RMIController apply(RMIControllerBuilder builder) throws Exception {
+                    public RMIController apply(Builder builder) throws Exception {
                         return builder.build();
                     }
                 })
                 .blockingFirst();
 
     }
+
 
 
     /**
@@ -144,6 +171,17 @@ public class RMIController {
 
     private static boolean isImplementOf(Object o, Type itfcType) {
         return Arrays.asList(o.getClass().getGenericInterfaces()).contains(itfcType);
+    }
+
+
+    private RMIController() { }
+
+    public Class getStub() {
+        return stub;
+    }
+
+    public Controller getController() {
+        return controller;
     }
 
     /**
@@ -196,6 +234,6 @@ public class RMIController {
                 .toList().blockingGet();
         Log.trace("invoke request handler {} for ({})", endpoint.getJMethod().getName(), request.getNonce());
 
-        return (Response) endpoint.getJMethod().invoke(getImpl(), params.toArray());
+        return (Response) endpoint.getJMethod().invoke(impl, params.toArray());
     }
 }

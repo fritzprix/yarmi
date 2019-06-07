@@ -53,7 +53,7 @@ public enum ParamType {
             case HEADER:
                 return ((Header) annotation).name();
             case BODY:
-                return ((Body) annotation).name();
+                return annotation.toString();
             case PATH:
                 return ((Path) annotation).name();
             case QUERY:

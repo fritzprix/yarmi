@@ -54,8 +54,8 @@ public class TcpServiceAdapter extends BaseServiceAdapter {
     @Override
     protected void onStart(InetAddress bindAddress) throws IOException {
         serverSocket = new ServerSocket();
-        serverSocket.bind(new InetSocketAddress(bindAddress.getHostAddress(), port));
-        Log.debug("service started @ {} : {}", serverSocket.getLocalSocketAddress(), serverSocket.getInetAddress().getHostAddress());
+        serverSocket.bind(new InetSocketAddress(bindAddress, port));
+        Log.debug("service started @ {} : {}", serverSocket.getLocalSocketAddress(), serverSocket.getInetAddress());
     }
 
     @Override

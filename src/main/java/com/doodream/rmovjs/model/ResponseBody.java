@@ -2,12 +2,10 @@ package com.doodream.rmovjs.model;
 
 
 import com.google.gson.annotations.SerializedName;
-import lombok.Data;
 
 /**
  *  this class is used default response when {@link Response} is not used with type parameter.
  */
-@Data
 public class ResponseBody {
     @SerializedName("msg")
     private String message;

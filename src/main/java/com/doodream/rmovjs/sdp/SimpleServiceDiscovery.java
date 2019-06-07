@@ -1,113 +1,118 @@
 package com.doodream.rmovjs.sdp;
 
+import com.doodream.rmovjs.Properties;
 import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.serde.json.JsonConverter;
-import io.reactivex.Observable;
-import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.functions.Action;
-import io.reactivex.functions.Consumer;
-import io.reactivex.functions.Function;
-import io.reactivex.schedulers.Schedulers;
+import com.doodream.rmovjs.serde.bson.BsonConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
-import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
+import java.net.*;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-/**
- *  this class is counter implementation of SimpleServiceAdvertiser, which is intended to be used for testing purpose as well
- *
- *  listen broadcast message and try to convert the message into RMIServiceInfo.
- *  if there is service broadcast matched to the target service info, then invoke onDiscovered callback of listener
- */
-public class SimpleServiceDiscovery extends BaseServiceDiscovery {
-
+public class SimpleServiceDiscovery implements ServiceDiscovery {
 
     private static final Logger Log = LoggerFactory.getLogger(SimpleServiceDiscovery.class);
-    private final CompositeDisposable disposable;
-    private final JsonConverter converter;
+    private final InetAddress network;
+    private final BsonConverter converter = new BsonConverter();
 
-    public SimpleServiceDiscovery() {
-        super();
-        disposable = new CompositeDisposable();
-        converter = new JsonConverter();
+    private final static String DISCOVERY_ADDRESS = Properties.getDiscoveryAddress(SimpleServiceRegistry.DEFAULT_MULTICAST_GROUP_IP);
+    private final static int DISCOVERY_PORT = Properties.getDiscoveryPort(SimpleServiceRegistry.DEFAULT_SERVICE_QUERY_PORT);
+    private final static int DISCOVERY_TTL = Properties.getDiscoveryTTL(SimpleServiceRegistry.DEFAULT_MULTICAST_TTL);
+    private final static long DISCOVERY_TIMEOUT = Properties.getDiscoveryTimeoutInMills();
+    private final ExecutorService executorService = Executors.newWorkStealingPool();
+    private Future discoveryTask;
+    private boolean isDiscovering;
 
+    public SimpleServiceDiscovery(InetAddress address) {
+        network = address;
+    }
+
+    public SimpleServiceDiscovery() throws UnknownHostException {
+        this(InetAddress.getLocalHost());
     }
 
     @Override
-    protected void onStartDiscovery(DiscoveryEventListener listener, InetAddress network) {
-        try {
-            Log.debug("subscribe SDP on {}", network);
-            final MulticastSocket socket = new MulticastSocket(SimpleServiceAdvertiser.BROADCAST_PORT);
-            socket.setInterface(network);
-            socket.joinGroup(SimpleServiceAdvertiser.getGroupAddress());
-            disposable.add(listenMulticast(socket, 1000L, TimeUnit.MILLISECONDS)
-                    .map(new Function<byte[], RMIServiceInfo>() {
-                        @Override
-                        public RMIServiceInfo apply(byte[] bytes) throws Exception {
-                            return converter.invert(bytes, RMIServiceInfo.class);
-                        }
-                    })
-                    .doOnDispose(new Action() {
-                        @Override
-                        public void run() throws Exception {
-                            if (!socket.isClosed()) {
-                                socket.close();
-                            }
-                        }
-                    })
-                    .subscribeOn(Schedulers.io())
-                    .subscribe(new Consumer<RMIServiceInfo>() {
-                        @Override
-                        public void accept(RMIServiceInfo info) throws Exception {
-                            Log.debug("service discovered ({}) on {}", info.getName(), socket.getInterface());
-                            listener.onDiscovered(info);
-                        }
-                    }, new Consumer<Throwable>() {
-                        @Override
-                        public void accept(Throwable throwable) throws Exception {
-                            listener.onError(throwable);
-                        }
-                    }, new Action() {
-                        @Override
-                        public void run() throws Exception {
-                            listener.onStop();
-                        }
-                    }));
-        } catch (IOException e) {
-            Log.error("fail to start discovery", e);
-        }
+    protected void finalize() throws Throwable {
+        super.finalize();
+        executorService.shutdown();
     }
 
-    private Observable<byte[]> listenMulticast(MulticastSocket socket, long interval, TimeUnit timeUnit) throws IOException {
-        return Observable.interval(interval, timeUnit)
-                .map(new Function<Long, DatagramPacket>() {
-                    @Override
-                    public DatagramPacket apply(Long aLong) throws Exception {
-                        byte[] buffer = new byte[64 * 1024];
-                        Arrays.fill(buffer, (byte) 0);
-                        return new DatagramPacket(buffer, buffer.length);
-                    }
-                })
-                .map(new Function<DatagramPacket, byte[]>() {
-                    @Override
-                    public byte[] apply(DatagramPacket datagramPacket) throws Exception {
-                        socket.receive(datagramPacket);
-                        Log.debug("service info from {}", datagramPacket.getAddress());
-                        return datagramPacket.getData();
+    @Override
+    public void start(Class service, ServiceDiscoveryListener listener) throws IOException, IllegalArgumentException {
+
+        final Set<RMIServiceInfo> services = Collections.newSetFromMap(new ConcurrentHashMap<>());
+        final MulticastSocket mCastSocket = new MulticastSocket(DISCOVERY_PORT);
+        mCastSocket.setTimeToLive(DISCOVERY_TTL);
+
+        final InetAddress groupAddress = InetAddress.getByName(DISCOVERY_ADDRESS);
+        final DatagramSocket uCastSocket = new DatagramSocket();
+        mCastSocket.joinGroup(groupAddress);
+        uCastSocket.setSoTimeout((int) DISCOVERY_TIMEOUT);
+
+        executorService.submit(() -> {
+            synchronized (this) {
+                if(isDiscovering) {
+                    return;
+                }
+                isDiscovering = true;
+                discoveryTask = executorService.submit(() -> {
+                    final int bufferSize = 1024 * 64;
+                    final DatagramPacket packet = new DatagramPacket(new byte[bufferSize], bufferSize);
+
+                    try {
+                        while(isDiscovering) {
+                            uCastSocket.receive(packet);
+                            final byte[] data = packet.getData();
+                            if(data == null) {
+                                continue;
+                            }
+
+                            if(data.length == 0) {
+                                continue;
+                            }
+                            SimpleServiceDiscoveryResponse serviceRecord = converter.invert(data, SimpleServiceDiscoveryResponse.class);
+                            listener.onServiceDiscovered(serviceRecord.getServices());
+                            services.addAll(serviceRecord.getServices());
+                        }
+                    } catch (IOException e) {
+                        stop();
+                        Log.debug("stop listening discovery response : {}", e.getMessage());
+                    } finally {
+                        uCastSocket.close();
                     }
                 });
+            }
+
+
+            SimpleServiceQuery serviceQuery = SimpleServiceQuery.from(service, uCastSocket.getLocalPort());
+            final byte[] data = converter.convert(serviceQuery);
+            final DatagramPacket packet = new DatagramPacket(data, data.length, groupAddress, DISCOVERY_PORT);
+            try {
+                mCastSocket.send(packet);
+            } catch (IOException e) {
+                Log.error("fail to send discovery request : {}", e.getMessage());
+                stop();
+            } finally {
+                mCastSocket.close();
+            }
+        });
     }
 
     @Override
-    protected void onStopDiscovery() {
-        if(!disposable.isDisposed()) {
-            disposable.dispose();
+    public synchronized void stop() {
+        isDiscovering = false;
+        if(discoveryTask == null) {
+            return;
         }
-        disposable.clear();
+        if(discoveryTask.isCancelled() || discoveryTask.isDone()) {
+            return;
+        }
+        discoveryTask.cancel(true);
     }
 }

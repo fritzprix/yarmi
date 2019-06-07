@@ -1,7 +1,5 @@
 package com.doodream.rmovjs.test.service.echoback;
 
-import com.doodream.rmovjs.annotation.method.Get;
-import com.doodream.rmovjs.annotation.method.Put;
 import com.doodream.rmovjs.annotation.method.RMIExpose;
 import com.doodream.rmovjs.annotation.parameter.Body;
 import com.doodream.rmovjs.annotation.parameter.Query;
@@ -9,7 +7,6 @@ import com.doodream.rmovjs.model.Response;
 import com.doodream.rmovjs.net.session.BlobSession;
 import com.doodream.rmovjs.test.data.ComplexObject;
 import com.doodream.rmovjs.test.data.User;
-import lombok.NonNull;
 
 import java.util.List;
 import java.util.Map;
@@ -18,19 +15,19 @@ import java.util.Set;
 public interface EchoBackController {
 
     @RMIExpose
-    Response<String> sendMessage(@Query(name = "content") @NonNull String msg);
+    Response<String> sendMessage(@Query(name = "content") String msg);
 
     @RMIExpose
-    Response<User> sendJavaObject(@Query(name = "user") @NonNull User user);
+    Response<User> sendJavaObject(@Query(name = "user") User user);
 
     @RMIExpose
-    Response<Map<String, String>> sendMap(@Query(name = "map") @NonNull Map<String, String> map);
+    Response<Map<String, String>> sendMap(@Query(name = "map") Map<String, String> map);
 
     @RMIExpose
-    Response<List<String>> sendList(@Query(name = "list") @NonNull List<String> list);
+    Response<List<String>> sendList(@Query(name = "list") List<String> list);
 
     @RMIExpose
-    Response<Set<String>> sendSet(@Query(name = "set") @NonNull Set<String> set);
+    Response<Set<String>> sendSet(@Query(name = "set") Set<String> set);
 
     @RMIExpose
     Response<List<User>> sendUserList(@Query(name = "users") List<User> users);
@@ -48,7 +45,7 @@ public interface EchoBackController {
     Response<List<ComplexObject>> sendComplexObjectList(@Query(name = "complexes") List<ComplexObject> objects);
 
     @RMIExpose
-    Response<Long> sendBlob(@Body(name = "data") BlobSession data);
+    Response<Long> sendBlob(@Body BlobSession data);
 
     @RMIExpose
     Response<Long> getBlobSize(@Query(name = "id") Long id);

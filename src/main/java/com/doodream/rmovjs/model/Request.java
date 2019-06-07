@@ -12,10 +12,6 @@ import com.google.gson.annotations.SerializedName;
 import io.reactivex.Observable;
 import io.reactivex.functions.BiConsumer;
 import io.reactivex.functions.BiFunction;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,11 +27,39 @@ import java.util.concurrent.TimeoutException;
  * 2. parameters for method invocation
  * 3. optionally it conveys session control message which consumed by {@link com.doodream.rmovjs.net.ServiceAdapter} or {@link ServiceProxy}
  */
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-@Data
 public class Request {
+
+
+    private Request() { }
+
+
+    public static class Builder {
+        private final Request request = new Request();
+
+        public Builder scm(SessionControlMessage controlMessage) {
+            request.scm = controlMessage;
+            return this;
+        }
+
+        public Request build() {
+            return request;
+        }
+
+        public Builder params(List params) {
+            request.params = params;
+            return this;
+        }
+
+        public Builder endpoint(String unique) {
+            request.endpoint = unique;
+            return this;
+        }
+
+        public Builder session(BlobSession session) {
+            request.session = session;
+            return this;
+        }
+    }
 
     private static final Logger Log = LoggerFactory.getLogger(Request.class);
 
@@ -76,10 +100,19 @@ public class Request {
         };
     }
 
+    private static Builder builder() {
+        return new Builder();
+    }
+
     public synchronized void setResponse(Response response) {
         Log.trace("notify waiting thread for response ({}) : {}", nonce, response.getBody());
         this.response = response;
         this.notifyAll();
+    }
+
+
+    public void setClient(ClientSocketAdapter adapter) {
+        this.client = adapter;
     }
 
     public synchronized Response getResponse(long timeout) throws TimeoutException {
@@ -108,6 +141,10 @@ public class Request {
         return scm != null;
     }
 
+    public int getNonce() {
+        return nonce;
+    }
+
     public static Request fromEndpoint(Endpoint endpoint, Object ...args) {
         if(args == null) {
             return Request.builder()
@@ -116,7 +153,7 @@ public class Request {
                     .build();
         } else {
             BlobSession session = BlobSession.findOne(args);
-            final Request.RequestBuilder builder =  Request.builder()
+            final Request.Builder builder =  Request.builder()
                     .params(convertParams(endpoint, args))
                     .endpoint(endpoint.getUnique());
 
@@ -150,5 +187,29 @@ public class Request {
                 params.add(param);
             }
         }).blockingGet();
+    }
+
+    public void setNonce(int nonce) {
+        this.nonce = nonce;
+    }
+
+    public BlobSession getSession() {
+        return session;
+    }
+
+    public List<Param> getParams() {
+        return params;
+    }
+
+    public Response getResponse() {
+        return response;
+    }
+
+    public SessionControlMessage getScm() {
+        return scm;
+    }
+
+    public String getEndpoint() {
+        return endpoint;
     }
 }

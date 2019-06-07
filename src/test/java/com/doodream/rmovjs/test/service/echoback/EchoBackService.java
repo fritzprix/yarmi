@@ -9,7 +9,7 @@ import com.doodream.rmovjs.net.tcp.TcpServiceAdapter;
         name = "test-service",
         provider = "www.doodream.com",
         params = {
-            @AdapterParam(key= TcpServiceAdapter.PARAM_PORT, value = "6644")
+            @AdapterParam(key= TcpServiceAdapter.PARAM_PORT, value = "6464")
         })
 public class EchoBackService {
 

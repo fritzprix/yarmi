@@ -2,8 +2,9 @@ package com.doodream.rmovjs.sdp;
 
 import com.doodream.rmovjs.model.RMIServiceInfo;
 
+import java.util.Collection;
+
 public interface ServiceDiscoveryListener {
-    void onDiscovered(RMIServiceInfo info);
-    void onDiscoveryStarted();
-    void onDiscoveryFinished() throws IllegalAccessException;
+    void onServiceDiscovered(Collection<RMIServiceInfo> infos);
+    void onError(Throwable err);
 }

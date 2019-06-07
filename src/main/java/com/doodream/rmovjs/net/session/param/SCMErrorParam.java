@@ -1,19 +1,8 @@
 package com.doodream.rmovjs.net.session.param;
 
 import com.doodream.rmovjs.net.session.SessionCommand;
-import com.google.gson.Gson;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Data
 public class SCMErrorParam {
-
-    private static final Gson GSON = new Gson();
 
     /**
      *  {@link SessionCommand} which caused error
@@ -23,6 +12,32 @@ public class SCMErrorParam {
     private String msg;
     private ErrorType type;
 
+    static class Builder {
+        private final SCMErrorParam error = new SCMErrorParam();
+
+        private Builder() { }
+
+        public Builder command(SessionCommand command) {
+            error.command = command;
+            return this;
+        }
+
+        public Builder msg(String msg) {
+            error.msg = msg;
+            return this;
+        }
+
+
+        public Builder type(ErrorType type) {
+            error.type = type;
+            return this;
+        }
+
+        public SCMErrorParam build() {
+            return error;
+        }
+    }
+
     public static SCMErrorParam build(SessionCommand command, String msg, ErrorType type) {
         return SCMErrorParam.builder()
                 .command(command)
@@ -31,6 +46,24 @@ public class SCMErrorParam {
                 .build();
     }
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    private SCMErrorParam() { }
+
+
+    public ErrorType getType() {
+        return type;
+    }
+
+    public SessionCommand getCommand() {
+        return command;
+    }
+
+    public String getMsg() {
+        return msg;
+    }
 
     public enum ErrorType {
         BAD_SEQUENCE(-1),

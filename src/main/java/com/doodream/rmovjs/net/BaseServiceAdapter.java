@@ -12,7 +12,6 @@ import io.reactivex.functions.BooleanSupplier;
 import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
-import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +28,7 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     private volatile boolean listen = false;
 
     @Override
-    public String listen(final RMIServiceInfo serviceInfo, final Converter converter, final InetAddress network, @NonNull final Function<Request, Response> handleRequest) throws IllegalAccessException, InstantiationException, IOException {
+    public String listen(final RMIServiceInfo serviceInfo, final Converter converter, final InetAddress network, final Function<Request, Response> handleRequest) throws IllegalAccessException, InstantiationException, IOException {
         if(listen) {
             throw new IllegalStateException("service already listening");
         }
