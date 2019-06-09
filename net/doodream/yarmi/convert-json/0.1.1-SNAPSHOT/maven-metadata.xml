@@ -20,6 +20,12 @@
         <value>0.1.1-20190609.042817-1</value>
         <updated>20190609042817</updated>
       </snapshotVersion>
+      <snapshotVersion>
+        <classifier>jar-with-dependencies</classifier>
+        <extension>jar</extension>
+        <value>0.1.1-20190609.042817-1</value>
+        <updated>20190609042817</updated>
+      </snapshotVersion>
     </snapshotVersions>
   </versioning>
 </metadata>
