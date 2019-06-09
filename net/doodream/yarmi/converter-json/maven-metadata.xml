@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>net.doodream.yarmi</groupId>
+  <artifactId>converter-json</artifactId>
+  <versioning>
+    <versions>
+      <version>0.1.1-SNAPSHOT</version>
+    </versions>
+    <lastUpdated>20190609082010</lastUpdated>
+  </versioning>
+</metadata>
