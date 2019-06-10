@@ -1,16 +1,16 @@
 package net.doodream.yarmi.model;
 
-import io.reactivex.Observable;
-import io.reactivex.Single;
-import io.reactivex.functions.Function;
 import net.doodream.yarmi.Properties;
+import net.doodream.yarmi.annotation.parameter.AdapterParam;
 import net.doodream.yarmi.annotation.server.Service;
 import net.doodream.yarmi.net.Negotiator;
 import net.doodream.yarmi.net.ServiceAdapter;
 import net.doodream.yarmi.net.ServiceProxy;
+import net.doodream.yarmi.net.ServiceProxyFactory;
 import net.doodream.yarmi.serde.Converter;
 import net.doodream.yarmi.server.RMIController;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 public class RMIServiceInfo {
@@ -108,29 +108,37 @@ public class RMIServiceInfo {
 
     public static RMIServiceInfo from(Class<?> svc) throws IllegalArgumentException {
         Service service = svc.getAnnotation(Service.class);
-        final Builder builder = RMIServiceInfo.builder();
-
-        Map<String, String> paramAsMap = Observable.fromArray(service.params())
-                .collectInto(new HashMap<String, String>(), (map, param) -> map.put(param.key(), param.value()))
-                .blockingGet();
-
-        builder.version(Properties.getVersionString())
+        return RMIServiceInfo.builder()
+                .version(Properties.getVersionString())
                 .adapter(service.adapter())
                 .negotiator(service.negotiator())
                 .converter(service.converter())
-                .params(paramAsMap)
+                .params(buildParameterMap(service.params()))
+                .controllerInfos(buildControllers(svc))
                 .provider(service.provider())
-                .name(service.name());
+                .name(service.name())
+                .build();
+    }
 
-        Observable.fromArray(svc.getDeclaredFields())
-                .filter(field -> RMIController.isValidController(field))
-                .map(field -> RMIController.create(field))
-                .map(rmiController -> ControllerInfo.build(rmiController))
-                .toList()
-                .doOnSuccess(controllerInfos -> builder.controllerInfos(controllerInfos))
-                .subscribe();
+    private static List<ControllerInfo> buildControllers(Class<?> svc) {
+        List<ControllerInfo> controllerInfos = new ArrayList<>();
+        for (Field field : svc.getDeclaredFields()) {
+            try {
+                if (RMIController.isValidController(field)) {
+                    final ControllerInfo info = ControllerInfo.build(RMIController.create(field));
+                    controllerInfos.add(info);
+                }
+            } catch (IllegalAccessException | InstantiationException ignored) {  }
+        }
+        return controllerInfos;
+    }
 
-        return builder.build();
+    private static Map<String, String> buildParameterMap(AdapterParam[] params) {
+        final Map<String, String> map = new HashMap<>();
+        for (AdapterParam param : params) {
+            map.put(param.key(), param.value());
+        }
+        return map;
     }
 
     public static Builder builder() {
@@ -188,15 +196,17 @@ public class RMIServiceInfo {
     }
 
     public static ServiceProxy toServiceProxy(final RMIServiceInfo info) {
-        return Single.just(info)
-                .map((Function<RMIServiceInfo, Class<?>>) rmiServiceInfo -> rmiServiceInfo.getAdapter())
-                .map((Function<Class<?>, Object>) cls -> cls.newInstance())
-                .cast(ServiceAdapter.class)
-                .map(serviceAdapter -> serviceAdapter.getProxyFactory(info))
-                .map(serviceProxyFactory -> serviceProxyFactory.build())
-                .onErrorReturn(throwable -> ServiceProxy.NULL_PROXY)
-                .filter(proxy -> !ServiceProxy.NULL_PROXY.equals(proxy))
-                .blockingGet(ServiceProxy.NULL_PROXY);
+        final Class<?> adapter = info.getAdapter();
+        if(adapter == null) {
+            throw new IllegalArgumentException("invalid service info : no adapter definition found");
+        }
+        try {
+            ServiceAdapter serviceAdapter = (ServiceAdapter) adapter.newInstance();
+            ServiceProxyFactory proxyFactory = serviceAdapter.getProxyFactory(info);
+            return proxyFactory.build();
+        } catch (IllegalAccessException | InstantiationException e) {
+            return ServiceProxy.NULL_PROXY;
+        }
     }
 
     public void copyFrom(RMIServiceInfo info) {

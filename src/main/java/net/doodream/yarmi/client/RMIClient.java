@@ -1,16 +1,14 @@
-package com.doodream.rmovjs.client;
+package net.doodream.yarmi.client;
 
-import com.doodream.rmovjs.annotation.RMIException;
-import com.doodream.rmovjs.annotation.server.Controller;
-import com.doodream.rmovjs.annotation.server.Service;
-import com.doodream.rmovjs.method.RMIMethod;
-import com.doodream.rmovjs.model.Endpoint;
-import com.doodream.rmovjs.model.RMIError;
-import com.doodream.rmovjs.model.RMIServiceInfo;
-import com.doodream.rmovjs.model.Response;
-import com.doodream.rmovjs.net.ServiceProxy;
-import io.reactivex.Observable;
-import io.reactivex.Single;
+import net.doodream.yarmi.annotation.RMIException;
+import net.doodream.yarmi.annotation.server.Controller;
+import net.doodream.yarmi.annotation.server.Service;
+import net.doodream.yarmi.method.RMIMethod;
+import net.doodream.yarmi.model.Endpoint;
+import net.doodream.yarmi.model.RMIError;
+import net.doodream.yarmi.model.RMIServiceInfo;
+import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.net.ServiceProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,46 +115,55 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         final Set<Field> controllers = getController(svc, serviceProxy);
         if(ctrl == null) {
             // all the controllers declared are added to call proxy, if ctrl is given as null
-            Observable.fromIterable(controllers)
-                    .blockingSubscribe(field -> controllerMap.put(field.getType(), field.getAnnotation(Controller.class)));
+            for (Field controller : controllers) {
+                controllerMap.put(controller.getType(), controller.getAnnotation(Controller.class));
+            }
         } else {
             Set<Class<?>> controllerSet = new HashSet<>(Arrays.asList(ctrl));
-            Observable.fromIterable(controllers)
-                    .blockingSubscribe(field -> {
-                        if(controllerSet.contains(field.getType())) {
-                            controllerMap.put(field.getType(), field.getAnnotation(Controller.class));
-                        }
-                    });
+            for (Field controller : controllers) {
+                if(controllerSet.contains(controller.getType())) {
+                    controllerMap.put(controller.getType(), controller.getAnnotation(Controller.class));
+                }
+            }
         }
         if(controllerMap.isEmpty()) {
             // throw IllegalArgumentException if there is no matched controller
             throw new IllegalArgumentException(String.format(Locale.ENGLISH, "no valid controllers for %s", service.name()));
         }
 
-        Set<Method> validMethods = Observable.fromIterable(controllerMap.entrySet())
-                .flatMap(entry -> extractRMIMethods(entry.getKey()))
-                .collectInto(new HashSet<Method>(), (methods, method) -> methods.add(method))
-                .blockingGet();
+        Set<Method> validMethods = new HashSet<>();
+        for (Map.Entry<Class<?>, Controller> entry : controllerMap.entrySet()) {
+            Set<Method> methods = extractRMIMethods(entry.getKey());
+            validMethods.addAll(methods);
+        }
+
         if(validMethods.isEmpty()) {
             throw new IllegalArgumentException("no valid method");
         }
 
+
         try {
             if(serviceProxy.open()) {
-                Log.debug("{} is newly opened", serviceProxy.who());
+                Log.debug("{} is opened", serviceProxy.who());
             }
 
             RMIClient rmiClient = new RMIClient(serviceProxy, timeoutInMills);
+            final HashMap<Method, Endpoint> endpointMap = new HashMap<>();
+            for (Method validMethod : validMethods) {
+                final Endpoint endpoint = Endpoint.create(controllerMap.get(validMethod.getDeclaringClass()), validMethod);
+                endpointMap.put(validMethod, endpoint);
+            }
 
-            Observable<Endpoint> endpointObservable = Observable.fromIterable(validMethods)
-                    .map(method -> Endpoint.create(controllerMap.get(method.getDeclaringClass()), method));
+//            Observable<Endpoint> endpointObservable = Observable.fromIterable(validMethods)
+//                    .map(method -> Endpoint.create(controllerMap.get(method.getDeclaringClass()), method));
+//
+//            Single<HashMap<Method, Endpoint>> hashMapSingle = Observable.fromIterable(validMethods)
+//                    .zipWith(endpointObservable, RMIClient::zipIntoMethodMap)
+//                    .collectInto(new HashMap<>(), RMIClient::collectMethodMap);
+//
+//            rmiClient.setMethodEndpointMap(hashMapSingle.blockingGet());
 
-            Single<HashMap<Method, Endpoint>> hashMapSingle = Observable.fromIterable(validMethods)
-                    .zipWith(endpointObservable, RMIClient::zipIntoMethodMap)
-                    .collectInto(new HashMap<>(), RMIClient::collectMethodMap);
-
-            rmiClient.setMethodEndpointMap(hashMapSingle.blockingGet());
-
+            rmiClient.setMethodEndpointMap(endpointMap);
             // 18. 7. 31 consider give all the available controller interface to the call proxy
             // main concern is...
             // what happen if there are two methods declared in different interfaces which is identical in parameter & return type, etc.
@@ -180,9 +187,16 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         return result;
     }
 
-    private static Observable<Method> extractRMIMethods(Class<?> cls) {
-        return Observable.fromArray(cls.getMethods())
-                .filter(method -> RMIMethod.isValidMethod(method));
+    private static Set<Method> extractRMIMethods(Class<?> cls) {
+        Set<Method> methods = new HashSet<>();
+        for (Method method : cls.getMethods()) {
+            if(RMIMethod.isValidMethod(method)) {
+                methods.add(method);
+            }
+        }
+        return methods;
+//        return Observable.fromArray(cls.getMethods())
+//                .filter(method -> RMIMethod.isValidMethod(method));
     }
 
     private static boolean isAnnotatedWithController(Field field) {

@@ -6,7 +6,6 @@ import net.doodream.yarmi.model.Response;
 import net.doodream.yarmi.serde.Converter;
 import net.doodream.yarmi.serde.Reader;
 import net.doodream.yarmi.serde.Writer;
-import io.reactivex.Observable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,37 +56,17 @@ public class SimpleNegotiator implements Negotiator {
     private void handshakeFromServer(final RMIServiceInfo service, Reader reader, final Writer writer) throws HandshakeFailException {
         try {
             final RMIServiceInfo serviceInfo = reader.read(RMIServiceInfo.class, MAX_TIMEOUT, TimeUnit.SECONDS);
-
-            Observable<RMIServiceInfo> handshakeRequestSingle = Observable.just(serviceInfo);
-            Observable<Response> serviceInfoMatchedObservable = handshakeRequestSingle
-                    .filter(info -> info.hashCode() == service.hashCode())
-                    .map(rmiServiceInfo -> Response.success("OK"));
-
-            Observable<Response> serviceInfoMismatchObservable = handshakeRequestSingle
-                    .filter(info -> info.hashCode() != service.hashCode())
-                    .map(rmiServiceInfo -> {
-                        Log.debug("{} != {}", rmiServiceInfo, service);
-                        return Response.from(RMIError.BAD_REQUEST);
-                    });
-
-            boolean success = serviceInfoMatchedObservable.mergeWith(serviceInfoMismatchObservable)
-                    .doOnNext(response -> Log.trace("Handshake Response : ({}) {}", response.getCode(), response.getBody()))
-                    .doOnNext(response -> {
-                        Log.debug("write response {}", response);
-                        writer.write(response, MAX_TIMEOUT, TimeUnit.SECONDS);
-                    })
-                    .map(response -> response.isSuccessful())
-                    .filter(aBoolean -> aBoolean)
-                    .blockingSingle(false);
-            if (success) {
-                return;
+            if(serviceInfo.hashCode() == service.hashCode()) {
+                writer.write(Response.success("OK"));
+            } else {
+                writer.write(RMIError.BAD_REQUEST.getResponse());
+                throw new HandshakeFailException();
             }
         } catch (IOException e) {
             Log.error("error on handshake : {}", e.getMessage());
         } catch (TimeoutException e) {
             Log.error("timeout on handshake : {}", e.getMessage());
         }
-        throw new HandshakeFailException();
     }
 
 }

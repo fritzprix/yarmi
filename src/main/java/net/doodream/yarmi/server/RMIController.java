@@ -1,8 +1,6 @@
 package net.doodream.yarmi.server;
 
 
-import io.reactivex.functions.BiFunction;
-import io.reactivex.functions.Function;
 import net.doodream.yarmi.annotation.server.Controller;
 import net.doodream.yarmi.method.RMIMethod;
 import net.doodream.yarmi.model.Endpoint;
@@ -20,7 +18,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.stream.Stream;
 
 public class RMIController {
 

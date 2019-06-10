@@ -5,8 +5,6 @@ import net.doodream.yarmi.model.RMIServiceInfo;
 import net.doodream.yarmi.model.Request;
 import net.doodream.yarmi.model.Response;
 import net.doodream.yarmi.serde.Converter;
-import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.schedulers.Schedulers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +21,6 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
 
     protected static final Logger Log = LoggerFactory.getLogger(BaseServiceAdapter.class);
     private final ExecutorService executorService = Executors.newWorkStealingPool();
-    private final CompositeDisposable compositeDisposable = new CompositeDisposable();
     private final Map<RMISocket, Future> clientTasks = new ConcurrentHashMap<>();
 
     private volatile boolean listen = false;
@@ -71,33 +68,35 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
     }
 
     private void onHandshakeSuccess(final ClientSocketAdapter adapter, final Function<Request, Response> handleRequest) {
-        compositeDisposable.add(adapter.listen()
-                .subscribeOn(Schedulers.computation())
-                .subscribe(request -> {
-            if(Request.isValid(request)) {
-                executorService.submit(() -> {
-                    try {
-                        if(Log.isTraceEnabled()) {
-                            Log.trace("Request <= {}", request);
-                        }
-                        request.setClient(adapter);
+        adapter.startListen(request -> {
+            try {
+                if (Request.isValid(request)) {
+                    executorService.submit(() -> {
                         try {
-                            final Response response = handleRequest.apply(request);
                             if (Log.isTraceEnabled()) {
-                                Log.trace("Response => {}", response);
+                                Log.trace("Request <= {}", request);
                             }
-                            adapter.write(response);
+                            request.setClient(adapter);
+                            try {
+                                final Response response = handleRequest.apply(request);
+                                if (Log.isTraceEnabled()) {
+                                    Log.trace("Response => {}", response);
+                                }
+                                adapter.write(response);
+                            } catch (Exception e) {
+                                adapter.write(RMIError.INTERNAL_SERVER_ERROR.getResponse());
+                            }
                         } catch (Exception e) {
-                            adapter.write(RMIError.INTERNAL_SERVER_ERROR.getResponse());
+                            onError(e);
                         }
-                    } catch (Exception e) {
-                        onError(e);
-                    }
-                });
-            } else {
-                adapter.write(Response.from(RMIError.BAD_REQUEST));
+                    });
+                } else {
+                    adapter.write(Response.from(RMIError.BAD_REQUEST));
+                }
+            } catch (IOException e) {
+                onError(e);
             }
-        }));
+        });
     }
 
     private void onError(Throwable throwable) {
@@ -115,12 +114,30 @@ public abstract class BaseServiceAdapter implements ServiceAdapter {
                 Log.warn("", e);
             }
         }
-        compositeDisposable.dispose();
-        compositeDisposable.clear();
 
-        executorService.shutdown();
+        cancelTask(listenTask);
+        for (Map.Entry<RMISocket, Future> entry : clientTasks.entrySet()) {
+            cancelTask(entry.getValue());
+        }
     }
 
+    private void cancelTask(Future<?> task) {
+        if(task == null) {
+            return;
+        }
+
+        if(task.isDone() || task.isCancelled()) {
+            return;
+        }
+        task.cancel(true);
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+        close();
+        executorService.shutdown();
+    }
 
     protected abstract void onStart(InetAddress bindAddress) throws IOException;
     protected abstract boolean isClosed();

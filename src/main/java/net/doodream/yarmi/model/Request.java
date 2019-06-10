@@ -9,14 +9,10 @@ import net.doodream.yarmi.net.session.SessionControlMessage;
 import net.doodream.yarmi.net.session.SessionControlMessageWriter;
 import net.doodream.yarmi.parameter.Param;
 import net.doodream.yarmi.serde.Writer;
-import io.reactivex.Observable;
-import io.reactivex.functions.BiConsumer;
-import io.reactivex.functions.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -161,27 +157,27 @@ public class Request {
     }
 
     private static List<Param> convertParams(final Endpoint endpoint, Object[] objects) {
-        if(objects == null) {
+        if(objects == null || endpoint == null) {
             return Collections.EMPTY_LIST;
         }
 
-        return Observable.fromIterable(endpoint.getParams()).zipWith(Observable.fromArray(objects), new BiFunction<Param, Object, Param>() {
-            @Override
-            public Param apply(Param param, Object o) throws Exception {
-                param.apply(o);
-                if(param.isInstanceOf(BlobSession.class)) {
-                    if(o != null) {
-                        endpoint.session = (BlobSession) o;
-                    }
+        List<Param> params = endpoint.getParams();
+        for (int i = 0; i < params.size(); i++) {
+            final Param param = params.get(i);
+            final Object object = objects[i];
+            if(param == null) {
+                continue;
+            }
+            param.apply(object);
+            if(param.isInstanceOf(BlobSession.class)) {
+                if(object != null) {
+                    endpoint.session = (BlobSession) object;
                 }
-                return param;
             }
-        }).collectInto(new ArrayList<Param>(), new BiConsumer<ArrayList<Param>, Param>() {
-            @Override
-            public void accept(ArrayList<Param> params, Param param) throws Exception {
-                params.add(param);
-            }
-        }).blockingGet();
+        }
+
+        return params;
+
     }
 
     public void setNonce(int nonce) {
