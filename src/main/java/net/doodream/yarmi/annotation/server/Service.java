@@ -7,7 +7,6 @@ import net.doodream.yarmi.net.ServiceAdapter;
 import net.doodream.yarmi.net.SimpleNegotiator;
 import net.doodream.yarmi.net.tcp.TcpServiceAdapter;
 import net.doodream.yarmi.serde.Converter;
-import net.doodream.yarmi.serde.bson.BsonConverter;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
