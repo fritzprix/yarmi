@@ -3,7 +3,6 @@ package net.doodream.yarmi.net.tcp;
 import net.doodream.yarmi.model.RMIServiceInfo;
 import net.doodream.yarmi.net.ServiceProxy;
 import net.doodream.yarmi.net.ServiceProxyFactory;
-import net.doodream.yarmi.net.SimpleServiceProxy;
 
 import java.util.Map;
 
@@ -30,7 +29,7 @@ public class TcpServiceProxyFactory implements ServiceProxyFactory {
         if(host == null) {
             host = serviceInfo.getProxyFactoryHint();
         }
-        return SimpleServiceProxy.create(serviceInfo, new TcpRMISocket(host, port));
+        return ServiceProxy.getDefault(serviceInfo, new TcpRMISocket(host, port));
     }
 
     @Override

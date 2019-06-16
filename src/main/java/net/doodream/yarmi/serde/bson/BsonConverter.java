@@ -1,5 +1,6 @@
 package net.doodream.yarmi.serde.bson;
 
+import com.doodream.cutils.Types;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -13,7 +14,6 @@ import de.undercouch.bson4jackson.BsonParser;
 import net.doodream.yarmi.serde.Converter;
 import net.doodream.yarmi.serde.Reader;
 import net.doodream.yarmi.serde.Writer;
-import net.doodream.yarmi.util.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

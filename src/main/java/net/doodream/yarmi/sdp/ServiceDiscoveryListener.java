@@ -1,10 +1,31 @@
 package net.doodream.yarmi.sdp;
 
 import net.doodream.yarmi.model.RMIServiceInfo;
-
-import java.util.Collection;
-
+/**
+ * @author fritzprix
+ */
 public interface ServiceDiscoveryListener {
-    void onServiceDiscovered(Collection<RMIServiceInfo> infos);
-    void onError(Throwable err);
+    /**
+     * 
+     */
+    int FINISH_NORMAL = 0;
+    int FINISH_ERROR = 1;
+
+    /**
+     * 
+     */
+    void onDiscoveryStarted();
+
+    /**
+     * 
+     * @param info
+     */
+    void onServiceDiscovered(RMIServiceInfo info);
+
+    /**
+     * 
+     * @param code
+     * @param err
+     */
+    void onDiscoveryFinished(int code, Throwable err);
 }

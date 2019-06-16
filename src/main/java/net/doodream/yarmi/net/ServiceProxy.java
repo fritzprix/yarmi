@@ -2,11 +2,16 @@ package net.doodream.yarmi.net;
 
 import net.doodream.yarmi.model.Endpoint;
 import net.doodream.yarmi.model.RMIError;
+import net.doodream.yarmi.model.RMIServiceInfo;
 import net.doodream.yarmi.model.Response;
 
 import java.io.IOException;
 
 public interface ServiceProxy {
+
+    static ServiceProxy getDefault(RMIServiceInfo info, RMISocket socket) {
+        return DefaultServiceProxy.create(info, socket);
+    }
         ServiceProxy NULL_PROXY = new ServiceProxy() {
             @Override
             public boolean open() {
@@ -44,7 +49,7 @@ public interface ServiceProxy {
          * @throws InstantiationException
          */
         boolean open() throws IOException, IllegalAccessException, InstantiationException;
-        Response request(Endpoint endpoint, long timeoutMilliSec, Object ...args) throws IOException;
+        Response<?> request(Endpoint endpoint, long timeoutMilliSec, Object ...args) throws IOException;
         void close(boolean force) throws IOException;
         String who();
         boolean provide(Class controller);

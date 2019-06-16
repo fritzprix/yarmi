@@ -13,7 +13,7 @@ public interface ServiceDiscovery {
      * @throws IOException I/O related error occurred during discovery process
      * @throws IllegalArgumentException invalid parameter value
      */
-    void start(Class service, ServiceDiscoveryListener listener) throws IOException, IllegalArgumentException;
+    void start(Class<?> service, ServiceDiscoveryListener listener) throws IOException, IllegalArgumentException;
     void stop();
 
 }

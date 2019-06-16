@@ -17,9 +17,9 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
-public class SimpleServiceProxy implements ServiceProxy {
+class DefaultServiceProxy implements ServiceProxy {
 
-    private static final Logger Log = LoggerFactory.getLogger(SimpleServiceProxy.class);
+    private static final Logger Log = LoggerFactory.getLogger(DefaultServiceProxy.class);
 
     private volatile int openSemaphore;
     private volatile boolean isValid;
@@ -34,11 +34,11 @@ public class SimpleServiceProxy implements ServiceProxy {
     private Writer writer;
     private Future<?> readerTask;
 
-    public static SimpleServiceProxy create(RMIServiceInfo info, RMISocket socket) {
-        return new SimpleServiceProxy(info, socket);
+    public static DefaultServiceProxy create(RMIServiceInfo info, RMISocket socket) {
+        return new DefaultServiceProxy(info, socket);
     }
 
-    private SimpleServiceProxy(RMIServiceInfo info, RMISocket socket)  {
+    private DefaultServiceProxy(RMIServiceInfo info, RMISocket socket)  {
         // set Qos as bad as possible
         Log.debug("service proxy created");
         openSemaphore = 0;

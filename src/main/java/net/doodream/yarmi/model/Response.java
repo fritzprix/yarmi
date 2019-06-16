@@ -1,6 +1,5 @@
 package net.doodream.yarmi.model;
 
-import net.doodream.yarmi.net.SimpleServiceProxy;
 import net.doodream.yarmi.net.session.BlobSession;
 import net.doodream.yarmi.net.session.SessionCommand;
 import net.doodream.yarmi.net.session.SessionControlMessage;
@@ -8,13 +7,14 @@ import net.doodream.yarmi.net.session.SessionControlMessageWriter;
 import net.doodream.yarmi.net.session.param.SCMErrorParam;
 import net.doodream.yarmi.serde.Converter;
 import net.doodream.yarmi.serde.Writer;
-import net.doodream.yarmi.util.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+
+import com.doodream.cutils.Types;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -172,7 +172,7 @@ public class Response<T> {
     /**
      * response is generic container and conveys no type information in itself, which means any deserializer
      * would be not able to handle deserialization of the body field, which is generic, properly.
-     * this method is called when response is received from the server by {@link SimpleServiceProxy}
+     * this method is called when response is received from the server by {@link DefaultServiceProxy}
      *
      * @param converter converter implementation
      * @param type {@link Type} for body content

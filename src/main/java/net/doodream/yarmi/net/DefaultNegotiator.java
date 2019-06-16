@@ -13,8 +13,8 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class SimpleNegotiator implements Negotiator {
-    private static final Logger Log = LoggerFactory.getLogger(SimpleNegotiator.class);
+public class DefaultNegotiator implements Negotiator {
+    private static final Logger Log = LoggerFactory.getLogger(DefaultNegotiator.class);
     private static final long MAX_TIMEOUT = 10L;
 
     @Override

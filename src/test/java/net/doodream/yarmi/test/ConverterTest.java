@@ -9,7 +9,6 @@ import net.doodream.yarmi.serde.Writer;
 import net.doodream.yarmi.serde.bson.BsonConverter;
 import net.doodream.yarmi.test.service.echoback.EchoBackService;
 import net.doodream.yarmi.test.data.User;
-import net.doodream.yarmi.util.Types;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -19,6 +18,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.*;
+
+import com.doodream.cutils.Types;
 
 public class ConverterTest {
 
