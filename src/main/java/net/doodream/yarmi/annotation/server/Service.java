@@ -2,12 +2,11 @@ package net.doodream.yarmi.annotation.server;
 
 
 import net.doodream.yarmi.annotation.parameter.AdapterParam;
+import net.doodream.yarmi.net.DefaultNegotiator;
 import net.doodream.yarmi.net.Negotiator;
 import net.doodream.yarmi.net.ServiceAdapter;
-import net.doodream.yarmi.net.SimpleNegotiator;
 import net.doodream.yarmi.net.tcp.TcpServiceAdapter;
 import net.doodream.yarmi.serde.Converter;
-import net.doodream.yarmi.serde.bson.BsonConverter;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -48,7 +47,7 @@ public @interface Service {
      */
     AdapterParam[] params() default {};
 
-    Class<? extends Negotiator> negotiator() default SimpleNegotiator.class;
+    Class<? extends Negotiator> negotiator() default DefaultNegotiator.class;
 
     Class<? extends Converter> converter();
 }

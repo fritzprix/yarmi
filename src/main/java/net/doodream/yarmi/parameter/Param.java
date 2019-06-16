@@ -1,12 +1,13 @@
 package net.doodream.yarmi.parameter;
 
 import net.doodream.yarmi.serde.Converter;
-import net.doodream.yarmi.util.Types;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.doodream.cutils.Types;
 
 /**
  * Created by innocentevil on 18. 5. 4.

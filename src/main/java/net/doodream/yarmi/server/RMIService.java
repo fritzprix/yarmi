@@ -17,7 +17,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.*;
-import java.util.function.Function;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -243,14 +242,11 @@ public class RMIService {
             throw new IOException(String.format(Locale.ENGLISH, "given network (%s) doesn\'t support multicast", networkInterface.getDisplayName()));
         }
 
-        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, network, new Function<Request, Response>() {
-            @Override
-            public Response apply(Request request) {
-                try {
-                    return routeRequest(request);
-                } catch (IllegalAccessException | InvalidResponseException | IOException e) {
-                    return RMIError.INTERNAL_SERVER_ERROR.getResponse();
-                }
+        serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, network, request -> {
+            try {
+                return routeRequest(request);
+            } catch (IllegalAccessException | InvalidResponseException | IOException e) {
+                return RMIError.INTERNAL_SERVER_ERROR.getResponse();
             }
         }));
     }

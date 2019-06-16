@@ -135,43 +135,6 @@ public class ClientSocketAdapter {
         future.cancel(true);
     }
 
-//    Observable<Request> listen() {
-//        Observable<Request> requestObservable = Observable.create(emitter -> {
-//            try {
-//                Request request;
-//                while((request = reader.read(Request.class)) != null) {
-//                    final BlobSession session = request.getSession();
-//                    if(request.hasScm()) {
-//                        // request has session control message, route it to dedicated session
-//                        try {
-//                            // chunk scm is followed by binary stream, must be consumed properly within handleSessionControlMessage
-//                            handleSessionControlMessage(request);
-//                        } catch (IllegalStateException e) {
-//                            // dest. session doesn't exist
-//                            write(Response.error(request.getScm(), e.getMessage(), SCMErrorParam.ErrorType.INVALID_SESSION));
-//                        }
-//                        continue;
-//                    }
-//                    if(session != null) {
-//                        session.init();
-//                        if (sessionRegistry.put(session.getKey(), session) != null) {
-//                            Log.warn("session conflict");
-//                            return;
-//                        }
-//                        Log.debug("session registered {}", session);
-//                        session.start(reader, writer, converter, Response::buildSessionMessageWriter, () -> unregisterSession(session));
-//                        // forward request to transfer session object to application
-//                    }
-//                    emitter.onNext(request);
-//                }
-//                emitter.onComplete();
-//            } catch (IOException e) {
-//                client.close();
-//            }
-//        });
-//        return requestObservable.subscribeOn(Schedulers.io());
-//    }
-
     private void unregisterSession(BlobSession session) {
         if (sessionRegistry.remove(session.getKey()) == null) {
             Log.warn("fail to remove session : session not exists {}", session.getKey());
