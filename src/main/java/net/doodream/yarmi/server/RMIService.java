@@ -234,14 +234,6 @@ public class RMIService {
      * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
      */
     public void listen(InetAddress network) throws IllegalAccessException, IOException, InstantiationException {
-//        NetworkInterface networkInterface = NetworkInterface.getByInetAddress(network);
-//        if(!networkInterface.isUp()) {
-//            throw new IOException(String.format(Locale.ENGLISH, "network (%s) is not up", networkInterface.getDisplayName()));
-//        }
-//        if(!networkInterface.supportsMulticast()) {
-//            throw new IOException(String.format(Locale.ENGLISH, "given network (%s) doesn\'t support multicast", networkInterface.getDisplayName()));
-//        }
-
         serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, network, request -> {
             try {
                 return routeRequest(request);
