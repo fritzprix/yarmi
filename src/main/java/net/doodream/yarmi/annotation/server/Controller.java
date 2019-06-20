@@ -7,5 +7,5 @@ import java.lang.annotation.RetentionPolicy;
 public @interface Controller {
     String path();
     int version();
-    Class module();
+    Class<?> module();
 }
