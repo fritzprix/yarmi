@@ -1,6 +1,6 @@
 package net.doodream.yarmi.test.net.noreply;
 
-import net.doodream.yarmi.model.RMIServiceInfo;
+import net.doodream.yarmi.data.RMIServiceInfo;
 import net.doodream.yarmi.net.ServiceProxy;
 import net.doodream.yarmi.net.ServiceProxyFactory;
 

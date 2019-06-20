@@ -1,7 +1,7 @@
 package net.doodream.yarmi.net.tcp;
 
 
-import net.doodream.yarmi.model.RMIServiceInfo;
+import net.doodream.yarmi.data.RMIServiceInfo;
 import net.doodream.yarmi.net.BaseServiceAdapter;
 import net.doodream.yarmi.net.RMISocket;
 import net.doodream.yarmi.net.ServiceProxyFactory;

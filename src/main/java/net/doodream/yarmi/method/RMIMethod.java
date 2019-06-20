@@ -1,6 +1,10 @@
 package net.doodream.yarmi.method;
 
-import net.doodream.yarmi.annotation.method.*;
+import net.doodream.yarmi.annotation.RMIExpose;
+import net.doodream.yarmi.annotation.method.Delete;
+import net.doodream.yarmi.annotation.method.Get;
+import net.doodream.yarmi.annotation.method.Post;
+import net.doodream.yarmi.annotation.method.Put;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;

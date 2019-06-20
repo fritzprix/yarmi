@@ -1,22 +1,21 @@
 package net.doodream.yarmi.test.service.echoback;
 
-import net.doodream.yarmi.annotation.method.RMIExpose;
-import net.doodream.yarmi.annotation.parameter.Query;
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.annotation.RMIExpose;
+import net.doodream.yarmi.data.Response;
 
 public interface PrimitiveEchoBackController {
 
     @RMIExpose
-    Response<Integer> echoBackInteger(@Query(name = "value") int v);
+    Response<Integer> echoBackInteger(int v);
     @RMIExpose
-    Response<Long> echoBackLong(@Query(name = "value") long v);
+    Response<Long> echoBackLong(long v);
     @RMIExpose
-    Response<Float> echoBackFloat(@Query(name = "value") float v);
+    Response<Float> echoBackFloat(float v);
 
     @RMIExpose
-    Response<Double> echoBackDouble(@Query(name = "value") double v);
+    Response<Double> echoBackDouble(double v);
 
     @RMIExpose
-    Response<Boolean> echoBackBoolean(@Query(name = "value") boolean v);
+    Response<Boolean> echoBackBoolean(boolean v);
 
 }

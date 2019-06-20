@@ -1,9 +1,9 @@
 package net.doodream.yarmi.net;
 
-import net.doodream.yarmi.model.RMIError;
-import net.doodream.yarmi.model.RMIServiceInfo;
-import net.doodream.yarmi.model.Request;
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.data.RMIError;
+import net.doodream.yarmi.data.RMIServiceInfo;
+import net.doodream.yarmi.data.Request;
+import net.doodream.yarmi.data.Response;
 import net.doodream.yarmi.serde.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

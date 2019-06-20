@@ -1,5 +1,6 @@
-package net.doodream.yarmi.model;
+package net.doodream.yarmi.data;
 
+import com.doodream.cutils.Types;
 import net.doodream.yarmi.net.session.BlobSession;
 import net.doodream.yarmi.net.session.SessionCommand;
 import net.doodream.yarmi.net.session.SessionControlMessage;
@@ -14,15 +15,12 @@ import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-import com.doodream.cutils.Types;
-
 /**
  * Created by innocentevil on 18. 5. 4.
  */
 public class Response<T> {
     private static Logger Log = LoggerFactory.getLogger(Response.class);
     public static final int SUCCESS = 200;
-
     private String endpoint;
     private T body;
     private boolean isSuccessful;
@@ -172,7 +170,7 @@ public class Response<T> {
     /**
      * response is generic container and conveys no type information in itself, which means any deserializer
      * would be not able to handle deserialization of the body field, which is generic, properly.
-     * this method is called when response is received from the server by {@link DefaultServiceProxy}
+     * this method is called when response is received from the server by
      *
      * @param converter converter implementation
      * @param type {@link Type} for body content

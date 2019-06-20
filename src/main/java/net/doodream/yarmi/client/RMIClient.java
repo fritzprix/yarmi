@@ -3,11 +3,11 @@ package net.doodream.yarmi.client;
 import net.doodream.yarmi.annotation.RMIException;
 import net.doodream.yarmi.annotation.server.Controller;
 import net.doodream.yarmi.annotation.server.Service;
+import net.doodream.yarmi.data.Endpoint;
+import net.doodream.yarmi.data.RMIError;
+import net.doodream.yarmi.data.RMIServiceInfo;
+import net.doodream.yarmi.data.Response;
 import net.doodream.yarmi.method.RMIMethod;
-import net.doodream.yarmi.model.Endpoint;
-import net.doodream.yarmi.model.RMIError;
-import net.doodream.yarmi.model.RMIServiceInfo;
-import net.doodream.yarmi.model.Response;
 import net.doodream.yarmi.net.ServiceProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,11 +107,6 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
         final RMIServiceInfo serviceInfo = RMIServiceInfo.from(svc);
         final ConcurrentHashMap<Class<?>, Controller> controllerMap  = new ConcurrentHashMap<>();
 
-//        final Set<Field> controllers = Observable.fromArray(svc.getDeclaredFields())
-//                .filter(field -> isAnnotatedWithController(field))
-//                .filter(field -> serviceProxy.provide(field.getType()))
-//                .collectInto(new HashSet<Field>(), (fields, field) -> fields.add(field))
-//                .blockingGet();
         final Set<Field> controllers = getController(svc, serviceProxy);
         if(ctrl == null) {
             // all the controllers declared are added to call proxy, if ctrl is given as null
@@ -154,15 +149,6 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
                 endpointMap.put(validMethod, endpoint);
             }
 
-//            Observable<Endpoint> endpointObservable = Observable.fromIterable(validMethods)
-//                    .map(method -> Endpoint.create(controllerMap.get(method.getDeclaringClass()), method));
-//
-//            Single<HashMap<Method, Endpoint>> hashMapSingle = Observable.fromIterable(validMethods)
-//                    .zipWith(endpointObservable, RMIClient::zipIntoMethodMap)
-//                    .collectInto(new HashMap<>(), RMIClient::collectMethodMap);
-//
-//            rmiClient.setMethodEndpointMap(hashMapSingle.blockingGet());
-
             rmiClient.setMethodEndpointMap(endpointMap);
             // 18. 7. 31 consider give all the available controller interface to the call proxy
             // main concern is...
@@ -195,8 +181,6 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
             }
         }
         return methods;
-//        return Observable.fromArray(cls.getMethods())
-//                .filter(method -> RMIMethod.isValidMethod(method));
     }
 
     private static boolean isAnnotatedWithController(Field field) {

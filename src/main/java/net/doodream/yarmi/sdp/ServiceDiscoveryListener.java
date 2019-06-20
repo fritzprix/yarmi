@@ -1,6 +1,6 @@
 package net.doodream.yarmi.sdp;
 
-import net.doodream.yarmi.model.RMIServiceInfo;
+import net.doodream.yarmi.data.RMIServiceInfo;
 /**
  * @author fritzprix
  */

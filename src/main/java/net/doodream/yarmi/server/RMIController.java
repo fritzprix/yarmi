@@ -2,13 +2,9 @@ package net.doodream.yarmi.server;
 
 
 import net.doodream.yarmi.annotation.server.Controller;
+import net.doodream.yarmi.data.*;
 import net.doodream.yarmi.method.RMIMethod;
-import net.doodream.yarmi.model.Endpoint;
-import net.doodream.yarmi.model.RMIError;
-import net.doodream.yarmi.model.Request;
-import net.doodream.yarmi.model.Response;
 import net.doodream.yarmi.net.session.BlobSession;
-import net.doodream.yarmi.parameter.Param;
 import net.doodream.yarmi.serde.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,22 +97,6 @@ public class RMIController {
             final Endpoint endpoint = Endpoint.create(controller, method);
             RMIController.collectMethod(endpointMap, endpoint);
         }
-//        Observable<Endpoint> endpointObservable = Observable.fromArray(cls.getDeclaredMethods())
-//                .filter(new Predicate<Method>() {
-//                    @Override
-//                    public boolean test(Method method) throws Exception {
-//                        return RMIMethod.isValidMethod(method);
-//                    }
-//                })
-//                .map(new Function<Method, Endpoint>() {
-//                    @Override
-//                    public Endpoint apply(Method method) throws Exception {
-//                        return Endpoint.create(controller, method);
-//                    }
-//                });
-//
-//        Single<HashMap<String, Endpoint>> endpointLookupSingle = endpointObservable
-//                .collectInto(new HashMap<>(), (stringEndpointHashMap, endpoint) -> RMIController.collectMethod(stringEndpointHashMap, endpoint));
 
         return RMIController.builder()
                 .impl(validImpl)
@@ -125,27 +105,6 @@ public class RMIController {
                 .stub(cls)
                 .build();
 
-//        return Observable.just(RMIController.builder())
-//                .map(new Function<Builder, Builder>() {
-//                    @Override
-//                    public Builder apply(Builder builder) throws Exception {
-//                        return builder.impl(validImpl).controller(controller).stub(cls);
-//                    }
-//                })
-//                .zipWith(endpointLookupSingle.toObservable(), new BiFunction<Builder, HashMap<String, Endpoint>, Builder>() {
-//                    @Override
-//                    public Builder apply(Builder builder, HashMap<String, Endpoint> stringEndpointHashMap) throws Exception {
-//                        return builder.endpointMap(stringEndpointHashMap);
-//                    }
-//                })
-//                .map(new Function<Builder, RMIController>() {
-//
-//                    @Override
-//                    public RMIController apply(Builder builder) throws Exception {
-//                        return builder.build();
-//                    }
-//                })
-//                .blockingFirst();
 
     }
 

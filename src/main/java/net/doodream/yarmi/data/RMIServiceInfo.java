@@ -1,7 +1,7 @@
-package net.doodream.yarmi.model;
+package net.doodream.yarmi.data;
 
 import net.doodream.yarmi.Properties;
-import net.doodream.yarmi.annotation.parameter.AdapterParam;
+import net.doodream.yarmi.annotation.AdapterParam;
 import net.doodream.yarmi.annotation.server.Service;
 import net.doodream.yarmi.net.Negotiator;
 import net.doodream.yarmi.net.ServiceAdapter;

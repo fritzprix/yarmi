@@ -1,4 +1,4 @@
-package net.doodream.yarmi.model;
+package net.doodream.yarmi.data;
 
 
 import net.doodream.yarmi.net.ClientSocketAdapter;
@@ -7,7 +7,6 @@ import net.doodream.yarmi.net.ServiceProxy;
 import net.doodream.yarmi.net.session.BlobSession;
 import net.doodream.yarmi.net.session.SessionControlMessage;
 import net.doodream.yarmi.net.session.SessionControlMessageWriter;
-import net.doodream.yarmi.parameter.Param;
 import net.doodream.yarmi.serde.Writer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,14 +80,9 @@ public class Request {
     }
 
     public static SessionControlMessageWriter buildSessionMessageWriter(final Writer writer) {
-        return new SessionControlMessageWriter() {
-            @Override
-            public void write(SessionControlMessage controlMessage) throws IOException {
-                writer.write(Request.builder()
-                        .scm(controlMessage)
-                        .build());
-            }
-        };
+        return controlMessage -> writer.write(Request.builder()
+                .scm(controlMessage)
+                .build());
     }
 
     private static Builder builder() {

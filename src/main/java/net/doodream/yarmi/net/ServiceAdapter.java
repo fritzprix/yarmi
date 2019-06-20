@@ -1,9 +1,9 @@
 package net.doodream.yarmi.net;
 
 
-import net.doodream.yarmi.model.RMIServiceInfo;
-import net.doodream.yarmi.model.Request;
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.data.RMIServiceInfo;
+import net.doodream.yarmi.data.Request;
+import net.doodream.yarmi.data.Response;
 import net.doodream.yarmi.server.RMIService;
 
 import java.io.IOException;
@@ -47,10 +47,15 @@ public interface ServiceAdapter {
      */
     ServiceProxyFactory getProxyFactory(RMIServiceInfo info) throws IllegalAccessException, InstantiationException;
 
+
     /**
-     * server 측 network 연결을 해제하고 모든 resource를 반환
+     * configure service adapter
+     * @param params
      */
     void configure(Map<String, String> params);
 
+    /**
+     * server 측 network 연결을 해제하고 모든 resource 를 반환
+     */
     void close();
 }
