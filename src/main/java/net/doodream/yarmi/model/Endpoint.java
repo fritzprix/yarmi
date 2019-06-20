@@ -1,6 +1,7 @@
 package net.doodream.yarmi.model;
 
 
+import com.doodream.cutils.Types;
 import net.doodream.yarmi.annotation.method.*;
 import net.doodream.yarmi.annotation.server.Controller;
 import net.doodream.yarmi.method.RMIMethod;
@@ -16,11 +17,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import com.doodream.cutils.Types;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -113,7 +111,6 @@ public class Endpoint {
 
 
         final String path = String.format(Locale.ENGLISH, "%s%s", parentPath, rmiMethod.extractPath(method)).replaceAll(DUPLICATE_PATH_SEPARATOR, "/");
-        final AtomicInteger order = new AtomicInteger(0);
         List<Param> params = buildParamList(method);
 
         final String methodLookupKey = String.format("%x%x%x", method.hashCode(), controller.path().hashCode(), unique.hashCode()).toUpperCase();

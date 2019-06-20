@@ -228,7 +228,7 @@ public class RMIServiceInfo {
 
     @Override
     public int hashCode() {
-        return Objects.hash(params, adapter, controllerInfos, name, negotiator, provider, version);
+        return Objects.hash(params, adapter.getName(), name, negotiator.getName(), provider, version, controllerInfos);
     }
 
     @Override

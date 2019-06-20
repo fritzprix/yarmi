@@ -2,6 +2,8 @@ package net.doodream.yarmi.model;
 
 import net.doodream.yarmi.server.RMIController;
 
+import java.util.Objects;
+
 public class ControllerInfo {
     private int version;
     private Class stubCls;
@@ -41,7 +43,7 @@ public class ControllerInfo {
 
     @Override
     public int hashCode() {
-        return version + stubCls.hashCode();
+        return Objects.hash(version, stubCls.getName());
     }
 
     private static Builder builder() {
