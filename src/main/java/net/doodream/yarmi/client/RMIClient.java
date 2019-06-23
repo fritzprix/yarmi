@@ -158,7 +158,7 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
             return rmiClient;
         } catch (Exception e) {
-            Log.error("", e);
+            Log.error("fal to create client : ", e);
             return null;
         }
     }
@@ -189,26 +189,27 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
     /**
      *
-     * @param serviceProxy
+     * @param serviceInfo
      * @param svc
      * @param ctrl
      * @param timeout
      * @param timeUnit
      * @return
      */
-    public static Object create(ServiceProxy serviceProxy, Class<?> svc, Class<?>[] ctrl, long timeout, TimeUnit timeUnit) {
-        return create(serviceProxy, svc, ctrl, timeout);
+    public static Object create(RMIServiceInfo serviceInfo, Class<?> svc, Class<?>[] ctrl, long timeout, TimeUnit timeUnit) {
+        return create(serviceInfo, svc, ctrl, timeout);
     }
 
     /**
      *
-     * @param serviceProxy
+     * @param serviceInfo
      * @param svc
      * @param ctrl
      * @param timeoutInMills
      * @return
      */
-    public static Object create(ServiceProxy serviceProxy, Class<?> svc, Class<?>[] ctrl, long timeoutInMills) {
+    public static Object create(RMIServiceInfo serviceInfo, Class<?> svc, Class<?>[] ctrl, long timeoutInMills) {
+        final ServiceProxy serviceProxy = RMIServiceInfo.toServiceProxy(serviceInfo);
         RMIClient rmiClient = createClient(serviceProxy, svc, ctrl, timeoutInMills);
         if(rmiClient == null) {
             return null;
@@ -218,13 +219,13 @@ public class RMIClient implements InvocationHandler, Comparable<RMIClient>  {
 
     /**
      * create call proxy instance corresponding to given controller class
-     * @param serviceProxy active service proxy which is obtained from the service discovery
+     * @param serviceInfo active service proxy which is obtained from the service discovery
      * @param svc Service definition class
      * @param ctrl controller definition as interface
      * @return call proxy instance for controller
      */
-    public static Object create(ServiceProxy serviceProxy, Class<?> svc, Class<?>[] ctrl) {
-        return create(serviceProxy, svc, ctrl, 0L);
+    public static Object create(RMIServiceInfo serviceInfo, Class<?> svc, Class<?>[] ctrl) {
+        return create(serviceInfo, svc, ctrl, 0L);
     }
 
     @Override

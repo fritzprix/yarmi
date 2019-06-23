@@ -40,9 +40,7 @@ public class ServiceNoReplyTest {
 
     private Object buildNewClient() {
         try {
-            final ServiceProxy proxy = RMIServiceInfo.toServiceProxy(service.getServiceInfo());
-            Assert.assertNotNull(proxy);
-            return RMIClient.create(proxy, NoReplyService.class, new Class[]{
+            return RMIClient.create(service.getServiceInfo(), NoReplyService.class, new Class[]{
                     EchoBackController.class,
             }, 1000L, TimeUnit.MILLISECONDS);
         } catch (Exception e){

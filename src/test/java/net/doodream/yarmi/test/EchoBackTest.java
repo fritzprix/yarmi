@@ -34,7 +34,6 @@ public class EchoBackTest {
         try {
             service = RMIService.create(EchoBackService.class);
             service.listen();
-            proxy = RMIServiceInfo.toServiceProxy(service.getServiceInfo());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -361,7 +360,7 @@ public class EchoBackTest {
 
     private Object buildNewClient() {
 
-        return RMIClient.create(proxy, EchoBackService.class, new Class[]{
+        return RMIClient.create(service.getServiceInfo(), EchoBackService.class, new Class[]{
                 DelayedResponseController.class,
                 EchoBackController.class,
                 PrimitiveEchoBackController.class
