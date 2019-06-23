@@ -1,0 +1,10 @@
+package net.doodream.yarmi.annotation.method;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
+@Deprecated
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Delete {
+    String value();
+}
