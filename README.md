@@ -3,7 +3,7 @@
 RMI (Remote Method Invocation) framework for auto configuring micro service architecture  
  
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/5c9f40d574c64e629af11f284c447bea)](https://www.codacy.com/app/innocentevil0914/yarmi?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fritzprix/yarmi&amp;utm_campaign=Badge_Grade)
-![Travis Badge](https://travis-ci.com/fritzprix/yarmi.svg?branch=master)
+[![Build Status](https://travis-ci.org/fritzprix/yarmi.svg?branch=master)](https://travis-ci.org/fritzprix/yarmi)
 ### Features
 1. Zero configuration for service integration based on RMI and Service Discovery
 1. Simple APIs
