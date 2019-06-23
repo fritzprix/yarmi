@@ -42,7 +42,7 @@ public class ServiceNoReplyTest {
         try {
             return RMIClient.create(service.getServiceInfo(), NoReplyService.class, new Class[]{
                     EchoBackController.class,
-            }, 1000L, TimeUnit.MILLISECONDS);
+            }, 10000L, TimeUnit.MILLISECONDS);
         } catch (Exception e){
             e.printStackTrace();
         }
