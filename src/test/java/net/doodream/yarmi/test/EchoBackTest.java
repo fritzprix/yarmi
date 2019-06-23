@@ -364,6 +364,6 @@ public class EchoBackTest {
                 DelayedResponseController.class,
                 EchoBackController.class,
                 PrimitiveEchoBackController.class
-        }, 1000L, TimeUnit.MILLISECONDS);
+        }, 10000L, TimeUnit.MILLISECONDS);
     }
 }
