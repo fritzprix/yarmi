@@ -15,7 +15,7 @@ RMI (Remote Method Invocation) framework for auto configuring micro service arch
 
 ### How-To
 
-#### Using Maven
+#### Using with Maven
 1. Add Maven Repository
 ```xml
 <repositories>
@@ -49,7 +49,7 @@ RMI (Remote Method Invocation) framework for auto configuring micro service arch
 ```
 
 
-#### Using Gradle
+#### Using with Gradle
 1. Add Repository
 ```groovy
 allprojects {
@@ -71,6 +71,8 @@ dependencies {
 ...
     implementation 'net.doodream:yarmi-core:0.1.1'
     implementation 'net.doodream.yarmi:sdp-mdns:0.1.1'
+    implementation 'org.jmdns:jmdns:3.5.1'
+
 ...
 }
 ```
