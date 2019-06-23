@@ -1,6 +1,6 @@
 package net.doodream.yarmi.annotation;
 
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.data.Response;
 
 public class RMIException extends RuntimeException {
     private int code;

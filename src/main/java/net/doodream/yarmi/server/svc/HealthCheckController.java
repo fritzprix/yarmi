@@ -1,9 +1,9 @@
 package net.doodream.yarmi.server.svc;
 
-import net.doodream.yarmi.annotation.method.Get;
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.annotation.RMIExpose;
+import net.doodream.yarmi.data.Response;
 
 public interface HealthCheckController {
-    @Get("/health/ping")
+    @RMIExpose
     Response<Long> check();
 }

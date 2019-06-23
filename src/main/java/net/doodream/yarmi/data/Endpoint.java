@@ -1,12 +1,14 @@
-package net.doodream.yarmi.model;
+package net.doodream.yarmi.data;
 
 
 import com.doodream.cutils.Types;
-import net.doodream.yarmi.annotation.method.*;
+import net.doodream.yarmi.annotation.RMIExpose;
+import net.doodream.yarmi.annotation.method.Delete;
+import net.doodream.yarmi.annotation.method.Get;
+import net.doodream.yarmi.annotation.method.Post;
+import net.doodream.yarmi.annotation.method.Put;
 import net.doodream.yarmi.annotation.server.Controller;
-import net.doodream.yarmi.method.RMIMethod;
 import net.doodream.yarmi.net.session.BlobSession;
-import net.doodream.yarmi.parameter.Param;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,7 +18,6 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,12 +26,8 @@ import java.util.regex.Pattern;
  */
 
 public class Endpoint {
-    private static final Logger Log = LoggerFactory.getLogger(Endpoint.class);
-    private static final String DUPLICATE_PATH_SEPARATOR = "\\/{2,}";
     private static final Pattern TYPE_PATTERN = Pattern.compile("[^\\<\\>]+\\<([\\s\\S]+)\\>");
 
-    private RMIMethod method;
-    private String path;
     private List<Param> params;
     private String unique;
     transient Method jMethod;
@@ -42,11 +39,6 @@ public class Endpoint {
 
     private static class Builder {
         private final Endpoint endpoint = new Endpoint();
-
-        public Builder method(RMIMethod rmiMethod) {
-            endpoint.method = rmiMethod;
-            return this;
-        }
 
         public Builder params(List<Param> params) {
             endpoint.params = params;
@@ -68,11 +60,6 @@ public class Endpoint {
             return this;
         }
 
-        public Builder path(String path) {
-            endpoint.path = path;
-            return this;
-        }
-
         public Endpoint build() {
             return endpoint;
         }
@@ -84,33 +71,14 @@ public class Endpoint {
         }
 
 
-        Annotation methodAnnotation = getRMIAnnotation(method);
-        final String parentPath = controller.path();
         final String unique = getUniqueSignature(method);
-        RMIMethod rmiMethod = RMIMethod.fromAnnotation(methodAnnotation);
-
         final int blobCount = calcBlobSessionCount(method);
-
-
-//        Single<Long> respBlobObservable = Observable.fromArray(Types.getTypeName(method.getGenericReturnType()))
-//                .map(s -> TYPE_PATTERN.matcher(s))
-//                .filter(matcher -> matcher.matches())
-//                .map(matcher -> matcher.group(1))
-//                .filter(s -> s.contains(BlobSession.class.getName()))
-//                .count();
-//
-//        final Long blobCount = typeObservable
-//                .filter(type -> type.equals(BlobSession.class))
-//                .count()
-//                .zipWith(respBlobObservable, (aLong, aLong2) -> aLong + aLong2)
-//                .blockingGet();
 
         if(blobCount > 1) {
             throw new IllegalArgumentException(String.format("too many(%d) BlobSession in method @ %s", blobCount, method.getName()));
         }
 
 
-        final String path = String.format(Locale.ENGLISH, "%s%s", parentPath, rmiMethod.extractPath(method)).replaceAll(DUPLICATE_PATH_SEPARATOR, "/");
         List<Param> params = buildParamList(method);
 
         final String methodLookupKey = String.format("%x%x%x", method.hashCode(), controller.path().hashCode(), unique.hashCode()).toUpperCase();
@@ -122,12 +90,10 @@ public class Endpoint {
         }
 
         return Endpoint.builder()
-                .method(rmiMethod)
                 .params(params)
                 .jMethod(method)
                 .unwrappedRetType(retType)
                 .unique(methodLookupKey)
-                .path(path)
                 .build();
     }
 
@@ -206,11 +172,6 @@ public class Endpoint {
     public Type getUnwrappedRetType() {
         return unwrappedRetType;
     }
-
-    public void setMethod(RMIMethod method) {
-        this.method = method;
-    }
-
 
     public void setParams(List<Param> params) {
         this.params = params;

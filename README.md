@@ -1,18 +1,15 @@
 <p align="center"><img src="https://s33.postimg.cc/getb2kc33/LOGO_YARMI_Hzt_500px.png"></p>
 
-yarmi is yet-another remote method invocation framework for simple distributed service architecture which provides service discovery mechanism out of the box.
+RMI (Remote Method Invocation) framework for auto configuring micro service architecture  
  
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/5c9f40d574c64e629af11f284c447bea)](https://www.codacy.com/app/innocentevil0914/yarmi?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fritzprix/yarmi&amp;utm_campaign=Badge_Grade)
 ![Travis Badge](https://travis-ci.com/fritzprix/yarmi.svg?branch=master)
 ### Features
+1. Zero configuration for service integration based on RMI and Service Discovery
 1. Simple APIs
 >  discover and request service with just a few API calls
 2. Support large blob as method parameter or response
 > yarmi supports blob exchange between client and server by default with BlobSession which exposes familiar read / write APIs    
-3. Provide service discovery out-of-the-box
-> service discovery is provided out of the box which is not dependent on any other lookup service.
-4. Extensible design
-> yarmi core itself is agnostic to network / messaging / discovery / negotiation implementation.
 
 
 
@@ -39,10 +36,15 @@ yarmi is yet-another remote method invocation framework for simple distributed s
 ```xml
 <dependencies>
         <dependency>
-            <groupId>com.doodream</groupId>
+            <groupId>net.doodream</groupId>
             <artifactId>yarmi-core</artifactId>
-            <version>0.1.0</version>
+            <version>0.1.1</version>
         </dependency>
+            <dependency>
+                <groupId>net.doodream.yarmi</groupId>
+                <artifactId>sdp-mdns</artifactId>
+                <version>0.1.1</version>
+            </dependency>
 </dependencies>
 ```
 
@@ -67,8 +69,8 @@ allprojects {
 ```groovy
 dependencies {
 ...
-    implementation 'com.doodream:yarmi-core:0.1.0'
-    annotationProcessor 'org.projectlombok:lombok:1.16.18'
+    implementation 'net.doodream:yarmi-core:0.1.1'
+    implementation 'net.doodream.yarmi:sdp-mdns:0.1.1'
 ...
 }
 ```
@@ -76,61 +78,20 @@ dependencies {
 #### Build Service (Server)
 1. Declare controller stubs with RMIExpose annotation 
 ```java
-public interface UserIDPController {
+public interface TestController {
 
     @RMIExpose
-    Response<User> getUser(@Path(name = "id") Long userId);
-
-    @RMIExpose
-    Response<User> getUsers();
-
-    @RMIExpose
-    Response<User> createUser(@Body(name = "user") User user);
-    
-    @RMIExpose
-    Response<Long> postThumbnail(@Body(name = "th_nail") BlobSession blob, Long userId);
-
+    Response<String> echo(String message);
 } 
 ```     
 2. Implement Controller 
 ```java
-public class UserIDControllerImpl implements UserIDPController {
+public class TestControllerImpl implements TestController {
 
 
     @Override
-    public Response<User> getUser(Long userId) {
-        ...
-        return Response.success(user, User.class);
-    }
-
-    @Override
-    public Response<User> getUsers() {
-        ...
-    }
-
-    @Override
-    public Response<User> createUser(User user) {
-        ...
-        return Response.success(user, User.class);
-    }
-    
-    @Override
-    public Response<Long> postThumbnail(BlobSession blob, Long userId) {
-        // example save blob as file
-        byte[] rb = new byte[1024];
-        int rsz;
-        try {
-            Session session = blob.open();
-            FileOutputStream fos = new FileOutputStream("thumbnail_" + userId);
-            while((rsz = session.read(rb,0, rb.length)) > 0) {
-                fos.write(rb, 0, rsz);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            fos.close();
-        }
-        return Response.success(userId);    
+    public Response<String> echo(String message) {
+        return Response.success(message);
     }
 }  
 ``` 
@@ -143,8 +104,8 @@ public class UserIDControllerImpl implements UserIDPController {
          })
 public class TestService {
 
-    @Controller(path = "/user", version = 1, module = UserIDControllerImpl.class)
-    UserIDPController userIDPService;
+    @Controller(path = "/test", version = 1, module = TestControllerImpl.class)
+    TestController controller;
 }
 
 ```   
@@ -153,8 +114,8 @@ public class TestService {
 public static class SimpleServer {
     
     public static void main (String[] args) {
-        RMIService service = RMIService.create(TestService.class, new SimpleServiceAdvertiser());
-        service.listen(true);
+        RMIService service = RMIService.create(TestService.class);
+        service.listen();
     }
 }
 ```
@@ -165,52 +126,35 @@ public static class SimpleServer {
 public static class SimpleClient {
     
     public static void main (String[] args) {
-            // build target service information
-            
-            SimpleServiceDiscovery discovery = new SimpleServiceDiscovery();
-            discovery.startDiscovery(TestService.class, new ServiceDiscoveryListener() {
-                @Override
-                public void onDiscovered(RMIServiceInfo info)  {
-                    discoveredService.add(RMIServiceInfo.toServiceProxy(info));
+        // build target service information
+        final ServiceDiscovery discovery = MDnsServiceDiscovery.create();
+        discovery.start(TestService.class, new ServiceDiscoveryListener() {
+            @Override
+            public void onDiscoveryStarted() {
+                // discovery started
+            }
+
+            @Override
+            public void onServiceDiscovered(RMIServiceInfo service) {
+                // new service discovered
+                Object client = RMIClient.create(servce, TestService.class, new Class[] {
+                        TestController.class
+                });
+                // cast client proxy into interface of interest
+                TestController controller = (TestController) client;
+                // and use it 
+                Response<String> response = controller.echo("Hello");
+                if(response.isSucessful()) {
+                    // successfully RMI handled and response received successfully
+                    System.out.println(response.getBody());
                 }
-    
-                @Override
-                public void onDiscoveryStarted() { 
-                    discoveredService = new LinkedList<>();
-                }
-    
-                @Override
-                public void onDiscoveryFinished() {
-                    if(discoveredService == null) {
-                        return;
-                    }
-                    if(discoveredService.size() > 0) {
-                        RMIServiceProxy serviceProxy = discoveredService.get(0);
-                        if(!serviceProxy.provide(UserIDPController.class)) {
-                            // check given controller is provided from the service
-                            return;
-                        }
-                        try {
-                                Object client = RMIClient.create(serviceProxy, TestService.class, UserIDPController.class);
-                                // will be create client-side proxy
-                                 
-                                // and use it just like local instance
-                                UserIDPController userCtr = (UserIDPController) client;
-                                
-                                User user = new User();
-                                user.setName("David");
-        
-                                Response<User> response = userCtr.createUser(user);
-                                assert response.isSuccessful();
-                                
-                            } catch (IllegalAccessException | InstantiationException | IOException e) {
-                                e.printStackTrace();
-                            }    
-                        }
-                        
-                    }
-            });
-            
+            }
+
+            @Override
+            public void onDiscoveryFinished(int i, Throwable throwable) {
+                // service discovery finished
+            }
+        });
     }
 }
 ```

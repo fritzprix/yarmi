@@ -2,9 +2,9 @@ package net.doodream.yarmi.server;
 
 
 import net.doodream.yarmi.Properties;
-import net.doodream.yarmi.annotation.parameter.AdapterParam;
+import net.doodream.yarmi.annotation.AdapterParam;
 import net.doodream.yarmi.annotation.server.Service;
-import net.doodream.yarmi.model.*;
+import net.doodream.yarmi.data.*;
 import net.doodream.yarmi.net.ServiceAdapter;
 import net.doodream.yarmi.net.session.BlobSession;
 import net.doodream.yarmi.serde.Converter;
@@ -15,8 +15,10 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by innocentevil on 18. 5. 4.
@@ -27,10 +29,8 @@ import java.util.*;
  */
 public class RMIService {
 
-    private static Properties properties = new Properties();
     private static final Logger Log = LoggerFactory.getLogger(RMIService.class);
 
-    private Service service;
     private HashMap<String, RMIController> controllerMap;
     private RMIServiceInfo serviceInfo;
     private ServiceAdapter adapter;
@@ -43,11 +43,6 @@ public class RMIService {
 
         public Builder adapter(ServiceAdapter adapter) {
             service.adapter = adapter;
-            return this;
-        }
-
-        public Builder service(Service service) {
-            this.service.service = service;
             return this;
         }
 
@@ -99,8 +94,6 @@ public class RMIService {
 
             adapter.configure(paramAsMap);
 
-
-
             final List<ControllerInfo> controllerInfos = new ArrayList<>();
             final HashMap<String, RMIController> controllerMap = new HashMap<>();
 
@@ -127,58 +120,9 @@ public class RMIService {
             return RMIService.builder()
                     .adapter(adapter)
                     .controllerMap(controllerMap)
-                    .service(service)
                     .converter(converter)
                     .serviceInfo(serviceInfo)
                     .build();
-
-
-//            Observable<RMIController> controllerObservable = Observable.fromArray(cls.getDeclaredFields())
-//                    .filter(new Predicate<Field>() {
-//                        @Override
-//                        public boolean test(Field field) throws Exception {
-//                            return RMIController.isValidController(field);
-//                        }
-//                    })
-//                    .map(new Function<Field, RMIController>() {
-//                        @Override
-//                        public RMIController apply(Field field) throws Exception {
-//                            return RMIController.create(field, controllerImpls);
-//                        }
-//                    })
-//                    .cache();
-
-//            controllerObservable
-//                    .map(new Function<RMIController, ControllerInfo>() {
-//                        @Override
-//                        public ControllerInfo apply(RMIController rmiController) throws Exception {
-//                            return ControllerInfo.build(rmiController);
-//                        }
-//                    })
-//                    .toList()
-//                    .doOnSuccess(new Consumer<List<ControllerInfo>>() {
-//                        @Override
-//                        public void accept(List<ControllerInfo> controllerInfos) throws Exception {
-//                            serviceInfo.setControllerInfos(controllerInfos);
-//                        }
-//                    })
-//                    .subscribe();
-
-
-//            controllerObservable.collectInto(new HashMap<String, RMIController>(), new BiConsumer<HashMap<String, RMIController>, RMIController>() {
-//                @Override
-//                public void accept(HashMap<String, RMIController> stringRMIControllerHashMap, RMIController rmiController) throws Exception {
-//                    RMIService.buildControllerMap(stringRMIControllerHashMap, rmiController);
-//                }
-//            }).doOnSuccess(new Consumer<HashMap<String, RMIController>>() {
-//                @Override
-//                public void accept(HashMap<String, RMIController> controllerMap) throws Exception {
-//                    builder.controllerMap(controllerMap);
-//                }
-//            }).subscribe();
-
-
-
 
         } catch (InstantiationException | IllegalAccessException e) {
             throw new IllegalArgumentException("invalid parameter : no default constructor", e);
@@ -234,14 +178,6 @@ public class RMIService {
      * @throws InstantiationException if dependent class represents an abstract class,an interface, an array class, a primitive type, or void;or if the class has no nullary constructor;
      */
     public void listen(InetAddress network) throws IllegalAccessException, IOException, InstantiationException {
-//        NetworkInterface networkInterface = NetworkInterface.getByInetAddress(network);
-//        if(!networkInterface.isUp()) {
-//            throw new IOException(String.format(Locale.ENGLISH, "network (%s) is not up", networkInterface.getDisplayName()));
-//        }
-//        if(!networkInterface.supportsMulticast()) {
-//            throw new IOException(String.format(Locale.ENGLISH, "given network (%s) doesn\'t support multicast", networkInterface.getDisplayName()));
-//        }
-
         serviceInfo.setProxyFactoryHint(adapter.listen(serviceInfo, network, request -> {
             try {
                 return routeRequest(request);

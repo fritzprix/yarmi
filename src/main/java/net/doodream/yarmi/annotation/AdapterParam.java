@@ -1,8 +1,10 @@
-package net.doodream.yarmi.annotation.method;
+package net.doodream.yarmi.annotation;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RMIExpose {
+public @interface AdapterParam {
+    String key();
+    String value();
 }

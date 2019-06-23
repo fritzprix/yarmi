@@ -1,6 +1,6 @@
 package net.doodream.yarmi.server.svc.impl;
 
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.data.Response;
 import net.doodream.yarmi.server.svc.HealthCheckController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

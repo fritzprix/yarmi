@@ -1,8 +1,8 @@
 package net.doodream.yarmi.net;
 
-import net.doodream.yarmi.model.RMIError;
-import net.doodream.yarmi.model.RMIServiceInfo;
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.data.RMIError;
+import net.doodream.yarmi.data.RMIServiceInfo;
+import net.doodream.yarmi.data.Response;
 import net.doodream.yarmi.serde.Converter;
 import net.doodream.yarmi.serde.Reader;
 import net.doodream.yarmi.serde.Writer;

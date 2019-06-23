@@ -1,8 +1,8 @@
 package net.doodream.yarmi.net;
 
 
-import net.doodream.yarmi.model.Request;
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.data.Request;
+import net.doodream.yarmi.data.Response;
 import net.doodream.yarmi.net.session.BlobSession;
 import net.doodream.yarmi.net.session.SessionControlException;
 import net.doodream.yarmi.net.session.SessionControlMessage;

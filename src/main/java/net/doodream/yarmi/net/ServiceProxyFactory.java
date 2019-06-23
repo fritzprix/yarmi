@@ -1,6 +1,6 @@
 package net.doodream.yarmi.net;
 
-import net.doodream.yarmi.model.RMIServiceInfo;
+import net.doodream.yarmi.data.RMIServiceInfo;
 
 import java.io.IOException;
 

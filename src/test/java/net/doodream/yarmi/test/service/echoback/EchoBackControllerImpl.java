@@ -1,6 +1,6 @@
 package net.doodream.yarmi.test.service.echoback;
 
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.data.Response;
 import net.doodream.yarmi.net.session.BlobSession;
 import net.doodream.yarmi.net.session.Session;
 import net.doodream.yarmi.test.data.ComplexObject;

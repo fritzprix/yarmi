@@ -2,8 +2,8 @@ package net.doodream.yarmi.test;
 
 import net.doodream.yarmi.annotation.RMIException;
 import net.doodream.yarmi.client.RMIClient;
-import net.doodream.yarmi.model.RMIServiceInfo;
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.data.RMIServiceInfo;
+import net.doodream.yarmi.data.Response;
 import net.doodream.yarmi.net.ServiceProxy;
 import net.doodream.yarmi.net.session.BlobSession;
 import net.doodream.yarmi.server.RMIService;
@@ -34,7 +34,6 @@ public class EchoBackTest {
         try {
             service = RMIService.create(EchoBackService.class);
             service.listen();
-            proxy = RMIServiceInfo.toServiceProxy(service.getServiceInfo());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -361,7 +360,7 @@ public class EchoBackTest {
 
     private Object buildNewClient() {
 
-        return RMIClient.create(proxy, EchoBackService.class, new Class[]{
+        return RMIClient.create(service.getServiceInfo(), EchoBackService.class, new Class[]{
                 DelayedResponseController.class,
                 EchoBackController.class,
                 PrimitiveEchoBackController.class

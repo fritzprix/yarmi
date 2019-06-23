@@ -1,7 +1,7 @@
 package net.doodream.yarmi.net;
 
 import net.doodream.yarmi.annotation.RMIException;
-import net.doodream.yarmi.model.*;
+import net.doodream.yarmi.data.*;
 import net.doodream.yarmi.net.session.BlobSession;
 import net.doodream.yarmi.net.session.SessionCommand;
 import net.doodream.yarmi.net.session.SessionControlMessage;

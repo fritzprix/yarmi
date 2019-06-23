@@ -1,6 +1,6 @@
 package net.doodream.yarmi.test.service.echoback;
 
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.data.Response;
 
 public class PrimitiveEchoBackControllerImpl implements PrimitiveEchoBackController {
     @Override

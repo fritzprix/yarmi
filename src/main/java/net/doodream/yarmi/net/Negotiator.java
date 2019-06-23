@@ -1,11 +1,7 @@
 package net.doodream.yarmi.net;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import net.doodream.yarmi.model.RMIServiceInfo;
+import net.doodream.yarmi.data.RMIServiceInfo;
 import net.doodream.yarmi.serde.Converter;
-import net.doodream.yarmi.serde.Reader;
 
 public interface Negotiator {
 

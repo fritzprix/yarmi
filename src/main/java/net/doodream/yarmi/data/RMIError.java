@@ -1,4 +1,4 @@
-package net.doodream.yarmi.model;
+package net.doodream.yarmi.data;
 
 /**
  *

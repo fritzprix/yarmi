@@ -1,6 +1,6 @@
 package net.doodream.yarmi.test.service.echoback;
 
-import net.doodream.yarmi.annotation.parameter.AdapterParam;
+import net.doodream.yarmi.annotation.AdapterParam;
 import net.doodream.yarmi.annotation.server.Controller;
 import net.doodream.yarmi.annotation.server.Service;
 import net.doodream.yarmi.net.tcp.TcpServiceAdapter;

@@ -2,7 +2,7 @@ package net.doodream.yarmi.test;
 
 import net.doodream.yarmi.annotation.RMIException;
 import net.doodream.yarmi.client.RMIClient;
-import net.doodream.yarmi.model.RMIServiceInfo;
+import net.doodream.yarmi.data.RMIServiceInfo;
 import net.doodream.yarmi.net.ServiceProxy;
 import net.doodream.yarmi.server.RMIService;
 import net.doodream.yarmi.test.service.echoback.EchoBackController;
@@ -40,9 +40,7 @@ public class ServiceNoReplyTest {
 
     private Object buildNewClient() {
         try {
-            final ServiceProxy proxy = RMIServiceInfo.toServiceProxy(service.getServiceInfo());
-            Assert.assertNotNull(proxy);
-            return RMIClient.create(proxy, NoReplyService.class, new Class[]{
+            return RMIClient.create(service.getServiceInfo(), NoReplyService.class, new Class[]{
                     EchoBackController.class,
             }, 1000L, TimeUnit.MILLISECONDS);
         } catch (Exception e){

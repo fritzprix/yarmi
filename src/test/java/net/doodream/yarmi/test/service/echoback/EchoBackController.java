@@ -1,9 +1,7 @@
 package net.doodream.yarmi.test.service.echoback;
 
-import net.doodream.yarmi.annotation.method.RMIExpose;
-import net.doodream.yarmi.annotation.parameter.Body;
-import net.doodream.yarmi.annotation.parameter.Query;
-import net.doodream.yarmi.model.Response;
+import net.doodream.yarmi.annotation.RMIExpose;
+import net.doodream.yarmi.data.Response;
 import net.doodream.yarmi.net.session.BlobSession;
 import net.doodream.yarmi.test.data.ComplexObject;
 import net.doodream.yarmi.test.data.User;
@@ -15,39 +13,39 @@ import java.util.Set;
 public interface EchoBackController {
 
     @RMIExpose
-    Response<String> sendMessage(@Query(name = "content") String msg);
+    Response<String> sendMessage(String msg);
 
     @RMIExpose
-    Response<User> sendJavaObject(@Query(name = "user") User user);
+    Response<User> sendJavaObject(User user);
 
     @RMIExpose
-    Response<Map<String, String>> sendMap(@Query(name = "map") Map<String, String> map);
+    Response<Map<String, String>> sendMap(Map<String, String> map);
 
     @RMIExpose
-    Response<List<String>> sendList(@Query(name = "list") List<String> list);
+    Response<List<String>> sendList(List<String> list);
 
     @RMIExpose
-    Response<Set<String>> sendSet(@Query(name = "set") Set<String> set);
+    Response<Set<String>> sendSet(Set<String> set);
 
     @RMIExpose
-    Response<List<User>> sendUserList(@Query(name = "users") List<User> users);
+    Response<List<User>> sendUserList(List<User> users);
 
     @RMIExpose
-    Response<Set<User>> sendUserSet(@Query(name = "users") Set<User> users);
+    Response<Set<User>> sendUserSet(Set<User> users);
 
     @RMIExpose
-    Response<Map<String, User>> sendUserMap(@Query(name = "users") Map<String, User> users);
+    Response<Map<String, User>> sendUserMap(Map<String, User> users);
 
     @RMIExpose
-    Response<ComplexObject> sendComplexObject(@Query(name = "complex") ComplexObject object);
+    Response<ComplexObject> sendComplexObject(ComplexObject object);
 
     @RMIExpose
-    Response<List<ComplexObject>> sendComplexObjectList(@Query(name = "complexes") List<ComplexObject> objects);
+    Response<List<ComplexObject>> sendComplexObjectList(List<ComplexObject> objects);
 
     @RMIExpose
-    Response<Long> sendBlob(@Body BlobSession data);
+    Response<Long> sendBlob(BlobSession data);
 
     @RMIExpose
-    Response<Long> getBlobSize(@Query(name = "id") Long id);
+    Response<Long> getBlobSize(Long id);
 
 }
