@@ -1,25 +1,21 @@
 <p align="center"><img src="https://s33.postimg.cc/getb2kc33/LOGO_YARMI_Hzt_500px.png"></p>
 
-yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing server & client based distributed application within a network of small scale
+RMI (Remote Method Invocation) framework for auto configuring micro service architecture  
  
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/5c9f40d574c64e629af11f284c447bea)](https://www.codacy.com/app/innocentevil0914/yarmi?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fritzprix/yarmi&amp;utm_campaign=Badge_Grade)
-
+![Travis Badge](https://travis-ci.com/fritzprix/yarmi.svg?branch=master)
 ### Features
-1. Support large blob as method parameter or response     
+1. Zero configuration for service integration based on RMI and Service Discovery
+1. Simple APIs
+>  discover and request service with just a few API calls
+2. Support large blob as method parameter or response
 > yarmi supports blob exchange between client and server by default with BlobSession which exposes familiar read / write APIs    
-2. Provide service discovery out-of-the-box
->  yarmi contains simple service discovery feature and also support another type of service discovery (e.g. DNS-SD) as module   
-3. Support various transport  
-> yarmi also provides abstraction over transport layer so it can over any kinds of transport like tcp / ip or bluetooth rfcomm.
-4. Zero-cost migration to (from) RESTful application  
-> Provides conceptual similarity to popular RESTful application framework (like service / controller mapping). 
-> and that means not only the migration from / to RESTful implementation is easy
-> but also implementing proxy for any RESTful service in heterogeneous network scenario (like typical IoT application) is also well supported    
+
 
 
 ### How-To
 
-#### Using Maven
+#### Using with Maven
 1. Add Maven Repository
 ```xml
 <repositories>
@@ -40,88 +36,78 @@ yarmi is yet anotehr RMI based on JSON. it's simple yet powerful when developing
 ```xml
 <dependencies>
         <dependency>
-            <groupId>com.doodream</groupId>
+            <groupId>net.doodream</groupId>
             <artifactId>yarmi-core</artifactId>
-            <version>0.0.4</version>
+            <version>0.1.1</version>
         </dependency>
+            <dependency>
+                <groupId>net.doodream.yarmi</groupId>
+                <artifactId>sdp-mdns</artifactId>
+                <version>0.1.1</version>
+            </dependency>
 </dependencies>
 ```
 
+
+#### Using with Gradle
+1. Add Repository
+```groovy
+allprojects {
+    repositories {
+        ...
+        maven {
+            url 'https://raw.githubusercontent.com/fritzprix/yarmi/releases'
+        }
+        maven {
+            url 'https://raw.githubusercontent.com/fritzprix/yarmi/snapshots'
+        }
+        ...
+    }
+}
+```
+2. Add Dependency
+```groovy
+dependencies {
+...
+    implementation 'net.doodream:yarmi-core:0.1.1'
+    implementation 'net.doodream.yarmi:sdp-mdns:0.1.1'
+    implementation 'org.jmdns:jmdns:3.5.1'
+
+...
+}
+```
+
 #### Build Service (Server)
-1. Declare controller stub in a very similar way doing with Spring REST Controller
+1. Declare controller stubs with RMIExpose annotation 
 ```java
-public interface UserIDPController {
+public interface TestController {
 
-    @Get("/{id}")
-    Response<User> getUser(@Path(name = "id") Long userId);
-
-    @Get("/list")
-    Response<User> getUsers();
-
-    @Post("/new")
-    Response<User> createUser(@Body(name = "user") User user);
-    
-    @Post("/new/thumbnail")
-    Response<Long> postThumbnail(@Body(name = "th_nail") BlobSession blob, Long userId);
-
+    @RMIExpose
+    Response<String> echo(String message);
 } 
 ```     
-2. Implement Controller Stub    
+2. Implement Controller 
 ```java
-public class UserIDControllerImpl implements UserIDPController {
+public class TestControllerImpl implements TestController {
 
-    private HashMap<Long, User> userTable = new HashMap<>();
-
-    @Override
-    public Response<User> getUser(Long userId) {
-        User user = userTable.get(userId);
-        if(user == null) {
-            return null;
-        }
-        return Response.success(user, User.class);
-    }
 
     @Override
-    public Response<User> getUsers() {
-        return null;
-    }
-
-    @Override
-    public Response<User> createUser(User user) {
-        int id = user.hashCode();
-        userTable.put((long) id, user);
-        user.id = (long) id;
-        return Response.success(user, User.class);
-    }
-    
-    @Override
-    public Response<Long> postThumbnail(BlobSession blob, Long userId) {
-        // example save blob as file
-        byte[] rb = new byte[1024];
-        int rsz;
-        try {
-            Session session = blob.open();
-            FileOutputStream fos = new FileOutputStream("thumbnail_" + userId);
-            while((rsz = session.read(rb,0, rb.length)) > 0) {
-                fos.write(rb, 0, rsz);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            fos.close();
-        }
-        return Response.success(userId);    
+    public Response<String> echo(String message) {
+        return Response.success(message);
     }
 }  
 ``` 
 3. Declare your service with route configuration
 ```java
 @Service(name = "test-service",
-        params = {"6644"})
+         provider = "com.example",
+         params = {
+            @AdapterParam(key=TcpServiceAdapter.PARAM_PORT, value = "6644")
+         })
 public class TestService {
 
-    @Controller(path = "/user", version = 1, module = UserIDControllerImpl.class)
-    UserIDPController userIDPService;
+    @Controller(path = "/test", version = 1, module = TestControllerImpl.class)
+    TestController controller;
 }
 
 ```   
@@ -130,9 +116,8 @@ public class TestService {
 public static class SimpleServer {
     
     public static void main (String[] args) {
-        RMIService service = RMIService.create(TestService.class, new SimpleServiceAdvertiser());
-        service.listen(true);
-        // listen will block, you can change the blocking behaviour with the argument
+        RMIService service = RMIService.create(TestService.class);
+        service.listen();
     }
 }
 ```
@@ -143,73 +128,35 @@ public static class SimpleServer {
 public static class SimpleClient {
     
     public static void main (String[] args) {
-            // build target service information
-            
-            SimpleServiceDiscovery discovery = new SimpleServiceDiscovery();
-            discovery.startDiscovery(TestService.class, new ServiceDiscoveryListener() {
-                @Override
-                public void onDiscovered(RMIServiceProxy proxy)  {
-                    discoveredService.add(proxy);
+        // build target service information
+        final ServiceDiscovery discovery = MDnsServiceDiscovery.create();
+        discovery.start(TestService.class, new ServiceDiscoveryListener() {
+            @Override
+            public void onDiscoveryStarted() {
+                // discovery started
+            }
+
+            @Override
+            public void onServiceDiscovered(RMIServiceInfo service) {
+                // new service discovered
+                Object client = RMIClient.create(servce, TestService.class, new Class[] {
+                        TestController.class
+                });
+                // cast client proxy into interface of interest
+                TestController controller = (TestController) client;
+                // and use it 
+                Response<String> response = controller.echo("Hello");
+                if(response.isSucessful()) {
+                    // successfully RMI handled and response received successfully
+                    System.out.println(response.getBody());
                 }
-    
-                @Override
-                public void onDiscoveryStarted() { 
-                    discoveredService = new LinkedList<>();
-                }
-    
-                @Override
-                public void onDiscoveryFinished() {
-                    // pick RMIServiceProxy and create client
-                    if(discoveredService == null) {
-                        return;
-                    }
-                    if(discoveredService.size() > 0) {
-                        RMIServiceProxy serviceProxy = discoveredService.get(0);
-                        if(!serviceProxy.provide(UserIDPController.class)) {
-                            // check given controller is provided from the service
-                            return;
-                        }
-                        try {
-                                UserIDPController userCtr = RMIClient.create(serviceProxy, TestService.class, UserIDPController.class);
-                                // will be create client-side proxy 
-                                // and use it just like simple method call
-                                
-                                User user = new User();
-                                user.setName("David");
-        
-                                Response<User> response = userCtr.createUser(user);
-                                assert response.isSuccessful();
-                                user = response.getBody();
-                                
-                                response = userCtr.getUser(user.getId());
-                                assert response.isSuccessful();
-                                response.getBody();
-                                
-                                // example : upload file as thumbnail images
-                                FileInputStream fis = new FileInputStream("./thumbnail.jpg");
-                                byte[] buffer = new byte[2048];
-                                BlobSession session = new BlobSession(ses -> {
-                                    int rsz;
-                                    try {
-                                        while((rsz = fis.read(buffer)) > 0) {
-                                            ses.write(buffer, rsz);
-                                        }
-                                        ses.close();
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    }
-                                });
-                                Response<Long> thumbResponse = controller.postThumbnail(session, 1L);
-                                assert thumbResponse.isSuccessful();
-                                
-                            } catch (IllegalAccessException | InstantiationException | IOException e) {
-                                e.printStackTrace();
-                            }    
-                        }
-                        
-                    }
-            });
-            
+            }
+
+            @Override
+            public void onDiscoveryFinished(int i, Throwable throwable) {
+                // service discovery finished
+            }
+        });
     }
 }
 ```
