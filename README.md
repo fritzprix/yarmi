@@ -116,8 +116,13 @@ public class TestService {
 public static class SimpleServer {
     
     public static void main (String[] args) {
-        RMIService service = RMIService.create(TestService.class);
+        final RMIService service = RMIService.create(TestService.class);
+        final ServiceRegistry registry = MDnsServiceRegistry.create();
+        
         service.listen();
+        
+        registry.register(service);
+        registry.start();
     }
 }
 ```

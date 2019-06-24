@@ -6,7 +6,7 @@
 
     <groupId>net.doodream</groupId>
     <artifactId>yarmi-core</artifactId>
-    <version>0.1.1-SNAPSHOT</version>
+    <version>0.1.1</version>
 
     <packaging>jar</packaging>
     <properties>
@@ -164,12 +164,6 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>1.7.25</version>
-        </dependency>
-        <dependency>
-            <groupId>net.doodream.yarmi</groupId>
-            <artifactId>converter-json</artifactId>
-            <version>0.1.1</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.doodream</groupId>
