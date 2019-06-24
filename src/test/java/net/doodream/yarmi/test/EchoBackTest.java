@@ -142,7 +142,7 @@ public class EchoBackTest {
     public void testRequestTimeout() throws Exception {
         Object client = buildNewClient();
         DelayedResponseController controller = (DelayedResponseController) client;
-        controller.getDelayedResponse(2000L);
+        controller.getDelayedResponse(6000L);
         RMIClient.destroy(client);
     }
 
@@ -364,6 +364,6 @@ public class EchoBackTest {
                 DelayedResponseController.class,
                 EchoBackController.class,
                 PrimitiveEchoBackController.class
-        }, 10000L, TimeUnit.MILLISECONDS);
+        }, 5000L, TimeUnit.MILLISECONDS);
     }
 }
