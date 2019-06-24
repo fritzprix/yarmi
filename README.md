@@ -113,57 +113,48 @@ public class TestService {
 ```   
 4. Start service & advertise it 
 ```java
-public static class SimpleServer {
+    final RMIService service = RMIService.create(TestService.class);
+    final ServiceRegistry registry = MDnsServiceRegistry.create();
     
-    public static void main (String[] args) {
-        final RMIService service = RMIService.create(TestService.class);
-        final ServiceRegistry registry = MDnsServiceRegistry.create();
-        
-        service.listen();
-        
-        registry.register(service);
-        registry.start();
-    }
-}
+    service.listen();
+    registry.register(service);
+    registry.start();
 ```
 
 #### Build Client
 1. Discover service & create client
 ```java
-public static class SimpleClient {
-    
-    public static void main (String[] args) {
-        // build target service information
-        final ServiceDiscovery discovery = MDnsServiceDiscovery.create();
-        discovery.start(TestService.class, new ServiceDiscoveryListener() {
-            @Override
-            public void onDiscoveryStarted() {
-                // discovery started
-            }
 
-            @Override
-            public void onServiceDiscovered(RMIServiceInfo service) {
-                // new service discovered
-                Object client = RMIClient.create(servce, TestService.class, new Class[] {
-                        TestController.class
-                });
-                // cast client proxy into interface of interest
-                TestController controller = (TestController) client;
-                // and use it 
-                Response<String> response = controller.echo("Hello");
-                if(response.isSucessful()) {
-                    // successfully RMI handled and response received successfully
-                    System.out.println(response.getBody());
-                }
-            }
+    // build target service information
+    final ServiceDiscovery discovery = MDnsServiceDiscovery.create();
+    discovery.start(TestService.class, new ServiceDiscoveryListener() {
+        @Override
+        public void onDiscoveryStarted() {
+            // discovery started
+        }
 
-            @Override
-            public void onDiscoveryFinished(int i, Throwable throwable) {
-                // service discovery finished
+        @Override
+        public void onServiceDiscovered(RMIServiceInfo service) {
+            // new service discovered
+            Object client = RMIClient.create(servce, TestService.class, new Class[] {
+                    TestController.class
+            });
+            // cast client proxy into interface of interest
+            TestController controller = (TestController) client;
+            // and use it 
+            Response<String> response = controller.echo("Hello");
+            if(response.isSucessful()) {
+                // successfully RMI handled and response received successfully
+                System.out.println(response.getBody());
             }
-        });
-    }
-}
+        }
+
+        @Override
+        public void onDiscoveryFinished(int i, Throwable throwable) {
+            // service discovery finished
+        }
+    });
+
 ```
 
 ### License
