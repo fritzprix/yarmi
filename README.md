@@ -1,6 +1,6 @@
-<p align="center"><img src="https://s33.postimg.cc/getb2kc33/LOGO_YARMI_Hzt_500px.png"></p>
 
-RMI (Remote Method Invocation) framework for auto configuring micro service architecture  
+![logo](https://s33.postimg.cc/getb2kc33/LOGO_YARMI_Hzt_500px.png)
+> RMI (Remote Method Invocation) framework supporting service discovery out-of-box among devices within same network considering IOT(internet of device) proof-of-concept project  
  
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/5c9f40d574c64e629af11f284c447bea)](https://www.codacy.com/app/innocentevil0914/yarmi?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=fritzprix/yarmi&amp;utm_campaign=Badge_Grade)
 [![Build Status](https://travis-ci.org/fritzprix/yarmi.svg?branch=master)](https://travis-ci.org/fritzprix/yarmi)
